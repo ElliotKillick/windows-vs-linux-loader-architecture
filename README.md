@@ -107,14 +107,14 @@ The Linux (glibc) ecosystem is different due to system package managers (e.g. `a
 ## Experiments
 
 - Load libraries
-  - We set hardware (write) watchpoints on the `_dl_load_lock` and `_dl_load_write_lock` data then load two libraries to check all the places these locks are acquired
+  - We set hardware (write) watchpoints on the `_dl_load_lock` and `_dl_load_write_lock` data then load two libraries to check how often and where in the code these locks are acquired
   - See the [GDB log](load-library/gdb-log.html)
 - Loading a library from a library constructor (recursive loading)
   - Windows: ✔️
   - Linux: ✔️
 - Spawning a thread then waiting for its termination from a library constructor
   - Windows: ✘ (deadlock)
-    - `CreateThread` then `WaitForSingleObject` on thread handle
+    - `CreateThread` then `WaitForSingleObject` on thread handle from `DllMain`
   - Linux: ✔️
 - Spawning a thread from a library constructor, waiting on the thread's termination, then loading another library in the new thread
   - Windows: ✘ (deadlock)
