@@ -112,7 +112,7 @@ The Linux (glibc) ecosystem is different due to system package managers (e.g. `a
 - Loading a library from a library constructor (recursive loading)
   - Windows: ✔️
   - Linux: ✔️
-- Spawning a thread then waiting for its termination from a library constructor
+- Spawning a thread then waiting for its creation/termination from a library constructor
   - Windows: ✘ (deadlock)
     - `CreateThread` then `WaitForSingleObject` on thread handle from `DllMain`
   - Linux: ✔️
@@ -124,7 +124,7 @@ The Linux (glibc) ecosystem is different due to system package managers (e.g. `a
     - The reason why loader lock must be held while running the consturctor is to, at minimum, protect from a concurrent `dlclose` running a library's destructor (or unloading the library entirely) before its constructor has finished running
     - **Note:** Windows lock hierarchies are much less modular than Linux. In other words, the loader's state may be implictly shared with other Windows components due to the monolithic architecture of the Windows API. Hence, doing [unrelated things](https://learn.microsoft.com/en-us/windows/win32/dlls/dynamic-link-library-best-practices#general-best-practices) that synchronize threads like spawning and waiting on a thread can violate the **greater NTDLL lock hierarchy**. Contrast that with the [Unix philosophy](https://en.wikipedia.org/wiki/Unix_philosophy).
 
-A constructor is the Linux (or standard) equivalent of `DllMain` on Windows.
+A constructor is the Linux (or standard) equivalent to `DllMain` on Windows.
 
 These experiments were simply used to validate my understanding of how loaders, particularly their locking, is architected across platforms.
 
