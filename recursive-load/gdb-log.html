@@ -1,0 +1,105 @@
+This log is from a Debian 11 machine with GNU ld 2.31 (according to ld --version command):
+
+<pre><font color="#4D9A05">gdb</font> <u style="text-decoration-style:single">./main</u>
+Reading symbols from <font color="#4D9A05">./main</font>...
+(No debugging symbols found in <font color="#4D9A05">./main</font>)
+(gdb) run
+Starting program: /home/user/Documents/dlopen-lock/main
+Library 1 loaded successfully!
+
+Program received signal SIGTRAP, Trace/breakpoint trap.
+<font color="#3464A3">0x00007ffff7fc8126</font> in <font color="#C3A000">func</font> () from <font color="#4D9A05">/home/user/Documents/dlopen-lock/lib1.so</font>
+(gdb) gef
+<font color="#4D9A05">GEF</font> for linux ready, type `<font color="#C3A000"><u style="text-decoration-style:single">gef</u></font>&apos; to start, `<font color="#754F7B"><u style="text-decoration-style:single">gef config</u></font>&apos; to configure
+<font color="#89E234"><b>91</b></font> commands loaded for GDB <font color="#FBE84F"><b>10.1.90.20210103-git</b></font> using Python engine <font color="#EF2828"><b>3.9</b></font>
+<font color="#FBE84F"><b>[*]</b></font> <font color="#EF2828"><b>5</b></font> commands could not be loaded, run `<font color="#754F7B"><u style="text-decoration-style:single">gef missing</u></font>` to know why.
+<font color="#89E234"><b>[+]</b></font> Configuration from &apos;<font color="#729ECF"><b>/home/user/.gef.rc</b></font>&apos; restored
+<font color="#89E234"><b>[+]</b></font> <font color="#89E234"><b>35</b></font> extra commands added from &apos;<font color="#729ECF"><b>/home/user/Documents/gef-extras/scripts</b></font>&apos;
+<font color="#89E234"><b>gef➤  </b></font>code 3 1
+<font color="#585858"><b>─────────────────────────────────────────────────────────────────────── </b></font><font color="#05979A">code:x86:64</font><font color="#585858"><b> ────</b></font>
+   <font color="#585858"><b>0x7ffff7fc8125 &lt;func+16&gt;        int3   </b></font>
+ <font color="#4D9A05">→ 0x7ffff7fc8126 &lt;func+17&gt;        mov    esi, 0x1</font>
+   0x7ffff7fc812b &lt;func+22&gt;        lea    rdi, [rip+0xeed]        # 0x7ffff7fc901f
+   0x7ffff7fc8132 &lt;func+29&gt;        call   0x7ffff7fc8030 &lt;dlopen@plt&gt;
+<font color="#585858"><b>────────────────────────────────────────────────────────────────────────────────────────</b></font>
+<font color="#89E234"><b>gef➤  </b></font># ^ We break from constructor of lib1 before doing dlopen on lib2 (using an int3 trap)
+<font color="#89E234"><b>gef➤  </b></font>break rtld_lock_default_lock_recursive
+Breakpoint 1 at <font color="#3464A3">0x7ffff7fd30e0</font>: file <font color="#4D9A05">rtld.c</font>, line 841.
+<font color="#89E234"><b>gef➤  </b></font>break rtld_lock_default_unlock_recursive
+Breakpoint 2 at <font color="#3464A3">0x7ffff7fd30f0</font>: file <font color="#4D9A05">rtld.c</font>, line 847.
+<font color="#89E234"><b>gef➤  </b></font>continue
+Continuing.
+
+Breakpoint 1, <font color="#C3A000">rtld_lock_default_lock_recursive</font> (<font color="#05979A">lock</font>=0x7ffff7ffd968 &lt;_rtld_global+2312&gt;) at <font color="#4D9A05">rtld.c</font>:841
+841	rtld.c: No such file or directory.
+<font color="#89E234"><b>gef➤  </b></font>print _rtld_global._dl_load_lock
+$1 = {
+  <font color="#05979A">mutex</font> = {
+    <font color="#05979A">__data</font> = {
+      <font color="#05979A">__lock</font> = 0x0,
+      <font color="#05979A">__count</font> = 0x1,
+      <font color="#05979A">__owner</font> = 0x0,
+      <font color="#05979A">__nusers</font> = 0x0,
+      <font color="#05979A">__kind</font> = 0x1,
+      <font color="#05979A">__spins</font> = 0x0,
+      <font color="#05979A">__elision</font> = 0x0,
+      <font color="#05979A">__list</font> = {
+        <font color="#05979A">__prev</font> = <font color="#3464A3">0x0</font>,
+        <font color="#05979A">__next</font> = <font color="#3464A3">0x0</font>
+      }
+    },
+    <font color="#05979A">__size</font> = &quot;\000\000\000\000\001&quot;, &apos;\000&apos; &lt;repeats 11 times&gt;, &quot;\001&quot;, &apos;\000&apos; &lt;repeats 22 times&gt;,
+    <font color="#05979A">__align</font> = 0x100000000
+  }
+}
+<font color="#89E234"><b>gef➤  </b></font>print _rtld_global._dl_load_lock.mutex.__data.__count
+$2 = 0x1
+<font color="#89E234"><b>gef➤  </b></font># ^ This count increases/decreases with every loader lock/unlock
+<font color="#89E234"><b>gef➤  </b></font>x/5i rtld_lock_default_lock_recursive
+=&gt; <font color="#3464A3">0x7ffff7fd30e0</font> &lt;<font color="#C3A000">rtld_lock_default_lock_recursive</font>&gt;:	add    DWORD PTR [rdi+0x4],0x1
+   <font color="#3464A3">0x7ffff7fd30e4</font> &lt;<font color="#C3A000">rtld_lock_default_lock_recursive</font>+4&gt;:	ret    
+   <font color="#3464A3">0x7ffff7fd30e5</font>:	data16 nop WORD PTR cs:[rax+rax*1+0x0]
+   <font color="#3464A3">0x7ffff7fd30f0</font> &lt;<font color="#C3A000">rtld_lock_default_unlock_recursive</font>&gt;:	sub    DWORD PTR [rdi+0x4],0x1
+   <font color="#3464A3">0x7ffff7fd30f4</font> &lt;<font color="#C3A000">rtld_lock_default_unlock_recursive</font>+4&gt;:	ret    
+<font color="#89E234"><b>gef➤  </b></font>print lock
+$3 = (void *) <font color="#3464A3">0x7ffff7ffd968</font> &lt;<font color="#C3A000">_rtld_global</font>+2312&gt;
+<font color="#89E234"><b>gef➤  </b></font>x/1wx lock+0x4
+<font color="#3464A3">0x7ffff7ffd96c</font> &lt;<font color="#C3A000">_rtld_global</font>+2316&gt;:	0x00000001
+<font color="#89E234"><b>gef➤  </b></font>x/1wx $rdi+0x4
+<font color="#3464A3">0x7ffff7ffd96c</font> &lt;<font color="#C3A000">_rtld_global</font>+2316&gt;:	0x00000001
+<font color="#89E234"><b>gef➤  </b></font>nexti
+841	in <font color="#4D9A05">rtld.c</font>
+<font color="#89E234"><b>gef➤  </b></font>print _rtld_global._dl_load_lock.mutex.__data.__count
+$4 = 0x2
+<font color="#89E234"><b>gef➤  </b></font>x/1wx lock+0x4
+<font color="#3464A3">0x7ffff7ffd96c</font> &lt;<font color="#C3A000">_rtld_global</font>+2316&gt;:	0x00000002
+<font color="#89E234"><b>gef➤  </b></font>x/1wx $rdi+0x4
+<font color="#3464A3">0x7ffff7ffd96c</font> &lt;<font color="#C3A000">_rtld_global</font>+2316&gt;:	0x00000002
+<font color="#89E234"><b>gef➤  </b></font>backtrace
+#0  <font color="#C3A000">rtld_lock_default_lock_recursive</font> (<font color="#05979A">lock</font>=0x7ffff7ffd968 &lt;_rtld_global+2312&gt;) at <font color="#4D9A05">rtld.c</font>:841
+#1  <font color="#3464A3">0x00007ffff7fe5896</font> in <font color="#C3A000">_dl_open</font> (<font color="#05979A">file</font>=0x7ffff7fc901f &quot;lib2.so&quot;, <font color="#05979A">mode</font>=0x80000001, <font color="#05979A">caller_dlopen</font>=0x7ffff7fc8137 &lt;func+34&gt;, <font color="#05979A">nsid</font>=0xfffffffffffffffe, <font color="#05979A">argc</font>=0x1, <font color="#05979A">argv</font>=0x7fffffffe828, <font color="#05979A">env</font>=0x7fffffffe838) at <font color="#4D9A05">dl-open.c</font>:786
+#2  <font color="#3464A3">0x00007ffff7fa0258</font> in <font color="#C3A000">dlopen_doit</font> (<font color="#05979A">a=a@entry</font>=0x7fffffffe110) at <font color="#4D9A05">dlopen.c</font>:66
+#3  <font color="#3464A3">0x00007ffff7f00a90</font> in <font color="#C3A000">__GI__dl_catch_exception</font> (<font color="#05979A">exception=exception@entry</font>=0x7fffffffe0b0, <font color="#05979A">operate</font>=0x7ffff7fa0200 &lt;dlopen_doit&gt;, <font color="#05979A">args</font>=0x7fffffffe110) at <font color="#4D9A05">dl-error-skeleton.c</font>:208
+#4  <font color="#3464A3">0x00007ffff7f00b4f</font> in <font color="#C3A000">__GI__dl_catch_error</font> (<font color="#05979A">objname</font>=0x7ffff7fa40f0 &lt;last_result+16&gt;, <font color="#05979A">errstring</font>=0x7ffff7fa40f8 &lt;last_result+24&gt;, <font color="#05979A">mallocedp</font>=0x7ffff7fa40e8 &lt;last_result+8&gt;, <font color="#05979A">operate</font>=&lt;optimized out&gt;, <font color="#05979A">args</font>=&lt;optimized out&gt;) at <font color="#4D9A05">dl-error-skeleton.c</font>:227
+#5  <font color="#3464A3">0x00007ffff7fa0a65</font> in <font color="#C3A000">_dlerror_run</font> (<font color="#05979A">operate=operate@entry</font>=0x7ffff7fa0200 &lt;dlopen_doit&gt;, <font color="#05979A">args=args@entry</font>=0x7fffffffe110) at <font color="#4D9A05">dlerror.c</font>:170
+#6  <font color="#3464A3">0x00007ffff7fa02e4</font> in <font color="#C3A000">__dlopen</font> (<font color="#05979A">file</font>=&lt;optimized out&gt;, <font color="#05979A">mode</font>=&lt;optimized out&gt;) at <font color="#4D9A05">dlopen.c</font>:87
+#7  <font color="#3464A3">0x00007ffff7fc8137</font> in <font color="#C3A000">func</font> () from <font color="#4D9A05">/home/user/Documents/dlopen-lock/lib1.so</font>
+#8  <font color="#3464A3">0x00007ffff7fe1fe2</font> in <font color="#C3A000">call_init</font> (<font color="#05979A">l</font>=&lt;optimized out&gt;, <font color="#05979A">argc=argc@entry</font>=0x1, <font color="#05979A">argv=argv@entry</font>=0x7fffffffe828, <font color="#05979A">env=env@entry</font>=0x7fffffffe838) at <font color="#4D9A05">dl-init.c</font>:72
+#9  <font color="#3464A3">0x00007ffff7fe20e9</font> in <font color="#C3A000">call_init</font> (<font color="#05979A">env</font>=0x7fffffffe838, <font color="#05979A">argv</font>=0x7fffffffe828, <font color="#05979A">argc</font>=0x1, <font color="#05979A">l</font>=&lt;optimized out&gt;) at <font color="#4D9A05">dl-init.c</font>:30
+#10 <font color="#C3A000">_dl_init</font> (<font color="#05979A">main_map</font>=0x5555555592e0, <font color="#05979A">argc</font>=0x1, <font color="#05979A">argv</font>=0x7fffffffe828, <font color="#05979A">env</font>=0x7fffffffe838) at <font color="#4D9A05">dl-init.c</font>:119
+#11 <font color="#3464A3">0x00007ffff7f00aed</font> in <font color="#C3A000">__GI__dl_catch_exception</font> (<font color="#05979A">exception</font>=&lt;optimized out&gt;, <font color="#05979A">operate</font>=&lt;optimized out&gt;, <font color="#05979A">args</font>=&lt;optimized out&gt;) at <font color="#4D9A05">dl-error-skeleton.c</font>:182
+#12 <font color="#3464A3">0x00007ffff7fe6058</font> in <font color="#C3A000">dl_open_worker</font> (<font color="#05979A">a=a@entry</font>=0x7fffffffe4d0) at <font color="#4D9A05">dl-open.c</font>:758
+#13 <font color="#3464A3">0x00007ffff7f00a90</font> in <font color="#C3A000">__GI__dl_catch_exception</font> (<font color="#05979A">exception</font>=0x7fffffffe4b0, <font color="#05979A">operate</font>=0x7ffff7fe5ca0 &lt;dl_open_worker&gt;, <font color="#05979A">args</font>=0x7fffffffe4d0) at <font color="#4D9A05">dl-error-skeleton.c</font>:208
+#14 <font color="#3464A3">0x00007ffff7fe58fa</font> in <font color="#C3A000">_dl_open</font> (<font color="#05979A">file</font>=0x555555556014 &quot;lib1.so&quot;, <font color="#05979A">mode</font>=0x80000001, <font color="#05979A">caller_dlopen</font>=0x55555555516d &lt;main+21&gt;, <font color="#05979A">nsid</font>=0xfffffffffffffffe, <font color="#05979A">argc</font>=0x1, <font color="#05979A">argv</font>=0x7fffffffe4b0, <font color="#05979A">env</font>=0x7fffffffe838) at <font color="#4D9A05">dl-open.c</font>:837
+#15 <font color="#3464A3">0x00007ffff7fa0258</font> in <font color="#C3A000">dlopen_doit</font> (<font color="#05979A">a=a@entry</font>=0x7fffffffe6f0) at <font color="#4D9A05">dlopen.c</font>:66
+#16 <font color="#3464A3">0x00007ffff7f00a90</font> in <font color="#C3A000">__GI__dl_catch_exception</font> (<font color="#05979A">exception=exception@entry</font>=0x7fffffffe690, <font color="#05979A">operate</font>=0x7ffff7fa0200 &lt;dlopen_doit&gt;, <font color="#05979A">args</font>=0x7fffffffe6f0) at <font color="#4D9A05">dl-error-skeleton.c</font>:208
+#17 <font color="#3464A3">0x00007ffff7f00b4f</font> in <font color="#C3A000">__GI__dl_catch_error</font> (<font color="#05979A">objname</font>=0x7ffff7fa40f0 &lt;last_result+16&gt;, <font color="#05979A">errstring</font>=0x7ffff7fa40f8 &lt;last_result+24&gt;, <font color="#05979A">mallocedp</font>=0x7ffff7fa40e8 &lt;last_result+8&gt;, <font color="#05979A">operate</font>=&lt;optimized out&gt;, <font color="#05979A">args</font>=&lt;optimized out&gt;) at <font color="#4D9A05">dl-error-skeleton.c</font>:227
+#18 <font color="#3464A3">0x00007ffff7fa0a65</font> in <font color="#C3A000">_dlerror_run</font> (<font color="#05979A">operate=operate@entry</font>=0x7ffff7fa0200 &lt;dlopen_doit&gt;, <font color="#05979A">args=args@entry</font>=0x7fffffffe6f0) at <font color="#4D9A05">dlerror.c</font>:170
+#19 <font color="#3464A3">0x00007ffff7fa02e4</font> in <font color="#C3A000">__dlopen</font> (<font color="#05979A">file</font>=&lt;optimized out&gt;, <font color="#05979A">mode</font>=&lt;optimized out&gt;) at <font color="#4D9A05">dlopen.c</font>:87
+#20 <font color="#3464A3">0x000055555555516d</font> in <font color="#C3A000">main</font> ()
+<font color="#89E234"><b>gef➤  </b></font>delete breakpoints 1 2
+<font color="#89E234"><b>gef➤  </b></font>continue
+Continuing.
+Library 2 loaded successfully from constructor of Library 1!
+[Inferior 1 (process 12003) exited normally]
+<font color="#89E234"><b>gef➤  </b></font>exit</pre>

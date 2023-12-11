@@ -1,0 +1,796 @@
+This log is taken starting from the main function. We set a watchpoint to on dl_load_lock and dl_write_lock to monitor where locks and unlocks occur. This is a Fedora 38 machine with GNU ld 2.39 (according to ld --version command):
+<br><br>
+NOTE: There are a few places where the Glibc calls __rtld_lock_unlock_recursive but you don't see it in the call stack upon doing "up" (in the call stack) and "list" (show source code) because it was optimized out with a tail call. Unlocks are usually done at the end of a funciton so they may be optimized out like this. Glibc still runs __rtld_lock_unlock_recursive but it's jumped (jmp instruction) to instead of called (call instruction) thus improving performance.
+<br><br>
+I've confirmed the tail call by looking at the end of _dl_add_to_namespace_list where it jumps to ___rtld_mutex_unlock then lets it return (ret instruction) instead of _dl_add_to_namespace_list returning itself:
+
+<pre>=&gt; <span style="color:#3464A3">0x7ffff7fd556f</span> &lt;<span style="color:#C3A000">_dl_add_to_namespace_list</span>+143&gt;:	<span style="color:#4D9A05">add    </span><span style="color:#3464A3">$0x8</span>,<span style="color:#CC0000">%rsp</span>
+   <span style="color:#3464A3">0x7ffff7fd5573</span> &lt;<span style="color:#C3A000">_dl_add_to_namespace_list</span>+147&gt;:	<span style="color:#4D9A05">pop    </span><span style="color:#CC0000">%rbx</span>
+   <span style="color:#3464A3">0x7ffff7fd5574</span> &lt;<span style="color:#C3A000">_dl_add_to_namespace_list</span>+148&gt;:	<span style="color:#4D9A05">pop    </span><span style="color:#CC0000">%r12</span>
+   <span style="color:#3464A3">0x7ffff7fd5576</span> &lt;<span style="color:#C3A000">_dl_add_to_namespace_list</span>+150&gt;:	<span style="color:#4D9A05">pop    </span><span style="color:#CC0000">%r13</span>
+   <span style="color:#3464A3">0x7ffff7fd5578</span> &lt;<span style="color:#C3A000">_dl_add_to_namespace_list</span>+152&gt;:	<span style="color:#4D9A05">pop    </span><span style="color:#CC0000">%rbp</span>
+   <span style="color:#3464A3">0x7ffff7fd5579</span> &lt;<span style="color:#C3A000">_dl_add_to_namespace_list</span>+153&gt;:	
+    <span style="color:#4D9A05">jmp    </span>*<span style="color:#3464A3">0x274d1</span>(<span style="color:#CC0000">%rip</span>)<span style="color:#8D8F8A">        # 0x7ffff7ffca50 &lt;___rtld_mutex_unlock&gt;</span>
+</pre>
+
+<pre><span style="color:#4D9A05">gdb</span> <u style="text-decoration-style:single">./main</u>
+Reading symbols from <span style="color:#4D9A05">./main</span>...
+(gdb) break main
+Breakpoint 1 at <span style="color:#3464A3">0x40112a</span>: file <span style="color:#4D9A05">main.c</span>, line 4.
+(gdb) run
+Starting program: <span style="color:#4D9A05">/home/user/QubesIncoming/lab-bin/load-library/main</span> 
+[Thread debugging using libthread_db enabled]                                                                       
+Using host libthread_db library &quot;<span style="color:#4D9A05">/lib64/libthread_db.so.1</span>&quot;.
+
+Breakpoint 1, <span style="color:#C3A000">main</span> () at <span style="color:#4D9A05">main.c</span>:4
+4	    <b>dlopen</b><span style="color:#CC0000">(&quot;lib1.so&quot;,</span> RTLD_LAZY<span style="color:#CC0000">);</span>
+(gdb) list
+1	<span style="color:#729ECF"><b>#include</b></span> <span style="color:#CC0000">&lt;dlfcn.h&gt;</span>
+2	
+3	<span style="color:#4D9A05">int</span> <b>main</b><span style="color:#CC0000">()</span> <span style="color:#CC0000">{</span>
+4	    <b>dlopen</b><span style="color:#CC0000">(&quot;lib1.so&quot;,</span> RTLD_LAZY<span style="color:#CC0000">);</span>
+5	    <b>dlopen</b><span style="color:#CC0000">(&quot;lib2.so&quot;,</span> RTLD_LAZY<span style="color:#CC0000">);</span>
+6	<span style="color:#CC0000">}</span>
+(gdb) set print pretty
+(gdb) print _rtld_global
+$1 = {
+  <span style="color:#05979A">_dl_ns</span> = {{
+      <span style="color:#05979A">_ns_loaded</span> = <span style="color:#3464A3">0x7ffff7ffe2d0</span>,
+      <span style="color:#05979A">_ns_nloaded</span> = 4,
+      <span style="color:#05979A">_ns_main_searchlist</span> = <span style="color:#3464A3">0x7ffff7ffe5a8</span>,
+      <span style="color:#05979A">_ns_global_scope_alloc</span> = 0,
+      <span style="color:#05979A">_ns_global_scope_pending_adds</span> = 0,
+      <span style="color:#05979A">libc_map</span> = <span style="color:#3464A3">0x7ffff7fc2090</span>,
+      <span style="color:#05979A">_ns_unique_sym_table</span> = {
+        <span style="color:#05979A">lock</span> = {
+          <span style="color:#05979A">mutex</span> = {
+            <span style="color:#05979A">__data</span> = {
+              <span style="color:#05979A">__lock</span> = 0,
+              <span style="color:#05979A">__count</span> = 0,
+              <span style="color:#05979A">__owner</span> = 0,
+              <span style="color:#05979A">__nusers</span> = 0,
+              <span style="color:#05979A">__kind</span> = 1,
+              <span style="color:#05979A">__spins</span> = 0,
+              <span style="color:#05979A">__elision</span> = 0,
+              <span style="color:#05979A">__list</span> = {
+                <span style="color:#05979A">__prev</span> = <span style="color:#3464A3">0x0</span>,
+                <span style="color:#05979A">__next</span> = <span style="color:#3464A3">0x0</span>
+              }
+            },
+            <span style="color:#05979A">__size</span> = &apos;\000&apos; &lt;repeats 16 times&gt;, &quot;\001&quot;, &apos;\000&apos; &lt;repeats 22 times&gt;,
+            <span style="color:#05979A">__align</span> = 0
+          }
+        },
+        <span style="color:#05979A">entries</span> = <span style="color:#3464A3">0x0</span>,
+        <span style="color:#05979A">size</span> = 0,
+        <span style="color:#05979A">n_elements</span> = 0,
+        <span style="color:#05979A">free</span> = <span style="color:#3464A3">0x0</span>
+      },
+      <span style="color:#05979A">_ns_debug</span> = {
+        <span style="color:#05979A">base</span> = {
+          <span style="color:#05979A">r_version</span> = 0,
+          <span style="color:#05979A">r_map</span> = <span style="color:#3464A3">0x0</span>,
+          <span style="color:#05979A">r_brk</span> = 0,
+          <span style="color:#05979A">r_state</span> = <span style="color:#05979A">RT_CONSISTENT</span>,
+          <span style="color:#05979A">r_ldbase</span> = 0
+        },
+        <span style="color:#05979A">r_next</span> = <span style="color:#3464A3">0x0</span>
+      }
+    }, {
+      <span style="color:#05979A">_ns_loaded</span> = <span style="color:#3464A3">0x0</span>,
+      <span style="color:#05979A">_ns_nloaded</span> = 0,
+      <span style="color:#05979A">_ns_main_searchlist</span> = <span style="color:#3464A3">0x0</span>,
+      <span style="color:#05979A">_ns_global_scope_alloc</span> = 0,
+      <span style="color:#05979A">_ns_global_scope_pending_adds</span> = 0,
+      <span style="color:#05979A">libc_map</span> = <span style="color:#3464A3">0x0</span>,
+      <span style="color:#05979A">_ns_unique_sym_table</span> = {
+        <span style="color:#05979A">lock</span> = {
+          <span style="color:#05979A">mutex</span> = {
+            <span style="color:#05979A">__data</span> = {
+              <span style="color:#05979A">__lock</span> = 0,
+              <span style="color:#05979A">__count</span> = 0,
+              <span style="color:#05979A">__owner</span> = 0,
+              <span style="color:#05979A">__nusers</span> = 0,
+              <span style="color:#05979A">__kind</span> = 0,
+              <span style="color:#05979A">__spins</span> = 0,
+              <span style="color:#05979A">__elision</span> = 0,
+              <span style="color:#05979A">__list</span> = {
+                <span style="color:#05979A">__prev</span> = <span style="color:#3464A3">0x0</span>,
+                <span style="color:#05979A">__next</span> = <span style="color:#3464A3">0x0</span>
+              }
+            },
+            <span style="color:#05979A">__size</span> = &apos;\000&apos; &lt;repeats 39 times&gt;,
+            <span style="color:#05979A">__align</span> = 0
+          }
+        },
+        <span style="color:#05979A">entries</span> = <span style="color:#3464A3">0x0</span>,
+        <span style="color:#05979A">size</span> = 0,
+        <span style="color:#05979A">n_elements</span> = 0,
+        <span style="color:#05979A">free</span> = <span style="color:#3464A3">0x0</span>
+      },
+      <span style="color:#05979A">_ns_debug</span> = {
+        <span style="color:#05979A">base</span> = {
+          <span style="color:#05979A">r_version</span> = 0,
+          <span style="color:#05979A">r_map</span> = <span style="color:#3464A3">0x0</span>,
+          <span style="color:#05979A">r_brk</span> = 0,
+          <span style="color:#05979A">r_state</span> = <span style="color:#05979A">RT_CONSISTENT</span>,
+          <span style="color:#05979A">r_ldbase</span> = 0
+        },
+        <span style="color:#05979A">r_next</span> = <span style="color:#3464A3">0x0</span>
+      }
+    } &lt;repeats 15 times&gt;},
+  <span style="color:#05979A">_dl_nns</span> = 1,
+  <span style="color:#05979A">_dl_load_lock</span> = {
+    <span style="color:#05979A">mutex</span> = {
+      <span style="color:#05979A">__data</span> = {
+        <span style="color:#05979A">__lock</span> = 0,
+        <span style="color:#05979A">__count</span> = 0,
+        <span style="color:#05979A">__owner</span> = 0,
+        <span style="color:#05979A">__nusers</span> = 0,
+        <span style="color:#05979A">__kind</span> = 1,
+        <span style="color:#05979A">__spins</span> = 0,
+        <span style="color:#05979A">__elision</span> = 0,
+        <span style="color:#05979A">__list</span> = {
+          <span style="color:#05979A">__prev</span> = <span style="color:#3464A3">0x0</span>,
+          <span style="color:#05979A">__next</span> = <span style="color:#3464A3">0x0</span>
+        }
+      },
+      <span style="color:#05979A">__size</span> = &apos;\000&apos; &lt;repeats 16 times&gt;, &quot;\001&quot;, &apos;\000&apos; &lt;repeats 22 times&gt;,
+      <span style="color:#05979A">__align</span> = 0
+    }
+  },
+  <span style="color:#05979A">_dl_load_write_lock</span> = {
+    <span style="color:#05979A">mutex</span> = {
+      <span style="color:#05979A">__data</span> = {
+        <span style="color:#05979A">__lock</span> = 0,
+        <span style="color:#05979A">__count</span> = 0,
+        <span style="color:#05979A">__owner</span> = 0,
+        <span style="color:#05979A">__nusers</span> = 0,
+        <span style="color:#05979A">__kind</span> = 1,
+        <span style="color:#05979A">__spins</span> = 0,
+        <span style="color:#05979A">__elision</span> = 0,
+        <span style="color:#05979A">__list</span> = {
+          <span style="color:#05979A">__prev</span> = <span style="color:#3464A3">0x0</span>,
+          <span style="color:#05979A">__next</span> = <span style="color:#3464A3">0x0</span>
+        }
+      },
+      <span style="color:#05979A">__size</span> = &apos;\000&apos; &lt;repeats 16 times&gt;, &quot;\001&quot;, &apos;\000&apos; &lt;repeats 22 times&gt;,
+      <span style="color:#05979A">__align</span> = 0
+    }
+  },
+  <span style="color:#05979A">_dl_load_tls_lock</span> = {
+    <span style="color:#05979A">mutex</span> = {
+      <span style="color:#05979A">__data</span> = {
+        <span style="color:#05979A">__lock</span> = 0,
+        <span style="color:#05979A">__count</span> = 0,
+        <span style="color:#05979A">__owner</span> = 0,
+        <span style="color:#05979A">__nusers</span> = 0,
+        <span style="color:#05979A">__kind</span> = 1,
+        <span style="color:#05979A">__spins</span> = 0,
+        <span style="color:#05979A">__elision</span> = 0,
+        <span style="color:#05979A">__list</span> = {
+          <span style="color:#05979A">__prev</span> = <span style="color:#3464A3">0x0</span>,
+          <span style="color:#05979A">__next</span> = <span style="color:#3464A3">0x0</span>
+        }
+      },
+      <span style="color:#05979A">__size</span> = &apos;\000&apos; &lt;repeats 16 times&gt;, &quot;\001&quot;, &apos;\000&apos; &lt;repeats 22 times&gt;,
+      <span style="color:#05979A">__align</span> = 0
+    }
+  },
+  <span style="color:#05979A">_dl_load_adds</span> = 4,
+  <span style="color:#05979A">_dl_initfirst</span> = <span style="color:#3464A3">0x0</span>,
+  <span style="color:#05979A">_dl_profile_map</span> = <span style="color:#3464A3">0x0</span>,
+  <span style="color:#05979A">_dl_num_relocations</span> = 93,
+  <span style="color:#05979A">_dl_num_cache_relocations</span> = 7,
+  <span style="color:#05979A">_dl_all_dirs</span> = <span style="color:#3464A3">0x7ffff7fc2000</span>,
+  <span style="color:#05979A">_dl_rtld_map</span> = {
+    <span style="color:#05979A">l_addr</span> = 140737353916416,
+    <span style="color:#05979A">l_name</span> = <span style="color:#3464A3">0x400318</span> &quot;/lib64/ld-linux-x86-64.so.2&quot;,
+    <span style="color:#05979A">l_ld</span> = <span style="color:#3464A3">0x7ffff7ffce40</span>,
+    <span style="color:#05979A">l_next</span> = <span style="color:#3464A3">0x0</span>,
+    <span style="color:#05979A">l_prev</span> = <span style="color:#3464A3">0x7ffff7fc2090</span>,
+    <span style="color:#05979A">l_real</span> = <span style="color:#3464A3">0x7ffff7ffdab0</span> &lt;<span style="color:#C3A000">_rtld_local</span>+2736&gt;,
+    <span style="color:#05979A">l_ns</span> = 0,
+    <span style="color:#05979A">l_libname</span> = <span style="color:#3464A3">0x7ffff7ffe270</span> &lt;<span style="color:#C3A000">_dl_rtld_libname</span>&gt;,
+    <span style="color:#05979A">l_info</span> = {<span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x7ffff7ffce50</span>, <span style="color:#3464A3">0x7ffff7ffce70</span>, <span style="color:#3464A3">0x7ffff7ffce80</span>, <span style="color:#3464A3">0x7ffff7ffceb0</span>, <span style="color:#3464A3">0x7ffff7ffcec0</span>, 
+      <span style="color:#3464A3">0x7ffff7ffced0</span>, <span style="color:#3464A3">0x7ffff7ffce90</span>, <span style="color:#3464A3">0x7ffff7ffcea0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x7ffff7ffce40</span>, <span style="color:#3464A3">0x0</span> &lt;repeats 15 times&gt;, 
+      <span style="color:#3464A3">0x7ffff7ffcf00</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x7ffff7ffcf40</span>, <span style="color:#3464A3">0x7ffff7ffcf30</span>, <span style="color:#3464A3">0x7ffff7ffcf50</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, 
+      <span style="color:#3464A3">0x7ffff7ffcef0</span>, <span style="color:#3464A3">0x7ffff7ffcee0</span>, <span style="color:#3464A3">0x7ffff7ffcf10</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, 
+      <span style="color:#3464A3">0x7ffff7ffcf20</span>, <span style="color:#3464A3">0x0</span> &lt;repeats 25 times&gt;, <span style="color:#3464A3">0x7ffff7ffce60</span>},
+    <span style="color:#05979A">l_phdr</span> = <span style="color:#3464A3">0x7ffff7fca040</span>,
+    <span style="color:#05979A">l_entry</span> = 0,
+    <span style="color:#05979A">l_phnum</span> = 11,
+    <span style="color:#05979A">l_ldnum</span> = 0,
+    <span style="color:#05979A">l_searchlist</span> = {
+      <span style="color:#05979A">r_list</span> = <span style="color:#3464A3">0x0</span>,
+      <span style="color:#05979A">r_nlist</span> = 0
+    },
+    <span style="color:#05979A">l_symbolic_searchlist</span> = {
+      <span style="color:#05979A">r_list</span> = <span style="color:#3464A3">0x0</span>,
+      <span style="color:#05979A">r_nlist</span> = 0
+    },
+    <span style="color:#05979A">l_loader</span> = <span style="color:#3464A3">0x0</span>,
+    <span style="color:#05979A">l_versions</span> = <span style="color:#3464A3">0x7ffff7fc2aa0</span>,
+    <span style="color:#05979A">l_nversions</span> = 8,
+    <span style="color:#05979A">l_nbuckets</span> = 37,
+    <span style="color:#05979A">l_gnu_bitmask_idxbits</span> = 3,
+    <span style="color:#05979A">l_gnu_shift</span> = 8,
+    <span style="color:#05979A">l_gnu_bitmask</span> = <span style="color:#3464A3">0x7ffff7fca458</span>,
+    {
+      <span style="color:#05979A">l_gnu_buckets</span> = <span style="color:#3464A3">0x7ffff7fca478</span>,
+      <span style="color:#05979A">l_chain</span> = <span style="color:#3464A3">0x7ffff7fca478</span>
+    },
+    {
+      <span style="color:#05979A">l_gnu_chain_zero</span> = <span style="color:#3464A3">0x7ffff7fca508</span>,
+      <span style="color:#05979A">l_buckets</span> = <span style="color:#3464A3">0x7ffff7fca508</span>
+    },
+    <span style="color:#05979A">l_direct_opencount</span> = 0,
+    <span style="color:#05979A">l_type</span> = <span style="color:#05979A">lt_library</span>,
+    <span style="color:#05979A">l_dt_relr_ref</span> = 0,
+    <span style="color:#05979A">l_relocated</span> = 1,
+    <span style="color:#05979A">l_init_called</span> = 1,
+    <span style="color:#05979A">l_global</span> = 1,
+    <span style="color:#05979A">l_reserved</span> = 0,
+    <span style="color:#05979A">l_main_map</span> = 0,
+    <span style="color:#05979A">l_visited</span> = 1,
+    <span style="color:#05979A">l_map_used</span> = 1,
+    <span style="color:#05979A">l_map_done</span> = 0,
+    <span style="color:#05979A">l_phdr_allocated</span> = 0,
+    <span style="color:#05979A">l_soname_added</span> = 0,
+    <span style="color:#05979A">l_faked</span> = 0,
+    <span style="color:#05979A">l_need_tls_init</span> = 0,
+    <span style="color:#05979A">l_auditing</span> = 0,
+    <span style="color:#05979A">l_audit_any_plt</span> = 0,
+    <span style="color:#05979A">l_removed</span> = 0,
+    <span style="color:#05979A">l_contiguous</span> = 0,
+    <span style="color:#05979A">l_free_initfini</span> = 0,
+    <span style="color:#05979A">l_ld_readonly</span> = 0,
+    <span style="color:#05979A">l_find_object_processed</span> = 0,
+    <span style="color:#05979A">l_nodelete_active</span> = false,
+    <span style="color:#05979A">l_nodelete_pending</span> = false,
+    <span style="color:#05979A">l_property</span> = <span style="color:#05979A">lc_property_unknown</span>,
+    <span style="color:#05979A">l_x86_feature_1_and</span> = 0,
+    <span style="color:#05979A">l_x86_isa_1_needed</span> = 0,
+    <span style="color:#05979A">l_1_needed</span> = 0,
+    <span style="color:#05979A">l_rpath_dirs</span> = {
+      <span style="color:#05979A">dirs</span> = <span style="color:#3464A3">0x0</span>,
+      <span style="color:#05979A">malloced</span> = 0
+    },
+    <span style="color:#05979A">l_reloc_result</span> = <span style="color:#3464A3">0x0</span>,
+    <span style="color:#05979A">l_versyms</span> = <span style="color:#3464A3">0x7ffff7fcac02</span>,
+    <span style="color:#05979A">l_origin</span> = <span style="color:#3464A3">0x0</span>,
+    <span style="color:#05979A">l_map_start</span> = 140737353916416,
+    <span style="color:#05979A">l_map_end</span> = 140737354130120,
+    <span style="color:#05979A">l_init_called_next</span> = <span style="color:#3464A3">0x0</span>,
+    <span style="color:#05979A">l_scope_mem</span> = {<span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>},
+    <span style="color:#05979A">l_scope_max</span> = 0,
+    <span style="color:#05979A">l_scope</span> = <span style="color:#3464A3">0x0</span>,
+    <span style="color:#05979A">l_local_scope</span> = {<span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>},
+    <span style="color:#05979A">l_file_id</span> = {
+      <span style="color:#05979A">dev</span> = 0,
+      <span style="color:#05979A">ino</span> = 0
+    },
+    <span style="color:#05979A">l_runpath_dirs</span> = {
+      <span style="color:#05979A">dirs</span> = <span style="color:#3464A3">0x0</span>,
+      <span style="color:#05979A">malloced</span> = 0
+    },
+    <span style="color:#05979A">l_initfini</span> = <span style="color:#3464A3">0x0</span>,
+    <span style="color:#05979A">l_reldeps</span> = <span style="color:#3464A3">0x0</span>,
+    <span style="color:#05979A">l_reldepsmax</span> = 0,
+    <span style="color:#05979A">l_used</span> = 1,
+    <span style="color:#05979A">l_feature_1</span> = 0,
+    <span style="color:#05979A">l_flags_1</span> = 0,
+    <span style="color:#05979A">l_flags</span> = 0,
+    <span style="color:#05979A">l_idx</span> = 0,
+    <span style="color:#05979A">l_mach</span> = {
+      <span style="color:#05979A">plt</span> = 0,
+      <span style="color:#05979A">gotplt</span> = 0,
+      <span style="color:#05979A">tlsdesc_table</span> = <span style="color:#3464A3">0x0</span>
+    },
+    <span style="color:#05979A">l_lookup_cache</span> = {
+      <span style="color:#05979A">sym</span> = <span style="color:#3464A3">0x7ffff7fca860</span>,
+      <span style="color:#05979A">type_class</span> = 0,
+      <span style="color:#05979A">value</span> = <span style="color:#3464A3">0x7ffff7ffdab0</span> &lt;<span style="color:#C3A000">_rtld_local</span>+2736&gt;,
+      <span style="color:#05979A">ret</span> = <span style="color:#3464A3">0x7ffff7fca860</span>
+    },
+    <span style="color:#05979A">l_tls_initimage</span> = <span style="color:#3464A3">0x0</span>,
+    <span style="color:#05979A">l_tls_initimage_size</span> = 0,
+    <span style="color:#05979A">l_tls_blocksize</span> = 0,
+    <span style="color:#05979A">l_tls_align</span> = 0,
+    <span style="color:#05979A">l_tls_firstbyte_offset</span> = 0,
+    <span style="color:#05979A">l_tls_offset</span> = 0,
+    <span style="color:#05979A">l_tls_modid</span> = 0,
+    <span style="color:#05979A">l_tls_dtor_count</span> = 0,
+    <span style="color:#05979A">l_relro_addr</span> = 203040,
+    <span style="color:#05979A">l_relro_size</span> = 5856,
+    <span style="color:#05979A">l_serial</span> = 0
+  },
+  <span style="color:#05979A">_dl_rtld_auditstate</span> = {{
+      <span style="color:#05979A">cookie</span> = 0,
+      <span style="color:#05979A">bindflags</span> = 0
+    } &lt;repeats 16 times&gt;},
+  <span style="color:#05979A">_dl_x86_feature_1</span> = 0,
+  <span style="color:#05979A">_dl_x86_feature_control</span> = {
+    <span style="color:#05979A">ibt</span> = <span style="color:#05979A">cet_elf_property</span>,
+    <span style="color:#05979A">shstk</span> = <span style="color:#05979A">cet_elf_property</span>
+  },
+  <span style="color:#05979A">_dl_stack_flags</span> = 6,
+  <span style="color:#05979A">_dl_tls_dtv_gaps</span> = false,
+  <span style="color:#05979A">_dl_tls_max_dtv_idx</span> = 1,
+  <span style="color:#05979A">_dl_tls_dtv_slotinfo_list</span> = <span style="color:#3464A3">0x7ffff7fc2b60</span>,
+  <span style="color:#05979A">_dl_tls_static_nelem</span> = 1,
+  <span style="color:#05979A">_dl_tls_static_used</span> = 136,
+  <span style="color:#05979A">_dl_tls_static_optional</span> = 512,
+  <span style="color:#05979A">_dl_initial_dtv</span> = <span style="color:#3464A3">0x7ffff7dce0e0</span>,
+  <span style="color:#05979A">_dl_tls_generation</span> = 1,
+  <span style="color:#05979A">_dl_scope_free_list</span> = <span style="color:#3464A3">0x0</span>,
+  <span style="color:#05979A">_dl_stack_used</span> = {
+    <span style="color:#05979A">next</span> = <span style="color:#3464A3">0x7ffff7ffe0a0</span> &lt;<span style="color:#C3A000">_rtld_local</span>+4256&gt;,
+    <span style="color:#05979A">prev</span> = <span style="color:#3464A3">0x7ffff7ffe0a0</span> &lt;<span style="color:#C3A000">_rtld_local</span>+4256&gt;
+  },
+  <span style="color:#05979A">_dl_stack_user</span> = {
+    <span style="color:#05979A">next</span> = <span style="color:#3464A3">0x7ffff7dcda00</span>,
+    <span style="color:#05979A">prev</span> = <span style="color:#3464A3">0x7ffff7dcda00</span>
+  },
+  <span style="color:#05979A">_dl_stack_cache</span> = {
+    <span style="color:#05979A">next</span> = <span style="color:#3464A3">0x7ffff7ffe0c0</span> &lt;<span style="color:#C3A000">_rtld_local</span>+4288&gt;,
+    <span style="color:#05979A">prev</span> = <span style="color:#3464A3">0x7ffff7ffe0c0</span> &lt;<span style="color:#C3A000">_rtld_local</span>+4288&gt;
+  },
+  <span style="color:#05979A">_dl_stack_cache_actsize</span> = 0,
+  <span style="color:#05979A">_dl_in_flight_stack</span> = 0,
+  <span style="color:#05979A">_dl_stack_cache_lock</span> = 0
+}
+(gdb) print &amp;_rtld_global._dl_load_lock
+$2 = (__rtld_lock_recursive_t *) <span style="color:#3464A3">0x7ffff7ffda08</span> &lt;<span style="color:#C3A000">_rtld_local</span>+2568&gt;
+(gdb) print &amp;_rtld_global._dl_load_write_lock
+$3 = (__rtld_lock_recursive_t *) <span style="color:#3464A3">0x7ffff7ffda30</span> &lt;<span style="color:#C3A000">_rtld_local</span>+2608&gt;
+(gdb) watch *0x7ffff7ffda08
+Hardware watchpoint 2: *0x7ffff7ffda08
+(gdb) watch *0x7ffff7ffda30
+Hardware watchpoint 3: *0x7ffff7ffda30
+(gdb) info watchpoints 
+Num     Type           Disp Enb Address            What
+2       hw watchpoint  keep y                      *0x7ffff7ffda08
+3       hw watchpoint  keep y                      *0x7ffff7ffda30
+(gdb) continue 
+Continuing.
+
+Hardware watchpoint 2: *0x7ffff7ffda08
+
+Old value = 0
+New value = 1
+<span style="color:#C3A000">___pthread_mutex_lock</span> (<span style="color:#05979A">mutex</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">pthread_mutex_lock.c</span>:130
+130           <b>assert</b> <span style="color:#CC0000">(</span>mutex<span style="color:#CC0000">-&gt;</span>__data<span style="color:#CC0000">.</span>__owner <span style="color:#CC0000">==</span> <span style="color:#754F7B">0</span><span style="color:#CC0000">);</span>                                                                  
+(gdb) backtrace 
+#0  <span style="color:#C3A000">___pthread_mutex_lock</span> (<span style="color:#05979A">mutex</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">pthread_mutex_lock.c</span>:130
+#1  <span style="color:#3464A3">0x00007ffff7fd5edb</span> in <span style="color:#C3A000">_dl_open</span> (<span style="color:#05979A">file</span>=0x402010 &quot;lib1.so&quot;, <span style="color:#05979A">mode</span>=-2147483647, <span style="color:#05979A">caller_dlopen</span>=0x40113e &lt;main+24&gt;, 
+    <span style="color:#05979A">nsid</span>=-2, <span style="color:#05979A">argc</span>=1, <span style="color:#05979A">argv</span>=0x7fffffffe118, <span style="color:#05979A">env</span>=0x7fffffffe128) at <span style="color:#4D9A05">dl-open.c</span>:830
+#2  <span style="color:#3464A3">0x00007ffff7e58714</span> in <span style="color:#C3A000">dlopen_doit</span> (<span style="color:#05979A">a=a@entry</span>=0x7fffffffdfa0) at <span style="color:#4D9A05">dlopen.c</span>:56
+#3  <span style="color:#3464A3">0x00007ffff7fcb523</span> in <span style="color:#C3A000">__GI__dl_catch_exception</span> (<span style="color:#05979A">exception=exception@entry</span>=0x7fffffffdee0, 
+    <span style="color:#05979A">operate</span>=0x7ffff7e586b0 &lt;dlopen_doit&gt;, <span style="color:#05979A">args</span>=0x7fffffffdfa0) at <span style="color:#4D9A05">dl-catch.c</span>:237
+#4  <span style="color:#3464A3">0x00007ffff7fcb679</span> in <span style="color:#C3A000">_dl_catch_error</span> (<span style="color:#05979A">objname</span>=0x7fffffffdf48, <span style="color:#05979A">errstring</span>=0x7fffffffdf50, 
+    <span style="color:#05979A">mallocedp</span>=0x7fffffffdf47, <span style="color:#05979A">operate</span>=&lt;optimized out&gt;, <span style="color:#05979A">args</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">dl-catch.c</span>:256
+#5  <span style="color:#3464A3">0x00007ffff7e581f3</span> in <span style="color:#C3A000">_dlerror_run</span> (<span style="color:#05979A">operate=operate@entry</span>=0x7ffff7e586b0 &lt;dlopen_doit&gt;, 
+    <span style="color:#05979A">args=args@entry</span>=0x7fffffffdfa0) at <span style="color:#4D9A05">dlerror.c</span>:138
+#6  <span style="color:#3464A3">0x00007ffff7e587cf</span> in <span style="color:#C3A000">dlopen_implementation</span> (<span style="color:#05979A">dl_caller</span>=&lt;optimized out&gt;, <span style="color:#05979A">mode</span>=&lt;optimized out&gt;, 
+    <span style="color:#05979A">file</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">dlopen.c</span>:71
+#7  <span style="color:#C3A000">___dlopen</span> (<span style="color:#05979A">file</span>=&lt;optimized out&gt;, <span style="color:#05979A">mode</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">dlopen.c</span>:81
+#8  <span style="color:#3464A3">0x000000000040113e</span> in <span style="color:#C3A000">main</span> () at <span style="color:#4D9A05">main.c</span>:4
+(gdb) up
+#1  <span style="color:#3464A3">0x00007ffff7fd5edb</span> in <span style="color:#C3A000">_dl_open</span> (<span style="color:#05979A">file</span>=0x402010 &quot;lib1.so&quot;, <span style="color:#05979A">mode</span>=-2147483647, <span style="color:#05979A">caller_dlopen</span>=0x40113e &lt;main+24&gt;, 
+    <span style="color:#05979A">nsid</span>=-2, <span style="color:#05979A">argc</span>=1, <span style="color:#05979A">argv</span>=0x7fffffffe118, <span style="color:#05979A">env</span>=0x7fffffffe128) at <span style="color:#4D9A05">dl-open.c</span>:830
+830       <b>__rtld_lock_lock_recursive</b> <span style="color:#CC0000">(</span><b>GL</b><span style="color:#CC0000">(</span>dl_load_lock<span style="color:#CC0000">));</span>                                                            
+(gdb) list
+825	  <span style="color:#729ECF"><b>if</b></span> <span style="color:#CC0000">((</span>mode <span style="color:#CC0000">&amp;</span> RTLD_BINDING_MASK<span style="color:#CC0000">)</span> <span style="color:#CC0000">==</span> <span style="color:#754F7B">0</span><span style="color:#CC0000">)</span>
+826	    <span style="color:#05979A">/* One of the flags must be set.  */</span>
+827	    <b>_dl_signal_error</b> <span style="color:#CC0000">(</span>EINVAL<span style="color:#CC0000">,</span> file<span style="color:#CC0000">,</span> NULL<span style="color:#CC0000">,</span> <b>N_</b><span style="color:#CC0000">(&quot;invalid mode for dlopen()&quot;));</span>
+828	
+829	  <span style="color:#05979A">/* Make sure we are alone.  */</span>
+830	  <b>__rtld_lock_lock_recursive</b> <span style="color:#CC0000">(</span><b>GL</b><span style="color:#CC0000">(</span>dl_load_lock<span style="color:#CC0000">));</span>
+831	
+832	  <span style="color:#729ECF"><b>if</b></span> <span style="color:#CC0000">(</span><b>__glibc_unlikely</b> <span style="color:#CC0000">(</span>nsid <span style="color:#CC0000">==</span> LM_ID_NEWLM<span style="color:#CC0000">))</span>
+833	    <span style="color:#CC0000">{</span>
+834	      <span style="color:#05979A">/* Find a new namespace.  */</span>
+(gdb) continue 
+Continuing.
+
+Hardware watchpoint 3: *0x7ffff7ffda30
+
+Old value = 0
+New value = 1
+<span style="color:#C3A000">___pthread_mutex_lock</span> (<span style="color:#05979A">mutex</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">pthread_mutex_lock.c</span>:130
+130	      <b>assert</b> <span style="color:#CC0000">(</span>mutex<span style="color:#CC0000">-&gt;</span>__data<span style="color:#CC0000">.</span>__owner <span style="color:#CC0000">==</span> <span style="color:#754F7B">0</span><span style="color:#CC0000">);</span>
+(gdb) backtrace 
+#0  <span style="color:#C3A000">___pthread_mutex_lock</span> (<span style="color:#05979A">mutex</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">pthread_mutex_lock.c</span>:130
+#1  <span style="color:#3464A3">0x00007ffff7fd5507</span> in <span style="color:#C3A000">_dl_add_to_namespace_list</span> (<span style="color:#05979A">new</span>=0x4052e0, <span style="color:#05979A">nsid</span>=0) at <span style="color:#4D9A05">dl-object.c</span>:33
+#2  <span style="color:#3464A3">0x00007ffff7fd1c76</span> in <span style="color:#C3A000">_dl_map_object_from_fd</span> (<span style="color:#05979A">name=name@entry</span>=0x402010 &quot;lib1.so&quot;, <span style="color:#05979A">origname=origname@entry</span>=0x0, 
+    <span style="color:#05979A">fd</span>=-1, <span style="color:#05979A">fbp</span>=&lt;optimized out&gt;, <span style="color:#05979A">realname</span>=&lt;optimized out&gt;, <span style="color:#05979A">loader=loader@entry</span>=0x0, <span style="color:#05979A">l_type</span>=&lt;optimized out&gt;, 
+    <span style="color:#05979A">mode</span>=&lt;optimized out&gt;, <span style="color:#05979A">stack_endp</span>=&lt;optimized out&gt;, <span style="color:#05979A">nsid</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">dl-load.c</span>:1494
+#3  <span style="color:#3464A3">0x00007ffff7fd2839</span> in <span style="color:#C3A000">_dl_map_object</span> (<span style="color:#05979A">loader</span>=&lt;optimized out&gt;, <span style="color:#05979A">loader@entry</span>=0x7ffff7ffe2d0, 
+    <span style="color:#05979A">name=name@entry</span>=0x402010 &quot;lib1.so&quot;, <span style="color:#05979A">type=type@entry</span>=2, <span style="color:#05979A">trace_mode=trace_mode@entry</span>=0, 
+    <span style="color:#05979A">mode=mode@entry</span>=-1879048191, <span style="color:#05979A">nsid</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">dl-load.c</span>:2253
+#4  <span style="color:#3464A3">0x00007ffff7fd63bc</span> in <span style="color:#C3A000">dl_open_worker_begin</span> (<span style="color:#05979A">a=a@entry</span>=0x7fffffffdcf0) at <span style="color:#4D9A05">dl-open.c</span>:534
+#5  <span style="color:#3464A3">0x00007ffff7fcb523</span> in <span style="color:#C3A000">__GI__dl_catch_exception</span> (<span style="color:#05979A">exception=exception@entry</span>=0x7fffffffdb40, 
+    <span style="color:#05979A">operate=operate@entry</span>=0x7ffff7fd6310 &lt;dl_open_worker_begin&gt;, <span style="color:#05979A">args=args@entry</span>=0x7fffffffdcf0) at <span style="color:#4D9A05">dl-catch.c</span>:237
+#6  <span style="color:#3464A3">0x00007ffff7fd5b70</span> in <span style="color:#C3A000">dl_open_worker</span> (<span style="color:#05979A">a=a@entry</span>=0x7fffffffdcf0) at <span style="color:#4D9A05">dl-open.c</span>:782
+#7  <span style="color:#3464A3">0x00007ffff7fcb523</span> in <span style="color:#C3A000">__GI__dl_catch_exception</span> (<span style="color:#05979A">exception=exception@entry</span>=0x7fffffffdcd0, 
+    <span style="color:#05979A">operate=operate@entry</span>=0x7ffff7fd5b30 &lt;dl_open_worker&gt;, <span style="color:#05979A">args=args@entry</span>=0x7fffffffdcf0) at <span style="color:#4D9A05">dl-catch.c</span>:237
+#8  <span style="color:#3464A3">0x00007ffff7fd5f44</span> in <span style="color:#C3A000">_dl_open</span> (<span style="color:#05979A">file</span>=0x402010 &quot;lib1.so&quot;, <span style="color:#05979A">mode</span>=&lt;optimized out&gt;, 
+    <span style="color:#05979A">caller_dlopen</span>=0x40113e &lt;main+24&gt;, <span style="color:#05979A">nsid</span>=&lt;optimized out&gt;, <span style="color:#05979A">argc</span>=1, <span style="color:#05979A">argv</span>=0x7fffffffe118, <span style="color:#05979A">env</span>=0x7fffffffe128)
+    at <span style="color:#4D9A05">dl-open.c</span>:884
+#9  <span style="color:#3464A3">0x00007ffff7e58714</span> in <span style="color:#C3A000">dlopen_doit</span> (<span style="color:#05979A">a=a@entry</span>=0x7fffffffdfa0) at <span style="color:#4D9A05">dlopen.c</span>:56
+#10 <span style="color:#3464A3">0x00007ffff7fcb523</span> in <span style="color:#C3A000">__GI__dl_catch_exception</span> (<span style="color:#05979A">exception=exception@entry</span>=0x7fffffffdee0, 
+    <span style="color:#05979A">operate</span>=0x7ffff7e586b0 &lt;dlopen_doit&gt;, <span style="color:#05979A">args</span>=0x7fffffffdfa0) at <span style="color:#4D9A05">dl-catch.c</span>:237
+#11 <span style="color:#3464A3">0x00007ffff7fcb679</span> in <span style="color:#C3A000">_dl_catch_error</span> (<span style="color:#05979A">objname</span>=0x7fffffffdf48, <span style="color:#05979A">errstring</span>=0x7fffffffdf50, 
+    <span style="color:#05979A">mallocedp</span>=0x7fffffffdf47, <span style="color:#05979A">operate</span>=&lt;optimized out&gt;, <span style="color:#05979A">args</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">dl-catch.c</span>:256
+#12 <span style="color:#3464A3">0x00007ffff7e581f3</span> in <span style="color:#C3A000">_dlerror_run</span> (<span style="color:#05979A">operate=operate@entry</span>=0x7ffff7e586b0 &lt;dlopen_doit&gt;, 
+    <span style="color:#05979A">args=args@entry</span>=0x7fffffffdfa0) at <span style="color:#4D9A05">dlerror.c</span>:138
+#13 <span style="color:#3464A3">0x00007ffff7e587cf</span> in <span style="color:#C3A000">dlopen_implementation</span> (<span style="color:#05979A">dl_caller</span>=&lt;optimized out&gt;, <span style="color:#05979A">mode</span>=&lt;optimized out&gt;, 
+    <span style="color:#05979A">file</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">dlopen.c</span>:71
+#14 <span style="color:#C3A000">___dlopen</span> (<span style="color:#05979A">file</span>=&lt;optimized out&gt;, <span style="color:#05979A">mode</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">dlopen.c</span>:81
+#15 <span style="color:#3464A3">0x000000000040113e</span> in <span style="color:#C3A000">main</span> () at <span style="color:#4D9A05">main.c</span>:4
+(gdb) up
+#1  <span style="color:#3464A3">0x00007ffff7fd5507</span> in <span style="color:#C3A000">_dl_add_to_namespace_list</span> (<span style="color:#05979A">new</span>=0x4052e0, <span style="color:#05979A">nsid</span>=0) at <span style="color:#4D9A05">dl-object.c</span>:33
+33        <b>__rtld_lock_lock_recursive</b> <span style="color:#CC0000">(</span><b>GL</b><span style="color:#CC0000">(</span>dl_load_write_lock<span style="color:#CC0000">));</span>                                                      
+(gdb) list
+28	<span style="color:#05979A">/* Add the new link_map NEW to the end of the namespace list.  */</span>
+29	<span style="color:#4D9A05">void</span>
+30	<b>_dl_add_to_namespace_list</b> <span style="color:#CC0000">(</span><span style="color:#729ECF"><b>struct</b></span> <span style="color:#4D9A05">link_map</span> <span style="color:#CC0000">*</span>new<span style="color:#CC0000">,</span> Lmid_t nsid<span style="color:#CC0000">)</span>
+31	<span style="color:#CC0000">{</span>
+32	  <span style="color:#05979A">/* We modify the list of loaded objects.  */</span>
+33	  <b>__rtld_lock_lock_recursive</b> <span style="color:#CC0000">(</span><b>GL</b><span style="color:#CC0000">(</span>dl_load_write_lock<span style="color:#CC0000">));</span>
+34	
+35	  <span style="color:#729ECF"><b>if</b></span> <span style="color:#CC0000">(</span><b>GL</b><span style="color:#CC0000">(</span>dl_ns<span style="color:#CC0000">)[</span>nsid<span style="color:#CC0000">].</span>_ns_loaded <span style="color:#CC0000">!=</span> NULL<span style="color:#CC0000">)</span>
+36	    <span style="color:#CC0000">{</span>
+37	      <span style="color:#729ECF"><b>struct</b></span> <span style="color:#4D9A05">link_map</span> <span style="color:#CC0000">*</span>l <span style="color:#CC0000">=</span> <b>GL</b><span style="color:#CC0000">(</span>dl_ns<span style="color:#CC0000">)[</span>nsid<span style="color:#CC0000">].</span>_ns_loaded<span style="color:#CC0000">;</span>
+(gdb) continue 
+Continuing.
+
+Hardware watchpoint 3: *0x7ffff7ffda30
+
+Old value = 1
+New value = 0
+<span style="color:#C3A000">__GI___pthread_mutex_unlock_usercnt</span> (<span style="color:#05979A">mutex</span>=&lt;optimized out&gt;, <span style="color:#05979A">decr</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">pthread_mutex_unlock.c</span>:70
+70            <b>LIBC_PROBE</b> <span style="color:#CC0000">(</span>mutex_release<span style="color:#CC0000">,</span> <span style="color:#754F7B">1</span><span style="color:#CC0000">,</span> mutex<span style="color:#CC0000">);</span>                                                                 
+(gdb) backtrace 
+#0  <span style="color:#C3A000">__GI___pthread_mutex_unlock_usercnt</span> (<span style="color:#05979A">mutex</span>=&lt;optimized out&gt;, <span style="color:#05979A">decr</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">pthread_mutex_unlock.c</span>:70
+#1  <span style="color:#3464A3">0x00007ffff7fd1c76</span> in <span style="color:#C3A000">_dl_map_object_from_fd</span> (<span style="color:#05979A">name=name@entry</span>=0x402010 &quot;lib1.so&quot;, <span style="color:#05979A">origname=origname@entry</span>=0x0, 
+    <span style="color:#05979A">fd</span>=-1, <span style="color:#05979A">fbp</span>=&lt;optimized out&gt;, <span style="color:#05979A">realname</span>=&lt;optimized out&gt;, <span style="color:#05979A">loader=loader@entry</span>=0x0, <span style="color:#05979A">l_type</span>=&lt;optimized out&gt;, 
+    <span style="color:#05979A">mode</span>=&lt;optimized out&gt;, <span style="color:#05979A">stack_endp</span>=&lt;optimized out&gt;, <span style="color:#05979A">nsid</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">dl-load.c</span>:1494
+#2  <span style="color:#3464A3">0x00007ffff7fd2839</span> in <span style="color:#C3A000">_dl_map_object</span> (<span style="color:#05979A">loader</span>=&lt;optimized out&gt;, <span style="color:#05979A">loader@entry</span>=0x7ffff7ffe2d0, 
+    <span style="color:#05979A">name=name@entry</span>=0x402010 &quot;lib1.so&quot;, <span style="color:#05979A">type=type@entry</span>=2, <span style="color:#05979A">trace_mode=trace_mode@entry</span>=0, 
+    <span style="color:#05979A">mode=mode@entry</span>=-1879048191, <span style="color:#05979A">nsid</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">dl-load.c</span>:2253
+#3  <span style="color:#3464A3">0x00007ffff7fd63bc</span> in <span style="color:#C3A000">dl_open_worker_begin</span> (<span style="color:#05979A">a=a@entry</span>=0x7fffffffdcf0) at <span style="color:#4D9A05">dl-open.c</span>:534
+#4  <span style="color:#3464A3">0x00007ffff7fcb523</span> in <span style="color:#C3A000">__GI__dl_catch_exception</span> (<span style="color:#05979A">exception=exception@entry</span>=0x7fffffffdb40, 
+    <span style="color:#05979A">operate=operate@entry</span>=0x7ffff7fd6310 &lt;dl_open_worker_begin&gt;, <span style="color:#05979A">args=args@entry</span>=0x7fffffffdcf0) at <span style="color:#4D9A05">dl-catch.c</span>:237
+#5  <span style="color:#3464A3">0x00007ffff7fd5b70</span> in <span style="color:#C3A000">dl_open_worker</span> (<span style="color:#05979A">a=a@entry</span>=0x7fffffffdcf0) at <span style="color:#4D9A05">dl-open.c</span>:782
+#6  <span style="color:#3464A3">0x00007ffff7fcb523</span> in <span style="color:#C3A000">__GI__dl_catch_exception</span> (<span style="color:#05979A">exception=exception@entry</span>=0x7fffffffdcd0, 
+    <span style="color:#05979A">operate=operate@entry</span>=0x7ffff7fd5b30 &lt;dl_open_worker&gt;, <span style="color:#05979A">args=args@entry</span>=0x7fffffffdcf0) at <span style="color:#4D9A05">dl-catch.c</span>:237
+#7  <span style="color:#3464A3">0x00007ffff7fd5f44</span> in <span style="color:#C3A000">_dl_open</span> (<span style="color:#05979A">file</span>=0x402010 &quot;lib1.so&quot;, <span style="color:#05979A">mode</span>=&lt;optimized out&gt;, 
+    <span style="color:#05979A">caller_dlopen</span>=0x40113e &lt;main+24&gt;, <span style="color:#05979A">nsid</span>=&lt;optimized out&gt;, <span style="color:#05979A">argc</span>=1, <span style="color:#05979A">argv</span>=0x7fffffffe118, <span style="color:#05979A">env</span>=0x7fffffffe128)
+    at <span style="color:#4D9A05">dl-open.c</span>:884
+#8  <span style="color:#3464A3">0x00007ffff7e58714</span> in <span style="color:#C3A000">dlopen_doit</span> (<span style="color:#05979A">a=a@entry</span>=0x7fffffffdfa0) at <span style="color:#4D9A05">dlopen.c</span>:56
+#9  <span style="color:#3464A3">0x00007ffff7fcb523</span> in <span style="color:#C3A000">__GI__dl_catch_exception</span> (<span style="color:#05979A">exception=exception@entry</span>=0x7fffffffdee0, 
+    <span style="color:#05979A">operate</span>=0x7ffff7e586b0 &lt;dlopen_doit&gt;, <span style="color:#05979A">args</span>=0x7fffffffdfa0) at <span style="color:#4D9A05">dl-catch.c</span>:237
+#10 <span style="color:#3464A3">0x00007ffff7fcb679</span> in <span style="color:#C3A000">_dl_catch_error</span> (<span style="color:#05979A">objname</span>=0x7fffffffdf48, <span style="color:#05979A">errstring</span>=0x7fffffffdf50, 
+    <span style="color:#05979A">mallocedp</span>=0x7fffffffdf47, <span style="color:#05979A">operate</span>=&lt;optimized out&gt;, <span style="color:#05979A">args</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">dl-catch.c</span>:256
+#11 <span style="color:#3464A3">0x00007ffff7e581f3</span> in <span style="color:#C3A000">_dlerror_run</span> (<span style="color:#05979A">operate=operate@entry</span>=0x7ffff7e586b0 &lt;dlopen_doit&gt;, 
+    <span style="color:#05979A">args=args@entry</span>=0x7fffffffdfa0) at <span style="color:#4D9A05">dlerror.c</span>:138
+#12 <span style="color:#3464A3">0x00007ffff7e587cf</span> in <span style="color:#C3A000">dlopen_implementation</span> (<span style="color:#05979A">dl_caller</span>=&lt;optimized out&gt;, <span style="color:#05979A">mode</span>=&lt;optimized out&gt;, 
+    <span style="color:#05979A">file</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">dlopen.c</span>:71
+#13 <span style="color:#C3A000">___dlopen</span> (<span style="color:#05979A">file</span>=&lt;optimized out&gt;, <span style="color:#05979A">mode</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">dlopen.c</span>:81
+#14 <span style="color:#3464A3">0x000000000040113e</span> in <span style="color:#C3A000">main</span> () at <span style="color:#4D9A05">main.c</span>:4
+(gdb) up
+#1  <span style="color:#3464A3">0x00007ffff7fd1c76</span> in <span style="color:#C3A000">_dl_map_object_from_fd</span> (<span style="color:#05979A">name=name@entry</span>=0x402010 &quot;lib1.so&quot;, <span style="color:#05979A">origname=origname@entry</span>=0x0, 
+    <span style="color:#05979A">fd</span>=-1, <span style="color:#05979A">fbp</span>=&lt;optimized out&gt;, <span style="color:#05979A">realname</span>=&lt;optimized out&gt;, <span style="color:#05979A">loader=loader@entry</span>=0x0, <span style="color:#05979A">l_type</span>=&lt;optimized out&gt;, 
+    <span style="color:#05979A">mode</span>=&lt;optimized out&gt;, <span style="color:#05979A">stack_endp</span>=&lt;optimized out&gt;, <span style="color:#05979A">nsid</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">dl-load.c</span>:1494
+1494      <b>_dl_add_to_namespace_list</b> <span style="color:#CC0000">(</span>l<span style="color:#CC0000">,</span> nsid<span style="color:#CC0000">);</span>                                                                      
+(gdb) list
+1489	<span style="color:#729ECF"><b>#ifdef</b></span> DL_AFTER_LOAD
+1490	  <b>DL_AFTER_LOAD</b> <span style="color:#CC0000">(</span>l<span style="color:#CC0000">);</span>
+1491	<span style="color:#729ECF"><b>#endif</b></span>
+1492	
+1493	  <span style="color:#05979A">/* Now that the object is fully initialized add it to the object list.  */</span>
+1494	  <b>_dl_add_to_namespace_list</b> <span style="color:#CC0000">(</span>l<span style="color:#CC0000">,</span> nsid<span style="color:#CC0000">);</span>
+1495	
+1496	  <span style="color:#05979A">/* Signal that we are going to add new objects.  */</span>
+1497	  <span style="color:#729ECF"><b>if</b></span> <span style="color:#CC0000">(</span>r<span style="color:#CC0000">-&gt;</span>r_state <span style="color:#CC0000">==</span> RT_CONSISTENT<span style="color:#CC0000">)</span>
+1498	    <span style="color:#CC0000">{</span>
+(gdb) continue 
+Continuing.
+Library 1 loaded successfully!
+
+Hardware watchpoint 2: *0x7ffff7ffda08
+
+Old value = 1
+New value = 0
+<span style="color:#C3A000">__GI___pthread_mutex_unlock_usercnt</span> (<span style="color:#05979A">mutex</span>=&lt;optimized out&gt;, <span style="color:#05979A">decr</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">pthread_mutex_unlock.c</span>:70
+70	      <b>LIBC_PROBE</b> <span style="color:#CC0000">(</span>mutex_release<span style="color:#CC0000">,</span> <span style="color:#754F7B">1</span><span style="color:#CC0000">,</span> mutex<span style="color:#CC0000">);</span>
+(gdb) backtrace 
+#0  <span style="color:#C3A000">__GI___pthread_mutex_unlock_usercnt</span> (<span style="color:#05979A">mutex</span>=&lt;optimized out&gt;, <span style="color:#05979A">decr</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">pthread_mutex_unlock.c</span>:70
+#1  <span style="color:#3464A3">0x00007ffff7fd5f91</span> in <span style="color:#C3A000">_dl_open</span> (<span style="color:#05979A">file</span>=&lt;optimized out&gt;, <span style="color:#05979A">mode</span>=&lt;optimized out&gt;, <span style="color:#05979A">caller_dlopen</span>=0x40113e &lt;main+24&gt;, 
+    <span style="color:#05979A">nsid</span>=&lt;optimized out&gt;, <span style="color:#05979A">argc</span>=1, <span style="color:#05979A">argv</span>=0x7fffffffe118, <span style="color:#05979A">env</span>=0x7fffffffe128) at <span style="color:#4D9A05">dl-open.c</span>:933
+#2  <span style="color:#3464A3">0x00007ffff7e58714</span> in <span style="color:#C3A000">dlopen_doit</span> (<span style="color:#05979A">a=a@entry</span>=0x7fffffffdfa0) at <span style="color:#4D9A05">dlopen.c</span>:56
+#3  <span style="color:#3464A3">0x00007ffff7fcb523</span> in <span style="color:#C3A000">__GI__dl_catch_exception</span> (<span style="color:#05979A">exception=exception@entry</span>=0x7fffffffdee0, 
+    <span style="color:#05979A">operate</span>=0x7ffff7e586b0 &lt;dlopen_doit&gt;, <span style="color:#05979A">args</span>=0x7fffffffdfa0) at <span style="color:#4D9A05">dl-catch.c</span>:237
+#4  <span style="color:#3464A3">0x00007ffff7fcb679</span> in <span style="color:#C3A000">_dl_catch_error</span> (<span style="color:#05979A">objname</span>=0x7fffffffdf48, <span style="color:#05979A">errstring</span>=0x7fffffffdf50, 
+    <span style="color:#05979A">mallocedp</span>=0x7fffffffdf47, <span style="color:#05979A">operate</span>=&lt;optimized out&gt;, <span style="color:#05979A">args</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">dl-catch.c</span>:256
+#5  <span style="color:#3464A3">0x00007ffff7e581f3</span> in <span style="color:#C3A000">_dlerror_run</span> (<span style="color:#05979A">operate=operate@entry</span>=0x7ffff7e586b0 &lt;dlopen_doit&gt;, 
+    <span style="color:#05979A">args=args@entry</span>=0x7fffffffdfa0) at <span style="color:#4D9A05">dlerror.c</span>:138
+#6  <span style="color:#3464A3">0x00007ffff7e587cf</span> in <span style="color:#C3A000">dlopen_implementation</span> (<span style="color:#05979A">dl_caller</span>=&lt;optimized out&gt;, <span style="color:#05979A">mode</span>=&lt;optimized out&gt;, 
+    <span style="color:#05979A">file</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">dlopen.c</span>:71
+#7  <span style="color:#C3A000">___dlopen</span> (<span style="color:#05979A">file</span>=&lt;optimized out&gt;, <span style="color:#05979A">mode</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">dlopen.c</span>:81
+#8  <span style="color:#3464A3">0x000000000040113e</span> in <span style="color:#C3A000">main</span> () at <span style="color:#4D9A05">main.c</span>:4
+(gdb) up
+#1  <span style="color:#3464A3">0x00007ffff7fd5f91</span> in <span style="color:#C3A000">_dl_open</span> (<span style="color:#05979A">file</span>=&lt;optimized out&gt;, <span style="color:#05979A">mode</span>=&lt;optimized out&gt;, <span style="color:#05979A">caller_dlopen</span>=0x40113e &lt;main+24&gt;, 
+    <span style="color:#05979A">nsid</span>=&lt;optimized out&gt;, <span style="color:#05979A">argc</span>=1, <span style="color:#05979A">argv</span>=0x7fffffffe118, <span style="color:#05979A">env</span>=0x7fffffffe128) at <span style="color:#4D9A05">dl-open.c</span>:933
+933	  <b>__rtld_lock_unlock_recursive</b> <span style="color:#CC0000">(</span><b>GL</b><span style="color:#CC0000">(</span>dl_load_lock<span style="color:#CC0000">));</span>
+(gdb) list
+928	    <span style="color:#CC0000">}</span>
+929	
+930	  <b>assert</b> <span style="color:#CC0000">(</span><b>_dl_debug_update</b> <span style="color:#CC0000">(</span>args<span style="color:#CC0000">.</span>nsid<span style="color:#CC0000">)-&gt;</span>r_state <span style="color:#CC0000">==</span> RT_CONSISTENT<span style="color:#CC0000">);</span>
+931	
+932	  <span style="color:#05979A">/* Release the lock.  */</span>
+933	  <b>__rtld_lock_unlock_recursive</b> <span style="color:#CC0000">(</span><b>GL</b><span style="color:#CC0000">(</span>dl_load_lock<span style="color:#CC0000">));</span>
+934	
+935	  <span style="color:#729ECF"><b>return</b></span> args<span style="color:#CC0000">.</span>map<span style="color:#CC0000">;</span>
+936	<span style="color:#CC0000">}</span>
+937	
+(gdb) continue 
+Continuing.
+
+Hardware watchpoint 2: *0x7ffff7ffda08
+
+Old value = 0
+New value = 1
+<span style="color:#C3A000">___pthread_mutex_lock</span> (<span style="color:#05979A">mutex</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">pthread_mutex_lock.c</span>:130
+130	      <b>assert</b> <span style="color:#CC0000">(</span>mutex<span style="color:#CC0000">-&gt;</span>__data<span style="color:#CC0000">.</span>__owner <span style="color:#CC0000">==</span> <span style="color:#754F7B">0</span><span style="color:#CC0000">);</span>
+(gdb) backtrace 
+#0  <span style="color:#C3A000">___pthread_mutex_lock</span> (<span style="color:#05979A">mutex</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">pthread_mutex_lock.c</span>:130
+#1  <span style="color:#3464A3">0x00007ffff7fd5edb</span> in <span style="color:#C3A000">_dl_open</span> (<span style="color:#05979A">file</span>=0x402018 &quot;lib2.so&quot;, <span style="color:#05979A">mode</span>=-2147483647, <span style="color:#05979A">caller_dlopen</span>=0x401152 &lt;main+44&gt;, 
+    <span style="color:#05979A">nsid</span>=-2, <span style="color:#05979A">argc</span>=1, <span style="color:#05979A">argv</span>=0x7fffffffe118, <span style="color:#05979A">env</span>=0x7fffffffe128) at <span style="color:#4D9A05">dl-open.c</span>:830
+#2  <span style="color:#3464A3">0x00007ffff7e58714</span> in <span style="color:#C3A000">dlopen_doit</span> (<span style="color:#05979A">a=a@entry</span>=0x7fffffffdfa0) at <span style="color:#4D9A05">dlopen.c</span>:56
+#3  <span style="color:#3464A3">0x00007ffff7fcb523</span> in <span style="color:#C3A000">__GI__dl_catch_exception</span> (<span style="color:#05979A">exception=exception@entry</span>=0x7fffffffdee0, 
+    <span style="color:#05979A">operate</span>=0x7ffff7e586b0 &lt;dlopen_doit&gt;, <span style="color:#05979A">args</span>=0x7fffffffdfa0) at <span style="color:#4D9A05">dl-catch.c</span>:237
+#4  <span style="color:#3464A3">0x00007ffff7fcb679</span> in <span style="color:#C3A000">_dl_catch_error</span> (<span style="color:#05979A">objname</span>=0x7fffffffdf48, <span style="color:#05979A">errstring</span>=0x7fffffffdf50, 
+    <span style="color:#05979A">mallocedp</span>=0x7fffffffdf47, <span style="color:#05979A">operate</span>=&lt;optimized out&gt;, <span style="color:#05979A">args</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">dl-catch.c</span>:256
+#5  <span style="color:#3464A3">0x00007ffff7e581f3</span> in <span style="color:#C3A000">_dlerror_run</span> (<span style="color:#05979A">operate=operate@entry</span>=0x7ffff7e586b0 &lt;dlopen_doit&gt;, 
+    <span style="color:#05979A">args=args@entry</span>=0x7fffffffdfa0) at <span style="color:#4D9A05">dlerror.c</span>:138
+#6  <span style="color:#3464A3">0x00007ffff7e587cf</span> in <span style="color:#C3A000">dlopen_implementation</span> (<span style="color:#05979A">dl_caller</span>=&lt;optimized out&gt;, <span style="color:#05979A">mode</span>=&lt;optimized out&gt;, 
+    <span style="color:#05979A">file</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">dlopen.c</span>:71
+#7  <span style="color:#C3A000">___dlopen</span> (<span style="color:#05979A">file</span>=&lt;optimized out&gt;, <span style="color:#05979A">mode</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">dlopen.c</span>:81
+#8  <span style="color:#3464A3">0x0000000000401152</span> in <span style="color:#C3A000">main</span> () at <span style="color:#4D9A05">main.c</span>:5
+(gdb) up
+#1  <span style="color:#3464A3">0x00007ffff7fd5edb</span> in <span style="color:#C3A000">_dl_open</span> (<span style="color:#05979A">file</span>=0x402018 &quot;lib2.so&quot;, <span style="color:#05979A">mode</span>=-2147483647, <span style="color:#05979A">caller_dlopen</span>=0x401152 &lt;main+44&gt;, 
+    <span style="color:#05979A">nsid</span>=-2, <span style="color:#05979A">argc</span>=1, <span style="color:#05979A">argv</span>=0x7fffffffe118, <span style="color:#05979A">env</span>=0x7fffffffe128) at <span style="color:#4D9A05">dl-open.c</span>:830
+830	  <b>__rtld_lock_lock_recursive</b> <span style="color:#CC0000">(</span><b>GL</b><span style="color:#CC0000">(</span>dl_load_lock<span style="color:#CC0000">));</span>
+(gdb) list
+825	  <span style="color:#729ECF"><b>if</b></span> <span style="color:#CC0000">((</span>mode <span style="color:#CC0000">&amp;</span> RTLD_BINDING_MASK<span style="color:#CC0000">)</span> <span style="color:#CC0000">==</span> <span style="color:#754F7B">0</span><span style="color:#CC0000">)</span>
+826	    <span style="color:#05979A">/* One of the flags must be set.  */</span>
+827	    <b>_dl_signal_error</b> <span style="color:#CC0000">(</span>EINVAL<span style="color:#CC0000">,</span> file<span style="color:#CC0000">,</span> NULL<span style="color:#CC0000">,</span> <b>N_</b><span style="color:#CC0000">(&quot;invalid mode for dlopen()&quot;));</span>
+828	
+829	  <span style="color:#05979A">/* Make sure we are alone.  */</span>
+830	  <b>__rtld_lock_lock_recursive</b> <span style="color:#CC0000">(</span><b>GL</b><span style="color:#CC0000">(</span>dl_load_lock<span style="color:#CC0000">));</span>
+831	
+832	  <span style="color:#729ECF"><b>if</b></span> <span style="color:#CC0000">(</span><b>__glibc_unlikely</b> <span style="color:#CC0000">(</span>nsid <span style="color:#CC0000">==</span> LM_ID_NEWLM<span style="color:#CC0000">))</span>
+833	    <span style="color:#CC0000">{</span>
+834	      <span style="color:#05979A">/* Find a new namespace.  */</span>
+(gdb) continue 
+Continuing.
+
+Hardware watchpoint 3: *0x7ffff7ffda30
+
+Old value = 0
+New value = 1
+<span style="color:#C3A000">___pthread_mutex_lock</span> (<span style="color:#05979A">mutex</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">pthread_mutex_lock.c</span>:130
+130	      <b>assert</b> <span style="color:#CC0000">(</span>mutex<span style="color:#CC0000">-&gt;</span>__data<span style="color:#CC0000">.</span>__owner <span style="color:#CC0000">==</span> <span style="color:#754F7B">0</span><span style="color:#CC0000">);</span>
+(gdb) backtrace 
+#0  <span style="color:#C3A000">___pthread_mutex_lock</span> (<span style="color:#05979A">mutex</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">pthread_mutex_lock.c</span>:130
+#1  <span style="color:#3464A3">0x00007ffff7fd5507</span> in <span style="color:#C3A000">_dl_add_to_namespace_list</span> (<span style="color:#05979A">new</span>=0x406600, <span style="color:#05979A">nsid</span>=0) at <span style="color:#4D9A05">dl-object.c</span>:33
+#2  <span style="color:#3464A3">0x00007ffff7fd1c76</span> in <span style="color:#C3A000">_dl_map_object_from_fd</span> (<span style="color:#05979A">name=name@entry</span>=0x402018 &quot;lib2.so&quot;, <span style="color:#05979A">origname=origname@entry</span>=0x0, 
+    <span style="color:#05979A">fd</span>=-1, <span style="color:#05979A">fbp</span>=&lt;optimized out&gt;, <span style="color:#05979A">realname</span>=&lt;optimized out&gt;, <span style="color:#05979A">loader=loader@entry</span>=0x0, <span style="color:#05979A">l_type</span>=&lt;optimized out&gt;, 
+    <span style="color:#05979A">mode</span>=&lt;optimized out&gt;, <span style="color:#05979A">stack_endp</span>=&lt;optimized out&gt;, <span style="color:#05979A">nsid</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">dl-load.c</span>:1494
+#3  <span style="color:#3464A3">0x00007ffff7fd2839</span> in <span style="color:#C3A000">_dl_map_object</span> (<span style="color:#05979A">loader</span>=&lt;optimized out&gt;, <span style="color:#05979A">loader@entry</span>=0x7ffff7ffe2d0, 
+    <span style="color:#05979A">name=name@entry</span>=0x402018 &quot;lib2.so&quot;, <span style="color:#05979A">type=type@entry</span>=2, <span style="color:#05979A">trace_mode=trace_mode@entry</span>=0, 
+    <span style="color:#05979A">mode=mode@entry</span>=-1879048191, <span style="color:#05979A">nsid</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">dl-load.c</span>:2253
+#4  <span style="color:#3464A3">0x00007ffff7fd63bc</span> in <span style="color:#C3A000">dl_open_worker_begin</span> (<span style="color:#05979A">a=a@entry</span>=0x7fffffffdcf0) at <span style="color:#4D9A05">dl-open.c</span>:534
+#5  <span style="color:#3464A3">0x00007ffff7fcb523</span> in <span style="color:#C3A000">__GI__dl_catch_exception</span> (<span style="color:#05979A">exception=exception@entry</span>=0x7fffffffdb40, 
+    <span style="color:#05979A">operate=operate@entry</span>=0x7ffff7fd6310 &lt;dl_open_worker_begin&gt;, <span style="color:#05979A">args=args@entry</span>=0x7fffffffdcf0) at <span style="color:#4D9A05">dl-catch.c</span>:237
+#6  <span style="color:#3464A3">0x00007ffff7fd5b70</span> in <span style="color:#C3A000">dl_open_worker</span> (<span style="color:#05979A">a=a@entry</span>=0x7fffffffdcf0) at <span style="color:#4D9A05">dl-open.c</span>:782
+#7  <span style="color:#3464A3">0x00007ffff7fcb523</span> in <span style="color:#C3A000">__GI__dl_catch_exception</span> (<span style="color:#05979A">exception=exception@entry</span>=0x7fffffffdcd0, 
+    <span style="color:#05979A">operate=operate@entry</span>=0x7ffff7fd5b30 &lt;dl_open_worker&gt;, <span style="color:#05979A">args=args@entry</span>=0x7fffffffdcf0) at <span style="color:#4D9A05">dl-catch.c</span>:237
+#8  <span style="color:#3464A3">0x00007ffff7fd5f44</span> in <span style="color:#C3A000">_dl_open</span> (<span style="color:#05979A">file</span>=0x402018 &quot;lib2.so&quot;, <span style="color:#05979A">mode</span>=&lt;optimized out&gt;, 
+    <span style="color:#05979A">caller_dlopen</span>=0x401152 &lt;main+44&gt;, <span style="color:#05979A">nsid</span>=&lt;optimized out&gt;, <span style="color:#05979A">argc</span>=1, <span style="color:#05979A">argv</span>=0x7fffffffe118, <span style="color:#05979A">env</span>=0x7fffffffe128)
+    at <span style="color:#4D9A05">dl-open.c</span>:884
+#9  <span style="color:#3464A3">0x00007ffff7e58714</span> in <span style="color:#C3A000">dlopen_doit</span> (<span style="color:#05979A">a=a@entry</span>=0x7fffffffdfa0) at <span style="color:#4D9A05">dlopen.c</span>:56
+#10 <span style="color:#3464A3">0x00007ffff7fcb523</span> in <span style="color:#C3A000">__GI__dl_catch_exception</span> (<span style="color:#05979A">exception=exception@entry</span>=0x7fffffffdee0, 
+    <span style="color:#05979A">operate</span>=0x7ffff7e586b0 &lt;dlopen_doit&gt;, <span style="color:#05979A">args</span>=0x7fffffffdfa0) at <span style="color:#4D9A05">dl-catch.c</span>:237
+#11 <span style="color:#3464A3">0x00007ffff7fcb679</span> in <span style="color:#C3A000">_dl_catch_error</span> (<span style="color:#05979A">objname</span>=0x7fffffffdf48, <span style="color:#05979A">errstring</span>=0x7fffffffdf50, 
+    <span style="color:#05979A">mallocedp</span>=0x7fffffffdf47, <span style="color:#05979A">operate</span>=&lt;optimized out&gt;, <span style="color:#05979A">args</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">dl-catch.c</span>:256
+#12 <span style="color:#3464A3">0x00007ffff7e581f3</span> in <span style="color:#C3A000">_dlerror_run</span> (<span style="color:#05979A">operate=operate@entry</span>=0x7ffff7e586b0 &lt;dlopen_doit&gt;, 
+    <span style="color:#05979A">args=args@entry</span>=0x7fffffffdfa0) at <span style="color:#4D9A05">dlerror.c</span>:138
+#13 <span style="color:#3464A3">0x00007ffff7e587cf</span> in <span style="color:#C3A000">dlopen_implementation</span> (<span style="color:#05979A">dl_caller</span>=&lt;optimized out&gt;, <span style="color:#05979A">mode</span>=&lt;optimized out&gt;, 
+    <span style="color:#05979A">file</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">dlopen.c</span>:71
+#14 <span style="color:#C3A000">___dlopen</span> (<span style="color:#05979A">file</span>=&lt;optimized out&gt;, <span style="color:#05979A">mode</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">dlopen.c</span>:81
+#15 <span style="color:#3464A3">0x0000000000401152</span> in <span style="color:#C3A000">main</span> () at <span style="color:#4D9A05">main.c</span>:5
+(gdb) up
+#1  <span style="color:#3464A3">0x00007ffff7fd5507</span> in <span style="color:#C3A000">_dl_add_to_namespace_list</span> (<span style="color:#05979A">new</span>=0x406600, <span style="color:#05979A">nsid</span>=0) at <span style="color:#4D9A05">dl-object.c</span>:33
+33	  <b>__rtld_lock_lock_recursive</b> <span style="color:#CC0000">(</span><b>GL</b><span style="color:#CC0000">(</span>dl_load_write_lock<span style="color:#CC0000">));</span>
+(gdb) list
+28	<span style="color:#05979A">/* Add the new link_map NEW to the end of the namespace list.  */</span>
+29	<span style="color:#4D9A05">void</span>
+30	<b>_dl_add_to_namespace_list</b> <span style="color:#CC0000">(</span><span style="color:#729ECF"><b>struct</b></span> <span style="color:#4D9A05">link_map</span> <span style="color:#CC0000">*</span>new<span style="color:#CC0000">,</span> Lmid_t nsid<span style="color:#CC0000">)</span>
+31	<span style="color:#CC0000">{</span>
+32	  <span style="color:#05979A">/* We modify the list of loaded objects.  */</span>
+33	  <b>__rtld_lock_lock_recursive</b> <span style="color:#CC0000">(</span><b>GL</b><span style="color:#CC0000">(</span>dl_load_write_lock<span style="color:#CC0000">));</span>
+34	
+35	  <span style="color:#729ECF"><b>if</b></span> <span style="color:#CC0000">(</span><b>GL</b><span style="color:#CC0000">(</span>dl_ns<span style="color:#CC0000">)[</span>nsid<span style="color:#CC0000">].</span>_ns_loaded <span style="color:#CC0000">!=</span> NULL<span style="color:#CC0000">)</span>
+36	    <span style="color:#CC0000">{</span>
+37	      <span style="color:#729ECF"><b>struct</b></span> <span style="color:#4D9A05">link_map</span> <span style="color:#CC0000">*</span>l <span style="color:#CC0000">=</span> <b>GL</b><span style="color:#CC0000">(</span>dl_ns<span style="color:#CC0000">)[</span>nsid<span style="color:#CC0000">].</span>_ns_loaded<span style="color:#CC0000">;</span>
+(gdb) continue 
+Continuing.
+
+Hardware watchpoint 3: *0x7ffff7ffda30
+
+Old value = 1
+New value = 0
+<span style="color:#C3A000">__GI___pthread_mutex_unlock_usercnt</span> (<span style="color:#05979A">mutex</span>=&lt;optimized out&gt;, <span style="color:#05979A">decr</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">pthread_mutex_unlock.c</span>:70
+70	      <b>LIBC_PROBE</b> <span style="color:#CC0000">(</span>mutex_release<span style="color:#CC0000">,</span> <span style="color:#754F7B">1</span><span style="color:#CC0000">,</span> mutex<span style="color:#CC0000">);</span>
+(gdb) backtrace 
+#0  <span style="color:#C3A000">__GI___pthread_mutex_unlock_usercnt</span> (<span style="color:#05979A">mutex</span>=&lt;optimized out&gt;, <span style="color:#05979A">decr</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">pthread_mutex_unlock.c</span>:70
+#1  <span style="color:#3464A3">0x00007ffff7fd1c76</span> in <span style="color:#C3A000">_dl_map_object_from_fd</span> (<span style="color:#05979A">name=name@entry</span>=0x402018 &quot;lib2.so&quot;, <span style="color:#05979A">origname=origname@entry</span>=0x0, 
+    <span style="color:#05979A">fd</span>=-1, <span style="color:#05979A">fbp</span>=&lt;optimized out&gt;, <span style="color:#05979A">realname</span>=&lt;optimized out&gt;, <span style="color:#05979A">loader=loader@entry</span>=0x0, <span style="color:#05979A">l_type</span>=&lt;optimized out&gt;, 
+    <span style="color:#05979A">mode</span>=&lt;optimized out&gt;, <span style="color:#05979A">stack_endp</span>=&lt;optimized out&gt;, <span style="color:#05979A">nsid</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">dl-load.c</span>:1494
+#2  <span style="color:#3464A3">0x00007ffff7fd2839</span> in <span style="color:#C3A000">_dl_map_object</span> (<span style="color:#05979A">loader</span>=&lt;optimized out&gt;, <span style="color:#05979A">loader@entry</span>=0x7ffff7ffe2d0, 
+    <span style="color:#05979A">name=name@entry</span>=0x402018 &quot;lib2.so&quot;, <span style="color:#05979A">type=type@entry</span>=2, <span style="color:#05979A">trace_mode=trace_mode@entry</span>=0, 
+    <span style="color:#05979A">mode=mode@entry</span>=-1879048191, <span style="color:#05979A">nsid</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">dl-load.c</span>:2253
+#3  <span style="color:#3464A3">0x00007ffff7fd63bc</span> in <span style="color:#C3A000">dl_open_worker_begin</span> (<span style="color:#05979A">a=a@entry</span>=0x7fffffffdcf0) at <span style="color:#4D9A05">dl-open.c</span>:534
+#4  <span style="color:#3464A3">0x00007ffff7fcb523</span> in <span style="color:#C3A000">__GI__dl_catch_exception</span> (<span style="color:#05979A">exception=exception@entry</span>=0x7fffffffdb40, 
+    <span style="color:#05979A">operate=operate@entry</span>=0x7ffff7fd6310 &lt;dl_open_worker_begin&gt;, <span style="color:#05979A">args=args@entry</span>=0x7fffffffdcf0) at <span style="color:#4D9A05">dl-catch.c</span>:237
+#5  <span style="color:#3464A3">0x00007ffff7fd5b70</span> in <span style="color:#C3A000">dl_open_worker</span> (<span style="color:#05979A">a=a@entry</span>=0x7fffffffdcf0) at <span style="color:#4D9A05">dl-open.c</span>:782
+#6  <span style="color:#3464A3">0x00007ffff7fcb523</span> in <span style="color:#C3A000">__GI__dl_catch_exception</span> (<span style="color:#05979A">exception=exception@entry</span>=0x7fffffffdcd0, 
+    <span style="color:#05979A">operate=operate@entry</span>=0x7ffff7fd5b30 &lt;dl_open_worker&gt;, <span style="color:#05979A">args=args@entry</span>=0x7fffffffdcf0) at <span style="color:#4D9A05">dl-catch.c</span>:237
+#7  <span style="color:#3464A3">0x00007ffff7fd5f44</span> in <span style="color:#C3A000">_dl_open</span> (<span style="color:#05979A">file</span>=0x402018 &quot;lib2.so&quot;, <span style="color:#05979A">mode</span>=&lt;optimized out&gt;, 
+    <span style="color:#05979A">caller_dlopen</span>=0x401152 &lt;main+44&gt;, <span style="color:#05979A">nsid</span>=&lt;optimized out&gt;, <span style="color:#05979A">argc</span>=1, <span style="color:#05979A">argv</span>=0x7fffffffe118, <span style="color:#05979A">env</span>=0x7fffffffe128)
+    at <span style="color:#4D9A05">dl-open.c</span>:884
+#8  <span style="color:#3464A3">0x00007ffff7e58714</span> in <span style="color:#C3A000">dlopen_doit</span> (<span style="color:#05979A">a=a@entry</span>=0x7fffffffdfa0) at <span style="color:#4D9A05">dlopen.c</span>:56
+#9  <span style="color:#3464A3">0x00007ffff7fcb523</span> in <span style="color:#C3A000">__GI__dl_catch_exception</span> (<span style="color:#05979A">exception=exception@entry</span>=0x7fffffffdee0, 
+    <span style="color:#05979A">operate</span>=0x7ffff7e586b0 &lt;dlopen_doit&gt;, <span style="color:#05979A">args</span>=0x7fffffffdfa0) at <span style="color:#4D9A05">dl-catch.c</span>:237
+#10 <span style="color:#3464A3">0x00007ffff7fcb679</span> in <span style="color:#C3A000">_dl_catch_error</span> (<span style="color:#05979A">objname</span>=0x7fffffffdf48, <span style="color:#05979A">errstring</span>=0x7fffffffdf50, 
+    <span style="color:#05979A">mallocedp</span>=0x7fffffffdf47, <span style="color:#05979A">operate</span>=&lt;optimized out&gt;, <span style="color:#05979A">args</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">dl-catch.c</span>:256
+#11 <span style="color:#3464A3">0x00007ffff7e581f3</span> in <span style="color:#C3A000">_dlerror_run</span> (<span style="color:#05979A">operate=operate@entry</span>=0x7ffff7e586b0 &lt;dlopen_doit&gt;, 
+    <span style="color:#05979A">args=args@entry</span>=0x7fffffffdfa0) at <span style="color:#4D9A05">dlerror.c</span>:138
+#12 <span style="color:#3464A3">0x00007ffff7e587cf</span> in <span style="color:#C3A000">dlopen_implementation</span> (<span style="color:#05979A">dl_caller</span>=&lt;optimized out&gt;, <span style="color:#05979A">mode</span>=&lt;optimized out&gt;, 
+    <span style="color:#05979A">file</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">dlopen.c</span>:71
+#13 <span style="color:#C3A000">___dlopen</span> (<span style="color:#05979A">file</span>=&lt;optimized out&gt;, <span style="color:#05979A">mode</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">dlopen.c</span>:81
+#14 <span style="color:#3464A3">0x0000000000401152</span> in <span style="color:#C3A000">main</span> () at <span style="color:#4D9A05">main.c</span>:5
+(gdb) up
+#1  <span style="color:#3464A3">0x00007ffff7fd1c76</span> in <span style="color:#C3A000">_dl_map_object_from_fd</span> (<span style="color:#05979A">name=name@entry</span>=0x402018 &quot;lib2.so&quot;, <span style="color:#05979A">origname=origname@entry</span>=0x0, 
+    <span style="color:#05979A">fd</span>=-1, <span style="color:#05979A">fbp</span>=&lt;optimized out&gt;, <span style="color:#05979A">realname</span>=&lt;optimized out&gt;, <span style="color:#05979A">loader=loader@entry</span>=0x0, <span style="color:#05979A">l_type</span>=&lt;optimized out&gt;, 
+    <span style="color:#05979A">mode</span>=&lt;optimized out&gt;, <span style="color:#05979A">stack_endp</span>=&lt;optimized out&gt;, <span style="color:#05979A">nsid</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">dl-load.c</span>:1494
+1494	  <b>_dl_add_to_namespace_list</b> <span style="color:#CC0000">(</span>l<span style="color:#CC0000">,</span> nsid<span style="color:#CC0000">);</span>
+(gdb) list
+1489	<span style="color:#729ECF"><b>#ifdef</b></span> DL_AFTER_LOAD
+1490	  <b>DL_AFTER_LOAD</b> <span style="color:#CC0000">(</span>l<span style="color:#CC0000">);</span>
+1491	<span style="color:#729ECF"><b>#endif</b></span>
+1492	
+1493	  <span style="color:#05979A">/* Now that the object is fully initialized add it to the object list.  */</span>
+1494	  <b>_dl_add_to_namespace_list</b> <span style="color:#CC0000">(</span>l<span style="color:#CC0000">,</span> nsid<span style="color:#CC0000">);</span>
+1495	
+1496	  <span style="color:#05979A">/* Signal that we are going to add new objects.  */</span>
+1497	  <span style="color:#729ECF"><b>if</b></span> <span style="color:#CC0000">(</span>r<span style="color:#CC0000">-&gt;</span>r_state <span style="color:#CC0000">==</span> RT_CONSISTENT<span style="color:#CC0000">)</span>
+1498	    <span style="color:#CC0000">{</span>
+(gdb) continue 
+Continuing.
+Library 2 loaded successfully!
+
+Hardware watchpoint 2: *0x7ffff7ffda08
+
+Old value = 1
+New value = 0
+<span style="color:#C3A000">__GI___pthread_mutex_unlock_usercnt</span> (<span style="color:#05979A">mutex</span>=&lt;optimized out&gt;, <span style="color:#05979A">decr</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">pthread_mutex_unlock.c</span>:70
+70	      <b>LIBC_PROBE</b> <span style="color:#CC0000">(</span>mutex_release<span style="color:#CC0000">,</span> <span style="color:#754F7B">1</span><span style="color:#CC0000">,</span> mutex<span style="color:#CC0000">);</span>
+(gdb) backtrace 
+#0  <span style="color:#C3A000">__GI___pthread_mutex_unlock_usercnt</span> (<span style="color:#05979A">mutex</span>=&lt;optimized out&gt;, <span style="color:#05979A">decr</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">pthread_mutex_unlock.c</span>:70
+#1  <span style="color:#3464A3">0x00007ffff7fd5f91</span> in <span style="color:#C3A000">_dl_open</span> (<span style="color:#05979A">file</span>=&lt;optimized out&gt;, <span style="color:#05979A">mode</span>=&lt;optimized out&gt;, <span style="color:#05979A">caller_dlopen</span>=0x401152 &lt;main+44&gt;, 
+    <span style="color:#05979A">nsid</span>=&lt;optimized out&gt;, <span style="color:#05979A">argc</span>=1, <span style="color:#05979A">argv</span>=0x7fffffffe118, <span style="color:#05979A">env</span>=0x7fffffffe128) at <span style="color:#4D9A05">dl-open.c</span>:933
+#2  <span style="color:#3464A3">0x00007ffff7e58714</span> in <span style="color:#C3A000">dlopen_doit</span> (<span style="color:#05979A">a=a@entry</span>=0x7fffffffdfa0) at <span style="color:#4D9A05">dlopen.c</span>:56
+#3  <span style="color:#3464A3">0x00007ffff7fcb523</span> in <span style="color:#C3A000">__GI__dl_catch_exception</span> (<span style="color:#05979A">exception=exception@entry</span>=0x7fffffffdee0, 
+    <span style="color:#05979A">operate</span>=0x7ffff7e586b0 &lt;dlopen_doit&gt;, <span style="color:#05979A">args</span>=0x7fffffffdfa0) at <span style="color:#4D9A05">dl-catch.c</span>:237
+#4  <span style="color:#3464A3">0x00007ffff7fcb679</span> in <span style="color:#C3A000">_dl_catch_error</span> (<span style="color:#05979A">objname</span>=0x7fffffffdf48, <span style="color:#05979A">errstring</span>=0x7fffffffdf50, 
+    <span style="color:#05979A">mallocedp</span>=0x7fffffffdf47, <span style="color:#05979A">operate</span>=&lt;optimized out&gt;, <span style="color:#05979A">args</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">dl-catch.c</span>:256
+#5  <span style="color:#3464A3">0x00007ffff7e581f3</span> in <span style="color:#C3A000">_dlerror_run</span> (<span style="color:#05979A">operate=operate@entry</span>=0x7ffff7e586b0 &lt;dlopen_doit&gt;, 
+    <span style="color:#05979A">args=args@entry</span>=0x7fffffffdfa0) at <span style="color:#4D9A05">dlerror.c</span>:138
+#6  <span style="color:#3464A3">0x00007ffff7e587cf</span> in <span style="color:#C3A000">dlopen_implementation</span> (<span style="color:#05979A">dl_caller</span>=&lt;optimized out&gt;, <span style="color:#05979A">mode</span>=&lt;optimized out&gt;, 
+    <span style="color:#05979A">file</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">dlopen.c</span>:71
+#7  <span style="color:#C3A000">___dlopen</span> (<span style="color:#05979A">file</span>=&lt;optimized out&gt;, <span style="color:#05979A">mode</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">dlopen.c</span>:81
+#8  <span style="color:#3464A3">0x0000000000401152</span> in <span style="color:#C3A000">main</span> () at <span style="color:#4D9A05">main.c</span>:5
+(gdb) up
+#1  <span style="color:#3464A3">0x00007ffff7fd5f91</span> in <span style="color:#C3A000">_dl_open</span> (<span style="color:#05979A">file</span>=&lt;optimized out&gt;, <span style="color:#05979A">mode</span>=&lt;optimized out&gt;, <span style="color:#05979A">caller_dlopen</span>=0x401152 &lt;main+44&gt;, 
+    <span style="color:#05979A">nsid</span>=&lt;optimized out&gt;, <span style="color:#05979A">argc</span>=1, <span style="color:#05979A">argv</span>=0x7fffffffe118, <span style="color:#05979A">env</span>=0x7fffffffe128) at <span style="color:#4D9A05">dl-open.c</span>:933
+933	  <b>__rtld_lock_unlock_recursive</b> <span style="color:#CC0000">(</span><b>GL</b><span style="color:#CC0000">(</span>dl_load_lock<span style="color:#CC0000">));</span>
+(gdb) list
+928	    <span style="color:#CC0000">}</span>
+929	
+930	  <b>assert</b> <span style="color:#CC0000">(</span><b>_dl_debug_update</b> <span style="color:#CC0000">(</span>args<span style="color:#CC0000">.</span>nsid<span style="color:#CC0000">)-&gt;</span>r_state <span style="color:#CC0000">==</span> RT_CONSISTENT<span style="color:#CC0000">);</span>
+931	
+932	  <span style="color:#05979A">/* Release the lock.  */</span>
+933	  <b>__rtld_lock_unlock_recursive</b> <span style="color:#CC0000">(</span><b>GL</b><span style="color:#CC0000">(</span>dl_load_lock<span style="color:#CC0000">));</span>
+934	
+935	  <span style="color:#729ECF"><b>return</b></span> args<span style="color:#CC0000">.</span>map<span style="color:#CC0000">;</span>
+936	<span style="color:#CC0000">}</span>
+937	
+(gdb) continue 
+Continuing.
+
+Hardware watchpoint 2: *0x7ffff7ffda08
+
+Old value = 0
+New value = 1
+<span style="color:#C3A000">___pthread_mutex_lock</span> (<span style="color:#05979A">mutex</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">pthread_mutex_lock.c</span>:130
+130	      <b>assert</b> <span style="color:#CC0000">(</span>mutex<span style="color:#CC0000">-&gt;</span>__data<span style="color:#CC0000">.</span>__owner <span style="color:#CC0000">==</span> <span style="color:#754F7B">0</span><span style="color:#CC0000">);</span>
+(gdb) backtrace 
+#0  <span style="color:#C3A000">___pthread_mutex_lock</span> (<span style="color:#05979A">mutex</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">pthread_mutex_lock.c</span>:130
+#1  <span style="color:#3464A3">0x00007ffff7fced65</span> in <span style="color:#C3A000">_dl_fini</span> () at <span style="color:#4D9A05">dl-fini.c</span>:34
+#2  <span style="color:#3464A3">0x00007ffff7e101e6</span> in <span style="color:#C3A000">__run_exit_handlers</span> (<span style="color:#05979A">status</span>=0, <span style="color:#05979A">listp</span>=&lt;optimized out&gt;, 
+    <span style="color:#05979A">run_list_atexit=run_list_atexit@entry</span>=true, <span style="color:#05979A">run_dtors=run_dtors@entry</span>=true) at <span style="color:#4D9A05">exit.c</span>:111
+#3  <span style="color:#3464A3">0x00007ffff7e1032e</span> in <span style="color:#C3A000">__GI_exit</span> (<span style="color:#05979A">status</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">exit.c</span>:141
+#4  <span style="color:#3464A3">0x00007ffff7df7b91</span> in <span style="color:#C3A000">__libc_start_call_main</span> (<span style="color:#05979A">main=main@entry</span>=0x401126 &lt;main&gt;, <span style="color:#05979A">argc=argc@entry</span>=1, 
+    <span style="color:#05979A">argv=argv@entry</span>=0x7fffffffe118) at <span style="color:#4D9A05">../sysdeps/nptl/libc_start_call_main.h</span>:74
+#5  <span style="color:#3464A3">0x00007ffff7df7c4b</span> in <span style="color:#C3A000">__libc_start_main_impl</span> (<span style="color:#05979A">main</span>=0x401126 &lt;main&gt;, <span style="color:#05979A">argc</span>=1, <span style="color:#05979A">argv</span>=0x7fffffffe118, 
+    <span style="color:#05979A">init</span>=&lt;optimized out&gt;, <span style="color:#05979A">fini</span>=&lt;optimized out&gt;, <span style="color:#05979A">rtld_fini</span>=&lt;optimized out&gt;, <span style="color:#05979A">stack_end</span>=0x7fffffffe108)
+    at <span style="color:#4D9A05">../csu/libc-start.c</span>:360
+#6  <span style="color:#3464A3">0x0000000000401065</span> in <span style="color:#C3A000">_start</span> ()
+(gdb) up
+#1  <span style="color:#3464A3">0x00007ffff7fced65</span> in <span style="color:#C3A000">_dl_fini</span> () at <span style="color:#4D9A05">dl-fini.c</span>:34
+34        <b>__rtld_lock_lock_recursive</b> <span style="color:#CC0000">(</span><b>GL</b><span style="color:#CC0000">(</span>dl_load_lock<span style="color:#CC0000">));</span>                                                            
+(gdb) list
+29	<span style="color:#05979A">     on new (relocation) dependencies.  None of the objects are</span>
+30	<span style="color:#05979A">     unmapped, so applications can deal with this if their DSOs remain</span>
+31	<span style="color:#05979A">     in a consistent state after destructors have run.  */</span>
+32	
+33	  <span style="color:#05979A">/* Protect against concurrent loads and unloads.  */</span>
+34	  <b>__rtld_lock_lock_recursive</b> <span style="color:#CC0000">(</span><b>GL</b><span style="color:#CC0000">(</span>dl_load_lock<span style="color:#CC0000">));</span>
+35	
+36	  <span style="color:#05979A">/* Ignore objects which are opened during shutdown.  */</span>
+37	  <span style="color:#729ECF"><b>struct</b></span> <span style="color:#4D9A05">link_map</span> <span style="color:#CC0000">*</span>local_init_called_list <span style="color:#CC0000">=</span> _dl_init_called_list<span style="color:#CC0000">;</span>
+38	
+(gdb) continue 
+Continuing.
+
+Hardware watchpoint 2: *0x7ffff7ffda08
+
+Old value = 1
+New value = 0
+<span style="color:#C3A000">__GI___pthread_mutex_unlock_usercnt</span> (<span style="color:#05979A">mutex</span>=&lt;optimized out&gt;, <span style="color:#05979A">decr</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">pthread_mutex_unlock.c</span>:70
+70	      <b>LIBC_PROBE</b> <span style="color:#CC0000">(</span>mutex_release<span style="color:#CC0000">,</span> <span style="color:#754F7B">1</span><span style="color:#CC0000">,</span> mutex<span style="color:#CC0000">);</span>
+(gdb) backtrace 
+#0  <span style="color:#C3A000">__GI___pthread_mutex_unlock_usercnt</span> (<span style="color:#05979A">mutex</span>=&lt;optimized out&gt;, <span style="color:#05979A">decr</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">pthread_mutex_unlock.c</span>:70
+#1  <span style="color:#3464A3">0x00007ffff7fced9b</span> in <span style="color:#C3A000">_dl_fini</span> () at <span style="color:#4D9A05">dl-fini.c</span>:47
+#2  <span style="color:#3464A3">0x00007ffff7e101e6</span> in <span style="color:#C3A000">__run_exit_handlers</span> (<span style="color:#05979A">status</span>=0, <span style="color:#05979A">listp</span>=&lt;optimized out&gt;, 
+    <span style="color:#05979A">run_list_atexit=run_list_atexit@entry</span>=true, <span style="color:#05979A">run_dtors=run_dtors@entry</span>=true) at <span style="color:#4D9A05">exit.c</span>:111
+#3  <span style="color:#3464A3">0x00007ffff7e1032e</span> in <span style="color:#C3A000">__GI_exit</span> (<span style="color:#05979A">status</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">exit.c</span>:141
+#4  <span style="color:#3464A3">0x00007ffff7df7b91</span> in <span style="color:#C3A000">__libc_start_call_main</span> (<span style="color:#05979A">main=main@entry</span>=0x401126 &lt;main&gt;, <span style="color:#05979A">argc=argc@entry</span>=1, 
+    <span style="color:#05979A">argv=argv@entry</span>=0x7fffffffe118) at <span style="color:#4D9A05">../sysdeps/nptl/libc_start_call_main.h</span>:74
+#5  <span style="color:#3464A3">0x00007ffff7df7c4b</span> in <span style="color:#C3A000">__libc_start_main_impl</span> (<span style="color:#05979A">main</span>=0x401126 &lt;main&gt;, <span style="color:#05979A">argc</span>=1, <span style="color:#05979A">argv</span>=0x7fffffffe118, 
+    <span style="color:#05979A">init</span>=&lt;optimized out&gt;, <span style="color:#05979A">fini</span>=&lt;optimized out&gt;, <span style="color:#05979A">rtld_fini</span>=&lt;optimized out&gt;, <span style="color:#05979A">stack_end</span>=0x7fffffffe108)
+    at <span style="color:#4D9A05">../csu/libc-start.c</span>:360
+#6  <span style="color:#3464A3">0x0000000000401065</span> in <span style="color:#C3A000">_start</span> ()
+(gdb) up
+#1  <span style="color:#3464A3">0x00007ffff7fced9b</span> in <span style="color:#C3A000">_dl_fini</span> () at <span style="color:#4D9A05">dl-fini.c</span>:47
+47	  <b>__rtld_lock_unlock_recursive</b> <span style="color:#CC0000">(</span><b>GL</b><span style="color:#CC0000">(</span>dl_load_lock<span style="color:#CC0000">));</span>
+(gdb) list
+42		<span style="color:#05979A"> are not dlclose()ed from underneath us.  */</span>
+43	      <span style="color:#CC0000">++</span>l<span style="color:#CC0000">-&gt;</span>l_direct_opencount<span style="color:#CC0000">;</span>
+44	
+45	  <span style="color:#05979A">/* After this point, everything linked from local_init_called_list</span>
+46	<span style="color:#05979A">     cannot be unloaded because of the reference counter update.  */</span>
+47	  <b>__rtld_lock_unlock_recursive</b> <span style="color:#CC0000">(</span><b>GL</b><span style="color:#CC0000">(</span>dl_load_lock<span style="color:#CC0000">));</span>
+48	
+49	  <span style="color:#05979A">/* Perform two passes: One for non-audit modules, one for audit</span>
+50	<span style="color:#05979A">     modules.  This way, audit modules receive unload notifications</span>
+51	<span style="color:#05979A">     for non-audit objects, and the destructors for audit modules</span>
+(gdb) continue 
+Continuing.
+[Inferior 1 (process 20248) exited normally]
+(gdb) exit</pre>

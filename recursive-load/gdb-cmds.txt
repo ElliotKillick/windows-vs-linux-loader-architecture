@@ -1,0 +1,23 @@
+run
+gef
+code 3 1
+# ^ We break from constructor of lib1 before doing dlopen on lib2 (using an int3 trap)
+break rtld_lock_default_lock_recursive
+break rtld_lock_default_unlock_recursive
+continue
+print _rtld_global._dl_load_lock
+print _rtld_global._dl_load_lock.mutex.__data.__count
+# ^ This count increases/decreases with every loader lock/unlock
+x/5i rtld_lock_default_lock_recursive
+print lock
+# ^ "lock" is a local variable to this function
+x/1wx lock+0x4
+x/1wx $rdi+0x4
+nexti
+print _rtld_global._dl_load_lock.mutex.__data.__count
+x/1wx lock+0x4
+x/1wx $rdi+0x4
+backtrace
+delete breakpoints 1 2
+continue
+exit

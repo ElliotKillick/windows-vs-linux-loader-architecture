@@ -1,0 +1,133 @@
+This log is taken when the deadlock occurs (^C at program hang). It's from a Fedora 38 machine with GNU ld 2.39 (according to ld --version command).
+
+============================================================
+Thread 1 waiting for thread 2 to terminate with pthread_join
+============================================================
+
+Library 1 loaded successfully!
+[New Thread 0x7ffff7dcc6c0 (LWP 4788)]
+Thread started from library constructor!
+^C
+Thread 1 "main" received signal SIGINT, Interrupt.
+0x00007ffff7e59219 in __futex_abstimed_wait_common64 (private=128, cancel=true, abstime=0x0, op=265, expected=4788, futex_word=0x7ffff7dcc990)
+    at futex-internal.c:57
+57          return INTERNAL_SYSCALL_CANCEL (futex_time64, futex_word, op, expected,
+(gdb) backtrace
+#0  0x00007ffff7e59219 in __futex_abstimed_wait_common64 (private=128, cancel=true, abstime=0x0, op=265, expected=4788, futex_word=0x7ffff7dcc990)
+    at futex-internal.c:57
+#1  __futex_abstimed_wait_common (futex_word=futex_word@entry=0x7ffff7dcc990, expected=4788, clockid=clockid@entry=0, abstime=abstime@entry=0x0, 
+    private=private@entry=128, cancel=cancel@entry=true) at futex-internal.c:87
+#2  0x00007ffff7e5929f in __GI___futex_abstimed_wait_cancelable64 (futex_word=futex_word@entry=0x7ffff7dcc990, expected=<optimized out>, 
+    clockid=clockid@entry=0, abstime=abstime@entry=0x0, private=private@entry=128) at futex-internal.c:139
+#3  0x00007ffff7e5e623 in __pthread_clockjoin_ex (threadid=140737351829184, thread_return=0x0, clockid=0, abstime=0x0, block=<optimized out>)
+    at pthread_join_common.c:102
+#4  0x00007ffff7fbe1a8 in func () at lib1.c:23
+#5  0x00007ffff7fcef77 in call_init (env=0x7fffffffe0e8, argv=0x7fffffffe0d8, argc=1, l=<optimized out>) at dl-init.c:90
+#6  call_init (l=<optimized out>, argc=1, argv=0x7fffffffe0d8, env=0x7fffffffe0e8) at dl-init.c:27
+#7  0x00007ffff7fcf06d in _dl_init (main_map=0x4052f0, argc=1, argv=0x7fffffffe0d8, env=0x7fffffffe0e8) at dl-init.c:137
+#8  0x00007ffff7fcb5c2 in __GI__dl_catch_exception (exception=exception@entry=0x0, operate=operate@entry=0x7ffff7fd5c30 <call_dl_init>, 
+    args=args@entry=0x7fffffffdb00) at dl-catch.c:211
+#9  0x00007ffff7fd5bcc in dl_open_worker (a=a@entry=0x7fffffffdcb0) at dl-open.c:808
+#10 0x00007ffff7fcb523 in __GI__dl_catch_exception (exception=exception@entry=0x7fffffffdc90, operate=operate@entry=0x7ffff7fd5b30 <dl_open_worker>, 
+    args=args@entry=0x7fffffffdcb0) at dl-catch.c:237
+#11 0x00007ffff7fd5f44 in _dl_open (file=0x402010 "lib1.so", mode=<optimized out>, caller_dlopen=0x40113e <main+24>, nsid=<optimized out>, argc=1, 
+    argv=0x7fffffffe0d8, env=0x7fffffffe0e8) at dl-open.c:884
+#12 0x00007ffff7e58714 in dlopen_doit (a=a@entry=0x7fffffffdf60) at dlopen.c:56
+#13 0x00007ffff7fcb523 in __GI__dl_catch_exception (exception=exception@entry=0x7fffffffdea0, operate=0x7ffff7e586b0 <dlopen_doit>, args=0x7fffffffdf60)
+    at dl-catch.c:237
+#14 0x00007ffff7fcb679 in _dl_catch_error (objname=0x7fffffffdf08, errstring=0x7fffffffdf10, mallocedp=0x7fffffffdf07, operate=<optimized out>, 
+    args=<optimized out>) at dl-catch.c:256
+#15 0x00007ffff7e581f3 in _dlerror_run (operate=operate@entry=0x7ffff7e586b0 <dlopen_doit>, args=args@entry=0x7fffffffdf60) at dlerror.c:138
+#16 0x00007ffff7e587cf in dlopen_implementation (dl_caller=<optimized out>, mode=<optimized out>, file=<optimized out>) at dlopen.c:71
+#17 ___dlopen (file=<optimized out>, mode=<optimized out>) at dlopen.c:81
+#18 0x000000000040113e in main () at main.c:4
+(gdb) info threads
+  Id   Target Id                               Frame 
+* 1    Thread 0x7ffff7dcd740 (LWP 4784) "main" 0x00007ffff7e59219 in __futex_abstimed_wait_common64 (private=128, cancel=true, abstime=0x0, op=265, 
+    expected=4788, futex_word=0x7ffff7dcc990) at futex-internal.c:57
+  2    Thread 0x7ffff7dcc6c0 (LWP 4788) "main" futex_wait (private=0, expected=2, futex_word=0x7ffff7ffda08 <_rtld_local+2568>)
+    at ../sysdeps/nptl/futex-internal.h:146
+
+=======================================================
+Thread 2 deadlocks while trying to acquire dl_load_lock
+=======================================================
+
+(gdb) thread 2
+[Switching to thread 2 (Thread 0x7ffff7dcc6c0 (LWP 4788))]
+#0  futex_wait (private=0, expected=2, futex_word=0x7ffff7ffda08 <_rtld_local+2568>) at ../sysdeps/nptl/futex-internal.h:146
+146       int err = lll_futex_timed_wait (futex_word, expected, NULL, private);
+(gdb) backtrace
+#0  futex_wait (private=0, expected=2, futex_word=0x7ffff7ffda08 <_rtld_local+2568>) at ../sysdeps/nptl/futex-internal.h:146
+#1  __GI___lll_lock_wait (futex=futex@entry=0x7ffff7ffda08 <_rtld_local+2568>, private=0) at lowlevellock.c:49
+#2  0x00007ffff7e5feb7 in lll_mutex_lock_optimized (mutex=0x7ffff7ffda08 <_rtld_local+2568>) at pthread_mutex_lock.c:48
+#3  ___pthread_mutex_lock (mutex=0x7ffff7ffda08 <_rtld_local+2568>) at pthread_mutex_lock.c:128
+#4  0x00007ffff7fd5edb in _dl_open (file=0x7ffff7fbf029 "lib2.so", mode=-2147483647, caller_dlopen=0x7ffff7fbe160 <thread+39>, nsid=-2, argc=1, 
+    argv=0x7fffffffe0d8, env=0x7fffffffe0e8) at dl-open.c:830
+#5  0x00007ffff7e58714 in dlopen_doit (a=a@entry=0x7ffff7dcbe70) at dlopen.c:56
+#6  0x00007ffff7fcb523 in __GI__dl_catch_exception (exception=exception@entry=0x7ffff7dcbdb0, operate=0x7ffff7e586b0 <dlopen_doit>, args=0x7ffff7dcbe70)
+    at dl-catch.c:237
+#7  0x00007ffff7fcb679 in _dl_catch_error (objname=0x7ffff7dcbe18, errstring=0x7ffff7dcbe20, mallocedp=0x7ffff7dcbe17, operate=<optimized out>, 
+    args=<optimized out>) at dl-catch.c:256
+#8  0x00007ffff7e581f3 in _dlerror_run (operate=operate@entry=0x7ffff7e586b0 <dlopen_doit>, args=args@entry=0x7ffff7dcbe70) at dlerror.c:138
+#9  0x00007ffff7e587cf in dlopen_implementation (dl_caller=<optimized out>, mode=<optimized out>, file=<optimized out>) at dlopen.c:71
+#10 ___dlopen (file=<optimized out>, mode=<optimized out>) at dlopen.c:81
+#11 0x00007ffff7fbe160 in thread () at lib1.c:10
+#12 0x00007ffff7e5c947 in start_thread (arg=<optimized out>) at pthread_create.c:444
+#13 0x00007ffff7ee2870 in clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:81
+(gdb) up 4
+#4  0x00007ffff7fd5edb in _dl_open (file=0x7ffff7fbf029 "lib2.so", mode=-2147483647, caller_dlopen=0x7ffff7fbe160 <thread+39>, nsid=-2, argc=1, 
+    argv=0x7fffffffe0d8, env=0x7fffffffe0e8) at dl-open.c:830
+830	  __rtld_lock_lock_recursive (GL(dl_load_lock));
+(gdb) list
+825	  if ((mode & RTLD_BINDING_MASK) == 0)
+826	    /* One of the flags must be set.  */
+827	    _dl_signal_error (EINVAL, file, NULL, N_("invalid mode for dlopen()"));
+828
+829	  /* Make sure we are alone.  */
+830	  __rtld_lock_lock_recursive (GL(dl_load_lock)); <-- MY NOTE: We deadlock here!
+831
+832	  if (__glibc_unlikely (nsid == LM_ID_NEWLM))
+833	    {
+834	      /* Find a new namespace.  */
+(gdb)
+(gdb) set print pretty
+(gdb) print _rtld_global._dl_load_lock
+$1 = {
+  mutex = {
+    __data = {
+      __lock = 2, <-- MY NOTE: Contention
+      __count = 1,
+      __owner = 4784,
+      __nusers = 1,
+      __kind = 1,
+      __spins = 0,
+      __elision = 0,
+      __list = {
+        __prev = 0x0,
+        __next = 0x0
+      }
+    },
+    __size = "\002\000\000\000\001\000\000\000\260\022\000\000\001\000\000\000\001", '\000' <repeats 22 times>,
+    __align = 4294967298
+  }
+}
+(gdb) print _rtld_global._dl_load_write_lock
+$2 = {
+  mutex = {
+    __data = {
+      __lock = 0,
+      __count = 0,
+      __owner = 0,
+      __nusers = 0,
+      __kind = 1,
+      __spins = 0,
+      __elision = 0,
+      __list = {
+        __prev = 0x0,
+        __next = 0x0
+      }
+    },
+    __size = '\000' <repeats 16 times>, "\001", '\000' <repeats 22 times>,
+    __align = 0
+  }
+}
