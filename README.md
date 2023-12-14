@@ -6,7 +6,7 @@ All of the information contained here covers Windows 10 22H2 and glibc 2.38.
 
 ## Data Structures
 
-The Windows module list is a circular doubly linked list of type `LDR_DATA_TABLE_ENTRY`. However, it's more complex due to maintaining the list in multiple link orders (including `InLoadOrderModuleList`, `InMemoryOrderModuleList`, and `InInitializationOrderModuleList` according to `PEB_LDR_DATA`).  Each `LDR_DATA_TABLE_ENTRY` structure houses a `LIST_ENTRY` structure (containing both `Flink` and `Blink` pointers) thus building the module list. For more information on the Windows loader data structures, see the full article.
+A Windows module list is a circular doubly linked list of type `LDR_DATA_TABLE_ENTRY`. The loader maintains multiple lists containing the same entries but in different link orders. This includes `InLoadOrderModuleList`, `InMemoryOrderModuleList`, and `InInitializationOrderModuleList` according to `PEB_LDR_DATA`. Each `LDR_DATA_TABLE_ENTRY` structure houses a `LIST_ENTRY` structure (containing both `Flink` and `Blink` pointers) for each of these module lists. For more information on the Windows loader data structures, see the full article.
 
 The Linux (glibc) module list is a non-circular doubly linked list of type [`link_map`](https://elixir.bootlin.com/glibc/glibc-2.38/source/include/link.h#L86). `link_map` contains both the `next` and `prev` pointers used to link modules together into a list.
 
@@ -80,20 +80,15 @@ However, Windows has more synchronization objects that control the loader includ
 - `TppWorkerpListLock`
   - It exists in the PEB to control access to the member immediately below it which is `TppWorkerpList`
   - This list keeps track of all the `ntdll!TppWorkerThread` spawned into a process (this is part of the parallel loader introduced in Windows 10)
-    - Each `LIST_ENTRY` (except the first which points to `TppWorkerpList` in the PEB) points into the stack of a `ntdll!TppWorkerThread`
+    - There's a list head, after which each `LIST_ENTRY` points into the stack of a `ntdll!TppWorkerThread`
 - `LdrpProcessInitialized`
   - Simply modified atomically with a `lock cmpxchg` instruction
   - Indicates whether process initialization has completed (`LdrpInitializeProcess`)
     - If proccess is still being initialized, newly spawned threads immediately jump to calling `NtWaitForSingleObject` waiting on `LdrpInitCompleteEvent` before proceeding
 - `LDR_DATA_TABLE_ENTRY.Lock`
-  - Each `LDR_DATA_TABLE_ENTRY` has a [`PVOID` `Lock` member which has existed since Windows 10](https://www.geoffchappell.com/studies/windows/km/ntoskrnl/inc/api/ntldr/ldr_data_table_entry.htm) (it replaced a `Spare` slot)
-  - Presumably, this is here to implement per-node locking
-    - However, after setting a watchpoint (`ba r8 <address>`) on `Lock` in multiple different `LDR_DATA_TABLE_ENTRY` structures, I was unable to find a single occurrence of it being read or modified
-      - `LdrpAllocateModuleEntry` allocates a new `LDR_DATA_TABLE_ENTRY` to the heap (`RtlAllocateHeap`) then initializes `Lock` (at `+0x90`) to zero
-      - Past that, a watchpoint on `Lock` will never be hit
-    - Listing all module list entries with this command: `!list -x "dt ntdll!_LDR_DATA_TABLE_ENTRY" @@C++(&@$peb->Ldr->InLoadOrderModuleList)`
-      - I don't find a single entry where `Lock` is not `(null)`
-    - According to my analysis, this lock is completely unused in Windows 10 (perhaps this changes in Windows 11?)
+  - Starting with Windows 10, each `LDR_DATA_TABLE_ENTRY` has a [`PVOID` `Lock` member](https://www.geoffchappell.com/studies/windows/km/ntoskrnl/inc/api/ntldr/ldr_data_table_entry.htm) (it replaced a `Spare` slot)
+  - `LdrpWriteBackProtectedDelayLoad` uses this per-node lock to implement some level of protection during delay loading (more research required)
+    - Windows delay loading is equivalent to Linux lazy loading (specifying `RTLD_LAZY` for `dlopen` `flags` argument)
 - Searching symbols reveals more locks: `x ntdll!Ldr*Lock`
   - `LdrpDllDirectoryLock`, `LdrpTlsLock` (this is a shared SRW lock), `LdrpEnclaveListLock`, `LdrpPathLock`, `LdrpInvertedFunctionTableSRWLock`, `LdrpVehLock`, `LdrpForkActiveLock`, `LdrpCODScenarioLock`, `LdrpMrdataLock`, and `LdrpVchLock`
   - A lot of these locks seem be for controlling access to list data structures
@@ -142,4 +137,4 @@ When printing a `backtrace`, you may see `<optimized out>` in the output for som
 
 In backtraces contained within the `gdb-log.txt` files of this repo, you may entries to functions like `dlerror_run`, `_dl_catch_error` and `__GI__dl_catch_exception` (`_dl_catch_exception` in the code). These aren't indicative of an error occurring. Rather, these functions merely set up the error handler and perform handling *if* an exception occurs.
 
-The glibc loader supports a feature known as loader namespaces for separating symbols contained within a loaded library to a separate namespace. Creating a new namespace for a loading library requires calling [`dlmopen`](https://manpages.debian.org/testing/manpages-dev/dlmopen.3.en.html) (this is a GNU extension). These namespaces don't affect how the loader handles concurrency and thus aren't relevant to us. In the code, any block where you see the variable `dl_nns` (not `dl_ns`; that's the namepsace selected from the list of namespaces) can generally be ignored (e.g. a large patch in the `dl_iterate_phdr` function). Also, ignore the `_ns_unique_sym_table` lock which is only used to control creation/deletion access to the list of namespaces.
+The glibc loader supports a feature known as loader namespaces for separating symbols contained within a loaded library to a separate namespace. Creating a new namespace for a loading library requires calling [`dlmopen`](https://manpages.debian.org/testing/manpages-dev/dlmopen.3.en.html) (this is a GNU extension). These namespaces don't affect how the loader handles concurrency and thus aren't relevant to us. In the code, any block where you see the variable `dl_nns` (not `dl_ns`; that's the namepsace selected from the list of namespaces) can generally be ignored (e.g. a large patch in the `dl_iterate_phdr` function). Also, ignore the `_ns_unique_sym_table` lock which is only used to control insertion/deletion access to the list of namespaces.
