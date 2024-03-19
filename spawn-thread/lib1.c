@@ -4,14 +4,14 @@
 
 void* thread()
 {
-    printf("%s", "Thread started from library constructor!\n");
+    puts("Thread started from library constructor!\n");
 
     return NULL;
 }
 
 __attribute__((constructor))
 void func() {
-    printf("%s", "Library 1 loaded successfully!\n");
+    puts("Library 1 loaded successfully!\n");
 
     pthread_t thread1;
     pthread_create(&thread1, NULL, &thread, NULL);

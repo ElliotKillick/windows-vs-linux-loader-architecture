@@ -2,7 +2,7 @@ This log is taken starting from the main function. We set a watchpoint to on dl_
 <br><br>
 NOTE: There are a few places where the Glibc calls __rtld_lock_unlock_recursive but you don't see it in the call stack upon doing "up" (in the call stack) and "list" (show source code) because it was optimized out with a tail call. Unlocks are usually done at the end of a funciton so they may be optimized out like this. Glibc still runs __rtld_lock_unlock_recursive but it's jumped (jmp instruction) to instead of called (call instruction) thus improving performance.
 <br><br>
-I've confirmed the tail call by looking at the end of _dl_add_to_namespace_list where it jumps to ___rtld_mutex_unlock then lets it return (ret instruction) instead of _dl_add_to_namespace_list returning itself:
+I've confirmed the tail call by looking at the end of _dl_add_to_namespace_list where it jumps to ___rtld_mutex_unlock then lets that function return (ret instruction) instead of _dl_add_to_namespace_list returning itself:
 
 <pre>=&gt; <span style="color:#3464A3">0x7ffff7fd556f</span> &lt;<span style="color:#C3A000">_dl_add_to_namespace_list</span>+143&gt;:	<span style="color:#4D9A05">add    </span><span style="color:#3464A3">$0x8</span>,<span style="color:#CC0000">%rsp</span>
    <span style="color:#3464A3">0x7ffff7fd5573</span> &lt;<span style="color:#C3A000">_dl_add_to_namespace_list</span>+147&gt;:	<span style="color:#4D9A05">pop    </span><span style="color:#CC0000">%rbx</span>

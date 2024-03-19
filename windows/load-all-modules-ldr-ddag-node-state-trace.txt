@@ -1,0 +1,3146 @@
+This log is taken from opening a fresh Chrome instance, and then doing Ctrl+P (open print dialog) to load many more libraries.
+It's from a physical system because I was experiencing a WinDbg bug on my VM where Chrome wouldn't start under WinDbg. Although, I tested again and can no longer reproduce the issue.
+As a result, you will see some DLLs from FireEye (umppcXXXXX.dll), BeyondTrust (PGHook.dll), and more injecting into the process through APC or spawning a thread. I figure it only makes the trace more complete.
+
+Microsoft (R) Windows Debugger Version 10.0.25921.1001 AMD64
+Copyright (c) Microsoft Corporation. All rights reserved.
+
+CommandLine: C:\Program Files\Google\Chrome\Application\chrome.exe
+
+************* Path validation summary **************
+Response                         Time (ms)     Location
+Deferred                                       srv*
+Symbol search path is: srv*
+Executable search path is: 
+
++------------------------------------------------------------------------+
+| This target supports Hardware-enforced Stack Protection. A HW based    |
+| "Shadow Stack" may be available to assist in debugging and analysis.   |
+| See aka.ms/userhsp for more info.                                      |
+|                                                                        |
+| dps @ssp                                                               |
+|                                                                        |
++------------------------------------------------------------------------+
+
+ModLoad: 00007ff7`e2f40000 00007ff7`e31e4000   chrome.exe
+ModLoad: 00007ff8`51790000 00007ff8`51988000   ntdll.dll
+ntdll!RtlUserThreadStart:
+00007ff8`517e2690 4883ec78        sub     rsp,78h
+0:000> bp ntdll!LdrpAllocateModuleEntry "bp /1 @$ra \"bc 999; ba999 w8 @@C++(&((ntdll!_LDR_DATA_TABLE_ENTRY *)@$retreg)->DdagNode->State) \\\"ub . L1; dp ntdll!LdrpModuleDataTableLock L1; g\\\"; g\"; g"
+0:000> g
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpInitializeProcess+0x129d:
+00007ff8`51862f7d c7413809000000  mov     dword ptr [rcx+38h],9
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpInitializeProcess+0x15e8:
+00007ff8`518632c8 c7413809000000  mov     dword ptr [rcx+38h],9
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`503e0000 00007ff8`5049d000   C:\WINDOWS\System32\KERNEL32.DLL
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ModLoad: 00007ff8`4f1d0000 00007ff8`4f4c6000   C:\WINDOWS\System32\KERNELBASE.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`4cf40000 00007ff8`4cfd0000   C:\WINDOWS\SYSTEM32\apphelp.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007fff`bd6d0000 00007fff`bdb66000   C:\WINDOWS\SYSTEM32\AcLayers.DLL
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ModLoad: 00007ff8`506e0000 00007ff8`5077e000   C:\WINDOWS\System32\msvcrt.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`4f970000 00007ff8`4fb0e000   C:\WINDOWS\System32\USER32.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ModLoad: 00007ff8`4f000000 00007ff8`4f022000   C:\WINDOWS\System32\win32u.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x238:
+00007ff8`517a7bc8 c7403805000000  mov     dword ptr [rax+38h],5
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`50ed0000 00007ff8`50efc000   C:\WINDOWS\System32\GDI32.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ModLoad: 00007ff8`4f560000 00007ff8`4f67a000   C:\WINDOWS\System32\gdi32full.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ModLoad: 00007ff8`4f130000 00007ff8`4f1cd000   C:\WINDOWS\System32\msvcp_win.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ModLoad: 00007ff8`4f030000 00007ff8`4f130000   C:\WINDOWS\System32\ucrtbase.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`50780000 00007ff8`50ec5000   C:\WINDOWS\System32\SHELL32.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`510a0000 00007ff8`510f5000   C:\WINDOWS\System32\SHLWAPI.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`50310000 00007ff8`503c3000   C:\WINDOWS\System32\ADVAPI32.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ModLoad: 00007ff8`50270000 00007ff8`5030f000   C:\WINDOWS\System32\sechost.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ModLoad: 00007ff8`4fb10000 00007ff8`4fc36000   C:\WINDOWS\System32\RPCRT4.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`4efd0000 00007ff8`4eff7000   C:\WINDOWS\System32\bcrypt.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00000237`e2210000 00000237`e2213000   C:\WINDOWS\SYSTEM32\sfc.dll
+ModLoad: 00007ff8`220c0000 00007ff8`22165000   C:\WINDOWS\SYSTEM32\WINSPOOL.DRV
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ModLoad: 00007ff8`513f0000 00007ff8`51744000   C:\WINDOWS\System32\combase.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`51190000 00007ff8`5123d000   C:\WINDOWS\System32\shcore.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`20e70000 00007ff8`20e82000   C:\WINDOWS\SYSTEM32\sfc_os.DLL
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`504a0000 00007ff8`504d0000   C:\WINDOWS\System32\IMM32.DLL
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`4bf90000 00007ff8`4bf9a000   C:\WINDOWS\SYSTEM32\VERSION.dll
+ModLoad: 00007fff`e33a0000 00007fff`e3503000   C:\Program Files\Google\Chrome\Application\120.0.6099.130\chrome_elf.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+(8344.5e1c): Break instruction exception - code 80000003 (first chance)
+ntdll!LdrpDoDebuggerBreak+0x30:
+00007ff8`51860730 cc              int     3
+0:000> g
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`4f4d0000 00007ff8`4f552000   C:\WINDOWS\System32\bcryptprimitives.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00000001`80000000 00000001`800ac000   C:\Program Files (x86)\PharosSystems\PrintScout\AppProfiler.x64.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ModLoad: 00007ff8`50f70000 00007ff8`5109b000   C:\WINDOWS\System32\ole32.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`4fca0000 00007ff8`4fd6d000   C:\WINDOWS\System32\OLEAUT32.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`4e0b0000 00007ff8`4e34a000   C:\WINDOWS\WinSxS\amd64_microsoft.windows.common-controls_6595b64144ccf1df_6.0.19041.3636_none_60b6a03d71f818d5\Comctl32.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`4eb90000 00007ff8`4ebc3000   C:\WINDOWS\SYSTEM32\ntmarta.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00000237`e4000000 00000237`e4014000   C:\WINDOWS\System32\umppcXXXXX.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`4e4b0000 00007ff8`4e5c0000   C:\Program Files\Avecto\Privilege Guard Client\PGHook.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`51180000 00007ff8`51188000   C:\WINDOWS\System32\psapi.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`4c5b0000 00007ff8`4c5c2000   C:\WINDOWS\SYSTEM32\kernel.appcore.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`4b6c0000 00007ff8`4be5b000   C:\WINDOWS\SYSTEM32\windows.storage.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ModLoad: 00007ff8`4e080000 00007ff8`4e0ad000   C:\WINDOWS\SYSTEM32\Wldp.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007fff`70720000 00007fff`7e8e5000   C:\Program Files\Google\Chrome\Application\120.0.6099.130\chrome.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ModLoad: 00007ff8`50f00000 00007ff8`50f6b000   C:\WINDOWS\System32\WS2_32.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`4ee60000 00007ff8`4eec7000   C:\WINDOWS\System32\WINTRUST.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00000237`e4060000 00000237`e41bd000   C:\WINDOWS\System32\CRYPT32.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`4c010000 00007ff8`4c037000   C:\WINDOWS\SYSTEM32\WINMM.dll
+ModLoad: 00007ff8`4e870000 00007ff8`4ea54000   C:\WINDOWS\SYSTEM32\dbghelp.dll
+ModLoad: 00007ff8`4dac0000 00007ff8`4dafb000   C:\WINDOWS\SYSTEM32\IPHLPAPI.DLL
+ModLoad: 00007ff8`4ed50000 00007ff8`4ed7e000   C:\WINDOWS\SYSTEM32\USERENV.dll
+ModLoad: 00007ff8`4bfa0000 00007ff8`4bfac000   C:\WINDOWS\SYSTEM32\Secur32.dll
+ModLoad: 00007ff8`469b0000 00007ff8`46aba000   C:\WINDOWS\SYSTEM32\WINHTTP.dll
+ModLoad: 00007ff8`34e90000 00007ff8`3510f000   C:\WINDOWS\SYSTEM32\DWrite.dll
+ModLoad: 00007ff8`45a90000 00007ff8`45aad000   C:\WINDOWS\SYSTEM32\dhcpcsvc.DLL
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`4ed10000 00007ff8`4ed42000   C:\WINDOWS\SYSTEM32\SSPICLI.DLL
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`4e5e0000 00007ff8`4e5f2000   C:\WINDOWS\System32\MSASN1.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`4d040000 00007ff8`4d0de000   C:\WINDOWS\system32\uxtheme.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`46200000 00007ff8`46209000   C:\WINDOWS\SYSTEM32\KBDUS.DLL
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x238:
+00007ff8`517a7bc8 c7403805000000  mov     dword ptr [rax+38h],5
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpUnloadNode+0x36:
+00007ff8`517fa4fe 834938ff        or      dword ptr [rcx+38h],0FFFFFFFFh
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpUnloadNode+0x174:
+00007ff8`517fa63c c74738feffffff  mov     dword ptr [rdi+38h],0FFFFFFFEh
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1bac:
+00007ff8`517bed0c 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!memcpy+0x122:
+00007ff8`51833f62 0f2951d0        movaps  xmmword ptr [rcx-30h],xmm2
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1bac:
+00007ff8`517bed0c 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!memcpy+0x122:
+00007ff8`51833f62 0f2951d0        movaps  xmmword ptr [rcx-30h],xmm2
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!memset+0xa0:
+00007ff8`518341a0 0f2941a0        movaps  xmmword ptr [rcx-60h],xmm0
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpAllocateModuleEntry+0x96:
+00007ff8`517fb4b6 48895e38        mov     qword ptr [rsi+38h],rbx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`4d1b0000 00007ff8`4d1d3000   C:\WINDOWS\SYSTEM32\gpapi.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`4df20000 00007ff8`4df39000   C:\WINDOWS\SYSTEM32\wkscli.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`4df00000 00007ff8`4df0c000   C:\WINDOWS\SYSTEM32\netutils.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`505c0000 00007ff8`506d4000   C:\WINDOWS\System32\MSCTF.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x6f:
+00007ff8`517fe4a7 488b5c2448      mov     rbx,qword ptr [rsp+48h] ss:000000c7`e9dfd4f8=000000c7e9dfd5e0
+0:000> g
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`401b0000 00007ff8`401c9000   C:\WINDOWS\system32\netapi32.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`4ea60000 00007ff8`4eaab000   C:\WINDOWS\SYSTEM32\powrprof.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`4e5c0000 00007ff8`4e5d2000   C:\WINDOWS\SYSTEM32\UMPDC.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+breakpoint 1 redefined
+ntdll!LdrpUnloadNode+0x174:
+00007ff8`517fa63c c74738feffffff  mov     dword ptr [rdi+38h],0FFFFFFFEh
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpInsertFreeBlock+0x90f14:
+00007ff8`5183f854 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!memset+0xa5:
+00007ff8`518341a5 2941b0          sub     dword ptr [rcx-50h],eax
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`17bd0000 00007ff8`17c38000   C:\WINDOWS\SYSTEM32\MDMRegistration.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ModLoad: 00007ff8`4d7f0000 00007ff8`4d87a000   C:\WINDOWS\SYSTEM32\msvcp110_win.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`179e0000 00007ff8`17a1a000   C:\WINDOWS\SYSTEM32\omadmapi.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ModLoad: 00007ff8`4ebd0000 00007ff8`4ebe8000   C:\WINDOWS\SYSTEM32\CRYPTSP.dll
+ModLoad: 00007ff8`24870000 00007ff8`248ec000   C:\WINDOWS\SYSTEM32\DMCmnUtils.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ModLoad: 00007ff8`4e390000 00007ff8`4e3b8000   C:\WINDOWS\SYSTEM32\ncrypt.dll
+ModLoad: 00007ff8`46770000 00007ff8`4678b000   C:\WINDOWS\SYSTEM32\tbs.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ModLoad: 00007ff8`51100000 00007ff8`5111d000   C:\WINDOWS\System32\imagehlp.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`4e350000 00007ff8`4e38b000   C:\WINDOWS\SYSTEM32\NTASN1.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`4ec50000 00007ff8`4ec5a000   C:\WINDOWS\System32\DPAPI.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`4deb0000 00007ff8`4debc000   C:\WINDOWS\System32\CRYPTBASE.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`401b0000 00007ff8`401c9000   C:\WINDOWS\system32\netapi32.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`46990000 00007ff8`469ad000   C:\WINDOWS\system32\NLAapi.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`4d280000 00007ff8`4d3c1000   C:\WINDOWS\SYSTEM32\DSREG.DLL
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ModLoad: 00007ff8`4d7f0000 00007ff8`4d87a000   C:\WINDOWS\SYSTEM32\msvcp110_win.dll
+ModLoad: 00007ff8`4ebd0000 00007ff8`4ebe8000   C:\WINDOWS\SYSTEM32\cryptsp.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`503d0000 00007ff8`503d8000   C:\WINDOWS\System32\NSI.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+breakpoint 1 redefined
+ModLoad: 00007ff8`4ed90000 00007ff8`4edb5000   C:\WINDOWS\System32\profapi.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+breakpoint 1 redefined
+ModLoad: 00007ff8`45e00000 00007ff8`45e17000   C:\WINDOWS\SYSTEM32\dhcpcsvc6.DLL
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`4db00000 00007ff8`4dbca000   C:\WINDOWS\SYSTEM32\DNSAPI.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`4f7e0000 00007ff8`4f889000   C:\WINDOWS\System32\clbcatq.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`45c10000 00007ff8`45d09000   C:\WINDOWS\SYSTEM32\textinputframework.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ModLoad: 00007ff8`47d90000 00007ff8`480eb000   C:\WINDOWS\System32\CoreUIComponents.dll
+ModLoad: 00007ff8`4cd00000 00007ff8`4cdf2000   C:\WINDOWS\System32\CoreMessaging.dll
+ModLoad: 00007ff8`46fa0000 00007ff8`470f5000   C:\WINDOWS\SYSTEM32\wintypes.dll
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d5:
+00007ff8`517be635 f348ab          rep stos qword ptr [rdi]
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d5:
+00007ff8`517be635 f348ab          rep stos qword ptr [rdi]
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d5:
+00007ff8`517be635 f348ab          rep stos qword ptr [rdi]
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d5:
+00007ff8`517be635 f348ab          rep stos qword ptr [rdi]
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d5:
+00007ff8`517be635 f348ab          rep stos qword ptr [rdi]
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d5:
+00007ff8`517be635 f348ab          rep stos qword ptr [rdi]
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0xe7f:
+00007ff8`517bdfdf 4488760a        mov     byte ptr [rsi+0Ah],r14b
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0xe83:
+00007ff8`517bdfe3 4488560f        mov     byte ptr [rsi+0Fh],r10b
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0xe93:
+00007ff8`517bdff3 89460c          mov     dword ptr [rsi+0Ch],eax
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0xee6:
+00007ff8`517be046 7e0e            jle     ntdll!RtlpAllocateHeap+0xef6 (00007ff8`517be056)
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0xee8:
+00007ff8`517be048 c6460b00        mov     byte ptr [rsi+0Bh],0
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0xeec:
+00007ff8`517be04c 6644896608      mov     word ptr [rsi+8],r12w
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x145e:
+00007ff8`517be5be 88460a          mov     byte ptr [rsi+0Ah],al
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1461:
+00007ff8`517be5c1 c6460f00        mov     byte ptr [rsi+0Fh],0
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14e6:
+00007ff8`517be646 804e0a04        or      byte ptr [rsi+0Ah],4
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x143b:
+00007ff8`517be59b 88460b          mov     byte ptr [rsi+0Bh],al
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1444:
+00007ff8`517be5a4 314608          xor     dword ptr [rsi+8],eax
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x7db:
+00007ff8`517bd93b 41895708        mov     dword ptr [r15+8],edx
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0xc47:
+00007ff8`517bdda7 8806            mov     byte ptr [rsi],al
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0xc52:
+00007ff8`517bddb2 45896f08        mov     dword ptr [r15+8],r13d
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0xc75:
+00007ff8`517bddd5 884f0f          mov     byte ptr [rdi+0Fh],cl
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0xc89:
+00007ff8`517bdde9 41c6470b00      mov     byte ptr [r15+0Bh],0
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1be4:
+00007ff8`517bed44 80480a04        or      byte ptr [rax+0Ah],4
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1bed:
+00007ff8`517bed4d c6470b00        mov     byte ptr [rdi+0Bh],0
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1cbd:
+00007ff8`517bee1d 88470b          mov     byte ptr [rdi+0Bh],al
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1cc6:
+00007ff8`517bee26 3106            xor     dword ptr [rsi],eax
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlDebugAllocateHeap+0x127:
+00007ff8`51888917 314308          xor     dword ptr [rbx+8],eax
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlDebugAllocateHeap+0x18c:
+00007ff8`5188897c 88430b          mov     byte ptr [rbx+0Bh],al
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlDebugAllocateHeap+0x195:
+00007ff8`51888985 314308          xor     dword ptr [rbx+8],eax
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0x251:
+00007ff8`517b5e51 895608          mov     dword ptr [rsi+8],edx
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xf6c:
+00007ff8`517b6b6c 80660af0        and     byte ptr [rsi+0Ah],0F0h
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xf70:
+00007ff8`517b6b70 c6460f00        mov     byte ptr [rsi+0Fh],0
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xff5:
+00007ff8`517b6bf5 804e0a04        or      byte ptr [rsi+0Ah],4
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xf4f:
+00007ff8`517b6b4f 88460b          mov     byte ptr [rsi+0Bh],al
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xf58:
+00007ff8`517b6b58 314608          xor     dword ptr [rsi+8],eax
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x7db:
+00007ff8`517bd93b 41895708        mov     dword ptr [r15+8],edx
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0xc47:
+00007ff8`517bdda7 8806            mov     byte ptr [rsi],al
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0xc52:
+00007ff8`517bddb2 45896f08        mov     dword ptr [r15+8],r13d
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0xc75:
+00007ff8`517bddd5 884f0f          mov     byte ptr [rdi+0Fh],cl
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0xc89:
+00007ff8`517bdde9 41c6470b00      mov     byte ptr [r15+0Bh],0
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1be4:
+00007ff8`517bed44 80480a04        or      byte ptr [rax+0Ah],4
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1bed:
+00007ff8`517bed4d c6470b00        mov     byte ptr [rdi+0Bh],0
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1cbd:
+00007ff8`517bee1d 88470b          mov     byte ptr [rdi+0Bh],al
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1cc6:
+00007ff8`517bee26 3106            xor     dword ptr [rsi],eax
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlDebugAllocateHeap+0x127:
+00007ff8`51888917 314308          xor     dword ptr [rbx+8],eax
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlDebugAllocateHeap+0x18c:
+00007ff8`5188897c 88430b          mov     byte ptr [rbx+0Bh],al
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlDebugAllocateHeap+0x195:
+00007ff8`51888985 314308          xor     dword ptr [rbx+8],eax
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0x251:
+00007ff8`517b5e51 895608          mov     dword ptr [rsi+8],edx
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xf6c:
+00007ff8`517b6b6c 80660af0        and     byte ptr [rsi+0Ah],0F0h
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xf70:
+00007ff8`517b6b70 c6460f00        mov     byte ptr [rsi+0Fh],0
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xff5:
+00007ff8`517b6bf5 804e0a04        or      byte ptr [rsi+0Ah],4
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xf4f:
+00007ff8`517b6b4f 88460b          mov     byte ptr [rsi+0Bh],al
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xf58:
+00007ff8`517b6b58 314608          xor     dword ptr [rsi+8],eax
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x7db:
+00007ff8`517bd93b 41895708        mov     dword ptr [r15+8],edx
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0xc47:
+00007ff8`517bdda7 8806            mov     byte ptr [rsi],al
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0xc52:
+00007ff8`517bddb2 45896f08        mov     dword ptr [r15+8],r13d
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0xc75:
+00007ff8`517bddd5 884f0f          mov     byte ptr [rdi+0Fh],cl
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0xc89:
+00007ff8`517bdde9 41c6470b00      mov     byte ptr [r15+0Bh],0
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1be4:
+00007ff8`517bed44 80480a04        or      byte ptr [rax+0Ah],4
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1bed:
+00007ff8`517bed4d c6470b00        mov     byte ptr [rdi+0Bh],0
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1cbd:
+00007ff8`517bee1d 88470b          mov     byte ptr [rdi+0Bh],al
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1cc6:
+00007ff8`517bee26 3106            xor     dword ptr [rsi],eax
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlDebugAllocateHeap+0x127:
+00007ff8`51888917 314308          xor     dword ptr [rbx+8],eax
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlDebugAllocateHeap+0x18c:
+00007ff8`5188897c 88430b          mov     byte ptr [rbx+0Bh],al
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlDebugAllocateHeap+0x195:
+00007ff8`51888985 314308          xor     dword ptr [rbx+8],eax
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpReAllocateHeap+0x466:
+00007ff8`517b1e4a 314308          xor     dword ptr [rbx+8],eax
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpReAllocateHeap+0xae4:
+00007ff8`517b24c8 88480f          mov     byte ptr [rax+0Fh],cl
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpReAllocateHeap+0xea3:
+00007ff8`517b2887 88410b          mov     byte ptr [rcx+0Bh],al
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpReAllocateHeap+0xead:
+00007ff8`517b2891 314108          xor     dword ptr [rcx+8],eax
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlDebugReAllocateHeap+0x2dc:
+00007ff8`51889abc 41314608        xor     dword ptr [r14+8],eax
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlDebugReAllocateHeap+0x34b:
+00007ff8`51889b2b 4188460b        mov     byte ptr [r14+0Bh],al
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlDebugReAllocateHeap+0x356:
+00007ff8`51889b36 314608          xor     dword ptr [rsi+8],eax
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpReAllocateHeap+0x466:
+00007ff8`517b1e4a 314308          xor     dword ptr [rbx+8],eax
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpReAllocateHeap+0xc02:
+00007ff8`517b25e6 88430b          mov     byte ptr [rbx+0Bh],al
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpReAllocateHeap+0xc0c:
+00007ff8`517b25f0 314308          xor     dword ptr [rbx+8],eax
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpReAllocateHeap+0xcee:
+00007ff8`517b26d2 314b08          xor     dword ptr [rbx+8],ecx
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpReAllocateHeap+0xd7b:
+00007ff8`517b275f 88430b          mov     byte ptr [rbx+0Bh],al
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpReAllocateHeap+0xd85:
+00007ff8`517b2769 314308          xor     dword ptr [rbx+8],eax
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0x251:
+00007ff8`517b5e51 895608          mov     dword ptr [rsi+8],edx
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xf6c:
+00007ff8`517b6b6c 80660af0        and     byte ptr [rsi+0Ah],0F0h
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xf70:
+00007ff8`517b6b70 c6460f00        mov     byte ptr [rsi+0Fh],0
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xff5:
+00007ff8`517b6bf5 804e0a04        or      byte ptr [rsi+0Ah],4
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xf4f:
+00007ff8`517b6b4f 88460b          mov     byte ptr [rsi+0Bh],al
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xf58:
+00007ff8`517b6b58 314608          xor     dword ptr [rsi+8],eax
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x7db:
+00007ff8`517bd93b 41895708        mov     dword ptr [r15+8],edx
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0xc47:
+00007ff8`517bdda7 8806            mov     byte ptr [rsi],al
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0xc52:
+00007ff8`517bddb2 45896f08        mov     dword ptr [r15+8],r13d
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0xc75:
+00007ff8`517bddd5 884f0f          mov     byte ptr [rdi+0Fh],cl
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0xc89:
+00007ff8`517bdde9 41c6470b00      mov     byte ptr [r15+0Bh],0
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1be4:
+00007ff8`517bed44 80480a04        or      byte ptr [rax+0Ah],4
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1bed:
+00007ff8`517bed4d c6470b00        mov     byte ptr [rdi+0Bh],0
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1cbd:
+00007ff8`517bee1d 88470b          mov     byte ptr [rdi+0Bh],al
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1cc6:
+00007ff8`517bee26 3106            xor     dword ptr [rsi],eax
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlDebugAllocateHeap+0x127:
+00007ff8`51888917 314308          xor     dword ptr [rbx+8],eax
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlDebugAllocateHeap+0x18c:
+00007ff8`5188897c 88430b          mov     byte ptr [rbx+0Bh],al
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlDebugAllocateHeap+0x195:
+00007ff8`51888985 314308          xor     dword ptr [rbx+8],eax
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpReAllocateHeap+0x466:
+00007ff8`517b1e4a 314308          xor     dword ptr [rbx+8],eax
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpReAllocateHeap+0xae4:
+00007ff8`517b24c8 88480f          mov     byte ptr [rax+0Fh],cl
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpReAllocateHeap+0xea3:
+00007ff8`517b2887 88410b          mov     byte ptr [rcx+0Bh],al
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpReAllocateHeap+0xead:
+00007ff8`517b2891 314108          xor     dword ptr [rcx+8],eax
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlDebugReAllocateHeap+0x2dc:
+00007ff8`51889abc 41314608        xor     dword ptr [r14+8],eax
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlDebugReAllocateHeap+0x34b:
+00007ff8`51889b2b 4188460b        mov     byte ptr [r14+0Bh],al
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlDebugReAllocateHeap+0x356:
+00007ff8`51889b36 314608          xor     dword ptr [rsi+8],eax
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`456e0000 00007ff8`458e3000   C:\Windows\System32\twinapi.appcore.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`3a1a0000 00007ff8`3a249000   C:\WINDOWS\system32\twinapi.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`45e20000 00007ff8`45f61000   C:\Windows\System32\Windows.UI.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ModLoad: 00007ff8`45d10000 00007ff8`45db1000   C:\Windows\System32\WindowManagementAPI.dll
+ModLoad: 00007ff8`45ab0000 00007ff8`45c02000   C:\Windows\System32\InputHost.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ModLoad: 00007ff8`46570000 00007ff8`46666000   C:\Windows\System32\PROPSYS.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+breakpoint 1 redefined
+breakpoint 1 redefined
+ModLoad: 00007ff8`4bff0000 00007ff8`4c004000   C:\WINDOWS\SYSTEM32\WTSAPI32.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ef:
+00007ff8`517fc3e3 418bc7          mov     eax,r15d
+0:018> g
+ModLoad: 00007ff8`42a30000 00007ff8`42ade000   C:\WINDOWS\SYSTEM32\mscms.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ModLoad: 00007ff8`42a10000 00007ff8`42a21000   C:\WINDOWS\SYSTEM32\ColorAdapterClient.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`384d0000 00007ff8`38555000   C:\WINDOWS\System32\MMDevApi.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ModLoad: 00007ff8`4ebf0000 00007ff8`4ec23000   C:\WINDOWS\System32\DEVOBJ.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ModLoad: 00007ff8`4eed0000 00007ff8`4ef1e000   C:\WINDOWS\System32\cfgmgr32.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`4d220000 00007ff8`4d27b000   C:\WINDOWS\SYSTEM32\WINSTA.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`377e0000 00007ff8`37a3f000   C:\Windows\System32\msxml6.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+breakpoint 1 redefined
+ModLoad: 00007ff8`4fe00000 00007ff8`5026e000   C:\WINDOWS\System32\SETUPAPI.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`3a040000 00007ff8`3a19b000   C:\Windows\System32\wpnapps.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+breakpoint 1 redefined
+ModLoad: 00007ff8`4b0c0000 00007ff8`4b0ea000   C:\Windows\System32\RMCLIENT.dll
+ModLoad: 00007ff8`46720000 00007ff8`46756000   C:\Windows\System32\XmlLite.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`39550000 00007ff8`39566000   C:\WINDOWS\SYSTEM32\usermgrcli.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`38c90000 00007ff8`39460000   C:\Windows\System32\OneCoreUAPCommonProxyStub.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`39ba0000 00007ff8`39bde000   C:\WINDOWS\system32\dataexchange.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ModLoad: 00007ff8`47560000 00007ff8`477c3000   C:\WINDOWS\system32\d3d11.dll
+ModLoad: 00007ff8`4cb10000 00007ff8`4ccf3000   C:\WINDOWS\system32\dcomp.dll
+ModLoad: 00007ff8`4c630000 00007ff8`4c723000   C:\WINDOWS\system32\dxgi.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`46110000 00007ff8`4611d000   C:\WINDOWS\SYSTEM32\LINKINFO.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`4aeb0000 00007ff8`4aedf000   C:\WINDOWS\SYSTEM32\dwmapi.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`404f0000 00007ff8`40c16000   C:\Windows\System32\Windows.Media.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`1d560000 00007ff8`1d56d000   C:\WINDOWS\SYSTEM32\atlthunk.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`370b0000 00007ff8`37116000   C:\WINDOWS\SYSTEM32\OLEACC.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`151d0000 00007ff8`1526d000   C:\WINDOWS\system32\directmanipulation.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`348f0000 00007ff8`34b34000   C:\WINDOWS\system32\explorerframe.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`357e0000 00007ff8`357f1000   C:\WINDOWS\system32\wbem\wbemprox.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ModLoad: 00007ff8`36e20000 00007ff8`36eb0000   C:\WINDOWS\SYSTEM32\wbemcomn.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`4ec60000 00007ff8`4ed02000   C:\WINDOWS\SYSTEM32\sxs.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`377a0000 00007ff8`377b4000   C:\WINDOWS\system32\wbem\wbemsvc.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`368c0000 00007ff8`369cb000   C:\WINDOWS\system32\wbem\fastprox.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`35990000 00007ff8`359af000   C:\WINDOWS\SYSTEM32\amsi.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`4be90000 00007ff8`4bec4000   C:\Windows\System32\ScriptControl64_17706.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`4ebd0000 00007ff8`4ebe8000   C:\WINDOWS\System32\CRYPTSP.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`4d760000 00007ff8`4d794000   C:\WINDOWS\system32\rsaenh.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`46530000 00007ff8`4656f000   C:\WINDOWS\System32\netprofm.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`371a0000 00007ff8`371b0000   C:\WINDOWS\System32\npmproxy.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007fff`c67e0000 00007fff`c691a000   C:\WINDOWS\system32\spool\DRIVERS\x64\3\unidrvui.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+Invalid parameter passed to C runtime function.
+Invalid parameter passed to C runtime function.
+ModLoad: 00000237`eb260000 00000237`eb262000   C:\WINDOWS\system32\spool\DRIVERS\x64\3\wdlres.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x238:
+00007ff8`517a7bc8 c7403805000000  mov     dword ptr [rax+38h],5
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00000237`eb270000 00000237`eb343000   C:\WINDOWS\system32\spool\DRIVERS\x64\3\unires.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x238:
+00007ff8`517a7bc8 c7403805000000  mov     dword ptr [rax+38h],5
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpUnloadNode+0x36:
+00007ff8`517fa4fe 834938ff        or      dword ptr [rcx+38h],0FFFFFFFFh
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpUnloadNode+0x174:
+00007ff8`517fa63c c74738feffffff  mov     dword ptr [rdi+38h],0FFFFFFFEh
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe4:
+00007ff8`517b6be4 f348ab          rep stos qword ptr [rdi]
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+Invalid parameter passed to C runtime function.
+Invalid parameter passed to C runtime function.
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+Invalid parameter passed to C runtime function.
+Invalid parameter passed to C runtime function.
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1bac:
+00007ff8`517bed0c 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+RPCRT4!RpcBindingFromStringBindingW+0x2e3:
+00007ff8`4fb4fdd3 48897b48        mov     qword ptr [rbx+48h],rdi
+00007ff8`518fd260  00000000`00000000
+RPCRT4!LRPC_BASE_BINDING_HANDLE::SubmitResolveEndpointRequest+0x8f:
+00007ff8`4fb1fcd3 488906          mov     qword ptr [rsi],rax
+00007ff8`518fd260  00000000`00000000
+RPCRT4!LRPC_BINDING_HANDLE::Unbind+0x225:
+00007ff8`4fb52295 48896b48        mov     qword ptr [rbx+48h],rbp
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1bac:
+00007ff8`517bed0c 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+RPCRT4!LRPC_BASE_BINDING_HANDLE::LRPC_BASE_BINDING_HANDLE+0xdf:
+00007ff8`4fb4f9df 488987e8000000  mov     qword ptr [rdi+0E8h],rax
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1bac:
+00007ff8`517bed0c 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+RPCRT4!LRPC_BASE_BINDING_HANDLE::LRPC_BASE_BINDING_HANDLE+0xdf:
+00007ff8`4fb4f9df 488987e8000000  mov     qword ptr [rdi+0E8h],rax
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1bac:
+00007ff8`517bed0c 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+RPCRT4!LRPC_BASE_BINDING_HANDLE::LRPC_BASE_BINDING_HANDLE+0xdf:
+00007ff8`4fb4f9df 488987e8000000  mov     qword ptr [rdi+0E8h],rax
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1bac:
+00007ff8`517bed0c 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+RPCRT4!LRPC_BASE_BINDING_HANDLE::LRPC_BASE_BINDING_HANDLE+0xdf:
+00007ff8`4fb4f9df 488987e8000000  mov     qword ptr [rdi+0E8h],rax
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00000237`eb260000 00000237`eb262000   C:\WINDOWS\system32\spool\DRIVERS\x64\3\wdlres.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x238:
+00007ff8`517a7bc8 c7403805000000  mov     dword ptr [rax+38h],5
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00000237`eb270000 00000237`eb343000   C:\WINDOWS\system32\spool\DRIVERS\x64\3\unires.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x238:
+00007ff8`517a7bc8 c7403805000000  mov     dword ptr [rax+38h],5
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpUnloadNode+0x36:
+00007ff8`517fa4fe 834938ff        or      dword ptr [rcx+38h],0FFFFFFFFh
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpUnloadNode+0x174:
+00007ff8`517fa63c c74738feffffff  mov     dword ptr [rdi+38h],0FFFFFFFEh
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00000237`eb3c0000 00000237`eb3c2000   C:\WINDOWS\system32\spool\DRIVERS\x64\3\wdlres.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x238:
+00007ff8`517a7bc8 c7403805000000  mov     dword ptr [rax+38h],5
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00000237`eb3d0000 00000237`eb4a3000   C:\WINDOWS\system32\spool\DRIVERS\x64\3\unires.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x238:
+00007ff8`517a7bc8 c7403805000000  mov     dword ptr [rax+38h],5
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpUnloadNode+0x36:
+00007ff8`517fa4fe 834938ff        or      dword ptr [rcx+38h],0FFFFFFFFh
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpUnloadNode+0x174:
+00007ff8`517fa63c c74738feffffff  mov     dword ptr [rdi+38h],0FFFFFFFEh
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1bdb:
+00007ff8`517bed3b 0f110408        movups  xmmword ptr [rax+rcx],xmm0
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1bac:
+00007ff8`517bed0c 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!memcpy+0x127:
+00007ff8`51833f67 2959e0          sub     dword ptr [rcx-20h],ebx
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1c0d:
+00007ff8`517bed6d 0f1100          movups  xmmword ptr [rax],xmm0
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!memset+0x30:
+00007ff8`51834130 4a895408f8      mov     qword ptr [rax+r9-8],rdx
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1c0d:
+00007ff8`517bed6d 0f1100          movups  xmmword ptr [rax],xmm0
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00000237`eb260000 00000237`eb262000   C:\WINDOWS\system32\spool\DRIVERS\x64\3\wdlres.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x238:
+00007ff8`517a7bc8 c7403805000000  mov     dword ptr [rax+38h],5
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00000237`eb270000 00000237`eb343000   C:\WINDOWS\system32\spool\DRIVERS\x64\3\unires.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x238:
+00007ff8`517a7bc8 c7403805000000  mov     dword ptr [rax+38h],5
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpUnloadNode+0x36:
+00007ff8`517fa4fe 834938ff        or      dword ptr [rcx+38h],0FFFFFFFFh
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpUnloadNode+0x174:
+00007ff8`517fa63c c74738feffffff  mov     dword ptr [rdi+38h],0FFFFFFFEh
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1c0d:
+00007ff8`517bed6d 0f1100          movups  xmmword ptr [rax],xmm0
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00000237`eb260000 00000237`eb262000   C:\WINDOWS\system32\spool\DRIVERS\x64\3\wdlres.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x238:
+00007ff8`517a7bc8 c7403805000000  mov     dword ptr [rax+38h],5
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00000237`eb270000 00000237`eb343000   C:\WINDOWS\system32\spool\DRIVERS\x64\3\unires.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x238:
+00007ff8`517a7bc8 c7403805000000  mov     dword ptr [rax+38h],5
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpUnloadNode+0x36:
+00007ff8`517fa4fe 834938ff        or      dword ptr [rcx+38h],0FFFFFFFFh
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpUnloadNode+0x174:
+00007ff8`517fa63c c74738feffffff  mov     dword ptr [rdi+38h],0FFFFFFFEh
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1c0d:
+00007ff8`517bed6d 0f1100          movups  xmmword ptr [rax],xmm0
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00000237`eb260000 00000237`eb262000   C:\WINDOWS\system32\spool\DRIVERS\x64\3\wdlres.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x238:
+00007ff8`517a7bc8 c7403805000000  mov     dword ptr [rax+38h],5
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00000237`eb270000 00000237`eb343000   C:\WINDOWS\system32\spool\DRIVERS\x64\3\unires.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x238:
+00007ff8`517a7bc8 c7403805000000  mov     dword ptr [rax+38h],5
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpUnloadNode+0x36:
+00007ff8`517fa4fe 834938ff        or      dword ptr [rcx+38h],0FFFFFFFFh
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpUnloadNode+0x174:
+00007ff8`517fa63c c74738feffffff  mov     dword ptr [rdi+38h],0FFFFFFFEh
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1c0d:
+00007ff8`517bed6d 0f1100          movups  xmmword ptr [rax],xmm0
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00000237`eb260000 00000237`eb262000   C:\WINDOWS\system32\spool\DRIVERS\x64\3\wdlres.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x238:
+00007ff8`517a7bc8 c7403805000000  mov     dword ptr [rax+38h],5
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00000237`eb270000 00000237`eb343000   C:\WINDOWS\system32\spool\DRIVERS\x64\3\unires.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x238:
+00007ff8`517a7bc8 c7403805000000  mov     dword ptr [rax+38h],5
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpUnloadNode+0x36:
+00007ff8`517fa4fe 834938ff        or      dword ptr [rcx+38h],0FFFFFFFFh
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpUnloadNode+0x174:
+00007ff8`517fa63c c74738feffffff  mov     dword ptr [rdi+38h],0FFFFFFFEh
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x14d2:
+00007ff8`517be632 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1bac:
+00007ff8`517bed0c 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+RPCRT4!CreateLrpcBinding+0x7a:
+00007ff8`4fb695aa 44897338        mov     dword ptr [rbx+38h],r14d
+00007ff8`518fd260  00000000`00000000
+RPCRT4!LRPC_CASSOCIATION::Bind+0x2c3:
+00007ff8`4fb53843 834f3802        or      dword ptr [rdi+38h],2
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1c0d:
+00007ff8`517bed6d 0f1100          movups  xmmword ptr [rax],xmm0
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1c0d:
+00007ff8`517bed6d 0f1100          movups  xmmword ptr [rax],xmm0
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe4:
+00007ff8`517b6be4 f348ab          rep stos qword ptr [rdi]
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1c0d:
+00007ff8`517bed6d 0f1100          movups  xmmword ptr [rax],xmm0
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007fff`ee820000 00007fff`ee8ae000   C:\WINDOWS\system32\spool\DRIVERS\x64\3\unidrv.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00000237`eb670000 00000237`eb672000   C:\WINDOWS\system32\spool\DRIVERS\x64\3\wdlres.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x238:
+00007ff8`517a7bc8 c7403805000000  mov     dword ptr [rax+38h],5
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+Invalid parameter passed to C runtime function.
+Invalid parameter passed to C runtime function.
+Invalid parameter passed to C runtime function.
+Invalid parameter passed to C runtime function.
+Invalid parameter passed to C runtime function.
+Invalid parameter passed to C runtime function.
+Invalid parameter passed to C runtime function.
+ntdll!LdrpUnloadNode+0x36:
+00007ff8`517fa4fe 834938ff        or      dword ptr [rcx+38h],0FFFFFFFFh
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpUnloadNode+0x174:
+00007ff8`517fa63c c74738feffffff  mov     dword ptr [rdi+38h],0FFFFFFFEh
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpInsertFreeBlock+0x90f14:
+00007ff8`5183f854 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`3ac50000 00007ff8`3acc4000   C:\WINDOWS\SYSTEM32\wlanapi.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007fff`b0550000 00007fff`b08db000   C:\Program Files\Google\Chrome\Application\120.0.6099.130\optimization_guide_internal.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+Invalid parameter passed to C runtime function.
+Invalid parameter passed to C runtime function.
+ModLoad: 00000237`e77e0000 00000237`e77e2000   C:\WINDOWS\system32\spool\DRIVERS\x64\3\wdlres.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x238:
+00007ff8`517a7bc8 c7403805000000  mov     dword ptr [rax+38h],5
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00000237`eb1e0000 00000237`eb2b3000   C:\WINDOWS\system32\spool\DRIVERS\x64\3\unires.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x238:
+00007ff8`517a7bc8 c7403805000000  mov     dword ptr [rax+38h],5
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpUnloadNode+0x36:
+00007ff8`517fa4fe 834938ff        or      dword ptr [rcx+38h],0FFFFFFFFh
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpUnloadNode+0x174:
+00007ff8`517fa63c c74738feffffff  mov     dword ptr [rdi+38h],0FFFFFFFEh
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+Invalid parameter passed to C runtime function.
+Invalid parameter passed to C runtime function.
+Invalid parameter passed to C runtime function.
+Invalid parameter passed to C runtime function.
+ntdll!RtlpAllocateHeap+0x1bac:
+00007ff8`517bed0c 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!memcpy+0x161:
+00007ff8`51833fa1 410f110b        movups  xmmword ptr [r11],xmm1
+00007ff8`518fd260  00000000`00000000
+ntdll!memcpy+0x165:
+00007ff8`51833fa5 0f2941f0        movaps  xmmword ptr [rcx-10h],xmm0
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1bac:
+00007ff8`517bed0c 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+RPCRT4!DCE_BINDING::DCE_BINDING+0x389:
+00007ff8`4fb50549 668901          mov     word ptr [rcx],ax
+00007ff8`518fd260  00000000`00000000
+RPCRT4!DCE_BINDING::DCE_BINDING+0x389:
+00007ff8`4fb50549 668901          mov     word ptr [rcx],ax
+00007ff8`518fd260  00000000`00000000
+RPCRT4!DCE_BINDING::DCE_BINDING+0x389:
+00007ff8`4fb50549 668901          mov     word ptr [rcx],ax
+00007ff8`518fd260  00000000`00000000
+RPCRT4!DCE_BINDING::DCE_BINDING+0x389:
+00007ff8`4fb50549 668901          mov     word ptr [rcx],ax
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1c0d:
+00007ff8`517bed6d 0f1100          movups  xmmword ptr [rax],xmm0
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!memset+0xd1:
+00007ff8`518341d1 1101            adc     dword ptr [rcx],eax
+00007ff8`518fd260  00000000`00000000
+mscms!GetPS2ColorSpaceArray+0x75f:
+00007ff8`42a4492f 894338          mov     dword ptr [rbx+38h],eax
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00000237`e9480000 00000237`e9482000   C:\WINDOWS\system32\spool\DRIVERS\x64\3\wdlres.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x238:
+00007ff8`517a7bc8 c7403805000000  mov     dword ptr [rax+38h],5
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+Invalid parameter passed to C runtime function.
+Invalid parameter passed to C runtime function.
+Invalid parameter passed to C runtime function.
+Invalid parameter passed to C runtime function.
+Invalid parameter passed to C runtime function.
+Invalid parameter passed to C runtime function.
+Invalid parameter passed to C runtime function.
+ntdll!LdrpUnloadNode+0x36:
+00007ff8`517fa4fe 834938ff        or      dword ptr [rcx+38h],0FFFFFFFFh
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpUnloadNode+0x174:
+00007ff8`517fa63c c74738feffffff  mov     dword ptr [rdi+38h],0FFFFFFFEh
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpFreeHeap+0xfe1:
+00007ff8`517b6be1 498bf8          mov     rdi,r8
+00007ff8`518fd260  00000000`00000000
+ntdll!RtlpAllocateHeap+0x1c0d:
+00007ff8`517bed6d 0f1100          movups  xmmword ptr [rax],xmm0
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`4e390000 00007ff8`4e3b8000   C:\WINDOWS\SYSTEM32\ncrypt.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`4e350000 00007ff8`4e38b000   C:\WINDOWS\SYSTEM32\NTASN1.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`22750000 00007ff8`22868000   C:\WINDOWS\system32\PCPKsp.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`46770000 00007ff8`4678b000   C:\WINDOWS\SYSTEM32\tbs.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ModLoad: 00007ff8`51100000 00007ff8`5111d000   C:\WINDOWS\System32\imagehlp.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ModLoad: 00007ff8`380a0000 00007ff8`380fc000   C:\WINDOWS\system32\ncryptprov.dll
+ntdll!LdrpProcessMappedModule+0x17b:
+00007ff8`5179fb27 c7403802000000  mov     dword ptr [rax+38h],2
+00007ff8`518fd260  00000000`00000001
+ntdll!LdrpMapAndSnapDependency+0x1fd:
+00007ff8`517a7b8d c7403804000000  mov     dword ptr [rax+38h],4
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpSnapModule+0x4c0:
+00007ff8`517c28b0 0000            add     byte ptr [rax],al
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpCondenseGraphRecurse+0x68:
+00007ff8`517fe4a0 c7473806000000  mov     dword ptr [rdi+38h],6
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpNotifyLoadOfGraph+0x24:
+00007ff8`517cdba8 c7433807000000  mov     dword ptr [rbx+38h],7
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x25:
+00007ff8`517fc119 c7413808000000  mov     dword ptr [rcx+38h],8
+00007ff8`518fd260  00000000`00000000
+ntdll!LdrpInitializeNode+0x2ec:
+00007ff8`517fc3e0 895038          mov     dword ptr [rax+38h],edx
+00007ff8`518fd260  00000000`00000000
+ntdll!NtTerminateProcess+0x14:
+00007ff8`5182d564 c3              ret

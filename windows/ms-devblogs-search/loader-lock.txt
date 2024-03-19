@@ -1,0 +1,258 @@
+2014082100p183-8-		
+2014082100p183-9-        In the same week, the shell team was asked to investigate two failures.
+2014082100p183-10- The first one was a deadlock in Explorer. The participating threads look like this:
+2014082100p183-11-
+2014082100p183-12-Thread 1 called Free­Library on a shell extension     as part of normal     Co­Free­Unused­Libraries processing.     That DLL called Ole­Uninitialize     from its Dll­Main function.     This thread blocked because the COM lock was held by thread 2. 
+2014082100p183:13:Thread 2 called Co­Create­Instance,     and COM tried to load the DLL which handles the object,     but the thread blocked because the loader lock was held     by thread 1. 
+2014082100p183-14-
+2014082100p183-15- The shell extension caused this problem because it ignored the rule against calling shell and COM functions from the Dll­Main entry point, as specifically called out in the Dll­Main documentation as examples of functions that should not be called.
+2014082100p183-16- The authors of this shell extension may never have caught this problem in their internal testing (or if they did they didn’t understand what it meant) because hitting this deadlock requires that a race window be hit: The shell extension DLL needs to be unloaded on one thread at the exact same moment another thread is inside the COM global lock trying to load another DLL.
+2014082100p183-17- Meanwhile, another failure was traced back to a DLL calling Co­Initialize from their Dll­Main. This extra COM initialization count means that when the thread called Co­Uninitialize thinking that it was uninitializing COM, it actually merely decremented the count to 1. The code then proceeded to do things that are not allowed in a single-threaded apartment, believing that it had already torn down the apartment. But the secret Co­Initialize performed by the shell extension violated that assumption. Result: A thread that stopped responding to messages.
+2014082100p183-18- The authors of both of these shell extensions seemed be calling Co­Uninitialize/Ole­Uninitialize in order to cancel out a Co­Initialize/Ole­Initialize which they performed in their DLL_PROCESS_ATTACH. This is fundamentally unsound not only because of the general rule of not calling COM functions inside Dll­Main but also because OLE initialization is a per-thread state, whereas  the thread that gets the DLL_PROCESS_DETACH notification is not necessarily the one that receives the DLL_PROCESS_ATTACH notification. 
+--
+2014080800p293-33-
+2014080800p293-34-There are two ways this can happen.
+2014080800p293-35-One is that there is a bug in the code that manages the critical
+2014080800p293-36-section such that there is some code path that takes the critical
+2014080800p293-37-section but forgets to release it.
+2014080800p293:38:This is unlikely to be the case for the loader lock
+2014080800p293:39:(since a lot of really smart people are in charge of the loader lock),
+2014080800p293-40-but it’s a theoretical possibility.
+2014080800p293-41-We’ll keep that one in our pocket.
+2014080800p293-42-
+2014080800p293-43-
+2014080800p293-44-Another possibility is that the code to exit the critical section
+--
+2009120400p15783-60-the problem.
+2009120400p15783-61-But if course, that person waiting in line is just
+2009120400p15783-62-another victim of the person at the head of the line
+2009120400p15783-63-who is hogging the critical section.
+2009120400p15783-64-In this case, the critical section is the infamous
+2009120400p15783:65:loader lock.
+2009120400p15783:66:That it’s the loader lock is obvious from the symptoms:
+2009120400p15783-67-What critical section
+2009120400p15783-68-
+2009120400p15783-69-does every thread require when it starts up?
+2009120400p15783-70-What critical section does LoadLibrary require?
+2009120400p15783-71-
+2009120400p15783-72-
+2009120400p15783-73-You can use the !critsec debugger command to
+2009120400p15783:74:identify the current owner of the loader lock,
+2009120400p15783-75-and then start studying that thread to see what the hold-up is.
+2009120400p15783-76-
+2009120400p15783-77-
+2009120400p15783-78-Note that I’m not saying that the thread that owns the resource
+2009120400p15783-79-is necessarily the culprit.
+--
+2011041800p10913-5-        Don't forget to include the message queue in your lock hierarchy          Raymond Chen        
+2011041800p10913-6-            
+2011041800p10913-7-            April 18th, 20110 0
+2011041800p10913-8-		
+2011041800p10913-9-        
+2011041800p10913:10:In addition to the loader lock,
+2011041800p10913-11-the message queue is another resource that people often
+2011041800p10913-12-forget to incorporate into their lock hierarchy.
+2011041800p10913-13-If your code runs on a UI thread, then it implicitly owns
+2011041800p10913-14-the message queue whenever it is running,
+2011041800p10913-15-because messages cannot be dispatched to a thread until
+--
+2020111900p104462-17-    FlushLoggingBuffers();
+2020111900p104462-18-  }
+2020111900p104462-19-  return unload;
+2020111900p104462-20-}
+2020111900p104462-21-
+2020111900p104462:22:In this example, we flush the logging buffers when it looks like we’re about to be unloaded. This is code that we would have to do anyway in DLL_PROCESS_DETACH, but we can do it here, so that the work is done outside the loader lock.
+2020111900p104462-23-Note that returning true from winrt_can_unload_now doesn’t guarantee that you will be unloaded, so any work you do is speculative and may be a false alarm. You can flush the logging buffers, and possibly even close the handles, but you need to be ready for the case that the unload doesn’t actually happen, and your logging code needs to be reopen the handles if they had been closed.
+2020111900p104462-24-Injecting code into the winrt_get_activation_factory can also be handy if you need to do some filtering or rerouting.
+2020111900p104462-25-void* __stdcall winrt_get_activation_factory(
+2020111900p104462-26-    std::wstring_view const& name)
+2020111900p104462-27-{
+--
+2004012800p40853-5-        Another reason not to do anything scary in your DllMain: Inadvertent deadlock          Raymond Chen        
+2004012800p40853-6-            
+2004012800p40853-7-            January 28th, 20040 0
+2004012800p40853-8-		
+2004012800p40853-9-        
+2004012800p40853:10:Your DllMain function runs inside the loader lock,
+2004012800p40853-11-one of the few times the OS lets you run code while one
+2004012800p40853-12-of its internal locks is held.
+2004012800p40853-13-This means that you must be extra careful not to violate
+2004012800p40853-14-a lock hierarchy in your DllMain; otherwise, you
+2004012800p40853-15-are asking for a deadlock.
+--
+2004012800p40853-18-(You do have a
+2004012800p40853-19-
+2004012800p40853-20-lock hierarchy in your DLL, right?)
+2004012800p40853-21-
+2004012800p40853-22-
+2004012800p40853:23:The loader lock is taken by any function that needs to
+2004012800p40853-24-access the list of DLLs loaded into the process.
+2004012800p40853-25-This includes functions like GetModuleHandle
+2004012800p40853-26-and GetModuleFileName.
+2004012800p40853-27-If your DllMain enters a critical section or waits on
+2004012800p40853-28-a synchronization object, and that critical section or
+2004012800p40853-29-synchronization object is owned by some code that is
+2004012800p40853:30:in turn waiting for the loader lock, you just created a deadlock:
+2004012800p40853-31-
+2004012800p40853-32-
+2004012800p40853-33-// global variable
+2004012800p40853-34-CRITICAL_SECTION g_csGlobal;
+2004012800p40853-35-// some code somewhere
+--
+2004012800p40853-51-
+2004012800p40853-52-
+2004012800p40853-53-Now imagine that some thread is happily executing the first
+2004012800p40853-54-code fragment and enters g_csGlobal, then
+2004012800p40853-55-gets pre-empty.  During this time, another thread exits.
+2004012800p40853:56:This enters the loader lock and sends out
+2004012800p40853:57:DLL_THREAD_DETACH messages while the loader lock is still held.
+2004012800p40853-58-
+2004012800p40853-59-
+2004012800p40853-60-You receive the DLL_THREAD_DETACH and attempt to enter your DLL’s
+2004012800p40853-61-g_csGlobal.  This blocks on the first thread, who owns the
+2004012800p40853-62-critical section. That thread then resumes execution and calls
+2004012800p40853:63:GetModuleFileName. This function requires the loader lock
+2004012800p40853-64-(since it’s accessing the list of DLLs loaded into the process),
+2004012800p40853:65:so it blocks, since the loader lock is owned by somebody else.
+2004012800p40853-66-
+2004012800p40853-67-
+2004012800p40853-68-Now you have a deadlock:
+2004012800p40853-69-
+2004012800p40853-70-
+2004012800p40853:71:g_cs owned by first thread, waiting on loader lock.
+2004012800p40853-72-
+2004012800p40853:73:Loader lock owned by second thread, waiting on g_cs.
+2004012800p40853-74-
+2004012800p40853-75-
+2004012800p40853-76-I have seen this happen. It’s not pretty.
+2004012800p40853-77-
+2004012800p40853:78:Moral of the story: Respect the loader lock.
+2004012800p40853-79-Include it in your lock hierarchy rules if you take
+2004012800p40853-80-any locks in your DllMain.
+2004012800p40853-81-
+2004012800p40853-82-        
+2004012800p40853-83-                
+--
+2013110700p2713-19-
+2013110700p2713-20-
+2013110700p2713-21-This prevents a deadlock from occurring when one thread in
+2013110700p2713-22-DllMain is waiting for the callback to end,
+2013110700p2713-23-and another thread that is executing the callback
+2013110700p2713:24:attempts to acquire the loader lock.
+2013110700p2713-25-
+2013110700p2713-26-
+2013110700p2713-27-If the DLL containing the callback might be unloaded,
+2013110700p2713-28-the cleanup code in DllMain must cancel outstanding
+2013110700p2713-29-callbacks before releasing the object.
+--
+2013110700p2713-33-TP_CALLBACK_ENVIRON
+2013110700p2713-34-that specifies a callback library is somewhat processor-intensive.
+2013110700p2713-35-You should consider other options for ensuring that the library
+2013110700p2713-36-is not unloaded while callbacks are executing,
+2013110700p2713-37-or to guarantee that callbacks which may be executing
+2013110700p2713:38:do not acquire the loader lock.
+2013110700p2713-39-
+2013110700p2713-40-
+2013110700p2713-41-
+2013110700p2713-42-I’m not going to help you with the DllMain cleanup issues.
+2013110700p2713-43-(My plan is to simply avoid the issue by preventing the DLL
+--
+2015081400p91811-19-kernel32!BaseThreadInitThunk
+2015081400p91811-20-ntdll!RtlUserThreadStart
+2015081400p91811-21-
+2015081400p91811-22-Can you help us figure out what’s going on? 
+2015081400p91811-23-
+2015081400p91811:24:From the stack trace, it is clear that the thread is shutting down, and the loader (Ldr) is waiting on a critical section. The critical section the loader is most famous for needing is the so-called loader lock which is used for various things, most notably to make sure that all DLL thread notification are serialized. 
+2015081400p91811-25-I guessed that the call to Wait­Until­Stopped() was happening inside Dll­Main, which created a deadlock because the thread cannot exit until it delivers its Dll­Main notifications, but it can’t do that until the calling thread exits Dll­Main. 
+2015081400p91811-26-The customer did some more debugging: 
+2015081400p91811-27-
+2015081400p91811-28-The debugger reports the critical section as 
+2015081400p91811-29-
+--
+2015081400p91811-52-Stack Init 0 Current bae35be0 Base bae36000 Limit bae33000 Call 0
+2015081400p91811-53-Priority 10 BasePriority 8 PriorityDecrement 2 IoPriority 2 PagePriority 5
+2015081400p91811-54-
+2015081400p91811-55-Contoso.exe is our process. 
+2015081400p91811-56-
+2015081400p91811:57:Okay, we’re getting somewhere now. The thread 0xa80 terminated while it held the loader lock. When you run the program under a debugger, do you see any exceptions that might suggest that the thread terminated abnormally? 
+2015081400p91811-58-
+2015081400p91811:59:We found the cause of the problem. We use Terminate­Thread in the other place. That causes the thread to continue to hold the loader lock after it has terminated. 
+2015081400p91811-60-
+2015081400p91811-61-It’s not clear what the customer meant by “the other place”, but no matter. The cause of the problem was found: They were using Terminate­Thread. 
+2015081400p91811-62-At this point, Larry Osterman was inspired to write a poem. 
+2015081400p91811-63-How many times doesit have to be said: Nevercall TerminateThread. 
+2015081400p91811-64-In the ensuing discussion, somebody suggested, 
+--
+2020060800p103844-7-            June 8th, 20200 0
+2020060800p103844-8-		
+2020060800p103844-9-        For the past week, we’ve been looking at using a fiber to allow execution to continue on a larger stack. Instead of creating a fiber, we could also have created a thread. What are the pros and cons?
+2020060800p103844-10-Fibers are user-mode concepts, so switching fibers will save you the overhead of a kernel transition. This is probably not a big deal since we are using the fiber to run a function that consumes a lot of stack, and the running time of that function is probably going to overwhelm the cost of a kernel transition.
+2020060800p103844-11-On the other hand, the savings of a fiber are more significant when compared to the cost of a new thread. (And we have to create a new thread, rather than using a thread from the thread pool, because we need to control the size of the thread’s stack, which is something you can do only with threads that you created.)
+2020060800p103844:12:Creating a new thread involves a lot of kernel-mode machinery, as well as a good amount of user-mode overhead. In particular, creating a thread requires the loader lock because DLL thread notifications are serialized by the loader lock. The loader lock can be a high-contention lock under certain workloads; for example, calling Get­Module­File­Name will probably require the loader lock to ensure that the module table is stable for the duration of the lookup. Even if it’s not high-contention, the existence of the lock means that the start of each of your library calls is  effectively serialized.
+2020060800p103844-13-Using fibers also permits you to operate on objects that have thread affinity, such as UI objects or apartment-threaded COM objects, because the fiber runs on the same thread. You also have to worry about how to sleep the original thread while waiting for the worker thread to finish. UI threads, for example, need to pump messages.
+2020060800p103844-14-On the other hand, fibers are not as well understood as threads. This means that maintaining code that users fibers may be a challenge to future developers. And as we noted in the opening to this series, if you manage the fibers incorrectly, you end up creating a lot of confusion.
+2020060800p103844-15-As a general rule, most code does not expect to be run on a fiber. Therefore, if you’re going to be running foreign code on your fiber, you need to be careful not to use any fiber special powers while that code is running. If the foreign code uses callbacks, then your callback shouldn’t move the fiber to another thread. And it shouldn’t suspend the fiber and then call back into the library.
+2020060800p103844-16-Fortunately, if the sole purpose of using a fiber is to expand the stack, you are unlikely to be tempted to pull any of these fancy fiber tricks. You just want to get a bigger stack.
+2020060800p103844-17-Those are the pros and cons I could come up with off the top of my head.
+--
+2014102400p43773-217-
+2014102400p43773-218-The polarity reverser’s completion handler is trying to
+2014102400p43773-219-load winmm via delay-load.
+2014102400p43773-220-That load request is waiting on a critical section,
+2014102400p43773-221-and it should be clear both from the scenario and the function names
+2014102400p43773:222:that the critical section it is trying to claim is the loader lock.
+2014102400p43773-223-In real life, I just proceeded with that conclusion, but
+2014102400p43773-224-but just for demonstration purposes, here’s how we can double-check:
+2014102400p43773-225-
+2014102400p43773-226-
+2014102400p43773-227-0: kd> .thread ffffe00003c46080
+--
+2014102400p43773-316-RecursionCount     = 0x1
+2014102400p43773-317-LockSemaphore      = 0x1A8
+2014102400p43773-318-SpinCount          = 0x0000000004000000
+2014102400p43773-319-
+2014102400p43773-320-
+2014102400p43773:321:Hooray, we confirmed that this is indeed the loader lock.
+2014102400p43773-322-I would have been surprised if it had been anything else!
+2014102400p43773-323-(If you had been paying attention, you would have noticed
+2014102400p43773-324-the lea rax,[ntdll!LdrpLoaderLock (00007fff`d4f51cb8)]
+2014102400p43773-325-in the disassembly which already confirms the value.)
+2014102400p43773-326-
+--
+2014102400p43773-472-        ntdll!RtlExitUserThread+0x3e
+2014102400p43773-473-        KERNEL32!BaseThreadInitThunk+0x38
+2014102400p43773-474-        ntdll!RtlUserThreadStart+0x42
+2014102400p43773-475-
+2014102400p43773-476-
+2014102400p43773:477:That thread is trying to acquire the loader lock so it can
+2014102400p43773-478-send DLL_THREAD_DETACH notifications.
+2014102400p43773:479:But the loader lock is held by the
+2014102400p43773-480-Free­Library.
+2014102400p43773-481-Result: Deadlock, as the two threads are waiting for each other.
+2014102400p43773-482-(You can also see that thread 0xa8c is stuck
+2014102400p43773-483-in the same place because it too is trying to exit.)
+2014102400p43773-484-
+--
+2016080500p94035-5-        The case of the hung Explorer window          Raymond Chen        
+2016080500p94035-6-            
+2016080500p94035-7-            August 5th, 20160 0
+2016080500p94035-8-		
+2016080500p94035-9-        A Windows Insider reported that Explorer stopped responding whenever they opened their Downloads folder. 
+2016080500p94035:10:We were able to obtain a memory dump during the hang, and observed that most threads were waiting for the loader lock. The loader lock was being held by this thread: 
+2016080500p94035-11-
+2016080500p94035-12-ntdll!RtlpWaitOnCriticalSection
+2016080500p94035-13-ntdll!RtlpEnterCriticalSectionContended
+2016080500p94035-14-GdiPlus!GdiplusStartupCriticalSection::{ctor}
+2016080500p94035-15-GdiPlus!GdiplusStartup
+--
+2018090700p99675-14-One idea is to put the worker thread in a helper DLL. The static library creates the thread on demand using the Free­Library­And­Exit­Thread technique to ensure that the worker thread maintains a reference to the host DLL. The atexit callback function calls a shutdown function in the helper DLL. Following the Free­Library­And­Exit­Thread technique, the shutdown function would signal the worker thread to exit and return immediately, allowing the worker thread to exit and free the library on its own. 
+2018090700p99675-15-There are some race conditions to be dealt with, such as the case where the host DLL is reloaded before the helper DLL’s worker thread can exit. But these issues can be worked out. 
+2018090700p99675-16-The customer was reluctant to introduce a new DLL into the picture, however. For example, it means that the host’s installer would have to carry the helper DLL when installing an instrumented version. 
+2018090700p99675-17-To avoid the helper DLL, the code could create a worker task in the thread pool with Create­Threadpool­Work, with an environment marked as Set­Threadpool­Callback­Runs­Long. Make that task do whatever the original thread was doing. 
+2018090700p99675-18-When it’s time to shut down the worker thread, signal the worker task to exit using an event or some other private mechanism, and then call Wait­For­Threadpool­Work­Callbacks to wait for the exit to occur. Of course, you want to skip this if the entire process is shutting down. 
+2018090700p99675:19:This trick does assume that the worker task does not require any locks that might be held by the code running DLL_PROCESS_DETACH (most notably the loader lock). 
+2018090700p99675-20-The customer replied that they had found an even better third solution: They got rid of the worker thread entirely! 
+2018090700p99675-21-The purpose of the worker thread was to respond to requests for information from the instrumentation tool, and the customer realized that they could extract that information with careful use of Read­Process­Memory, so there was no need to have a thread dedicated to handing out that information. 
+2018090700p99675-22-(Normally, I wouldn’t be a fan of using Read­Process­Memory as a mechanism for interprocess communication because it requires that the other process have PROCESS_VM_READ access to the process, which is a pretty large farm to be giving away, and it doesn’t give you very useful granularity. But since this is an instrumentation tool, it’s not unreasonable to require that the tool run in a security context that has full access to the process being instrumented.) 
+2018090700p99675-23-
+2018090700p99675-24-        

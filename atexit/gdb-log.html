@@ -1,0 +1,1001 @@
+<pre><span style="background-color:#0087AF"><span style="color:#FFFFFF"><b> user </b></span></span><span style="background-color:#585858"><span style="color:#0087AF"> </span></span><span style="background-color:#585858"><span style="color:#BCBCBC">~ </span></span><span style="background-color:#585858"><span style="color:#8A8A8A"> </span></span><span style="background-color:#585858"><span style="color:#BCBCBC">Documents </span></span><span style="background-color:#585858"><span style="color:#8A8A8A"> </span></span><span style="background-color:#585858"><span style="color:#BCBCBC">windows-vs-linux-loader-architecture </span></span><span style="background-color:#585858"><span style="color:#8A8A8A"> </span></span><span style="background-color:#585858"><span style="color:#D0D0D0"><b>atexit-test </b></span></span><span style="color:#585858"> </span><span style="color:#4D9A05">gdb</span> <u style="text-decoration-style:single">./main</u>               <span style="color:#303030"> </span></span><span style="background-color:#303030"><span style="color:#FFD700">  main </span></span>
+Reading symbols from <span style="color:#4D9A05">./main</span>...
+
+This GDB supports auto-downloading debuginfo from the following URLs:
+  &lt;<span style="color:#4D9A05">https://debuginfod.fedoraproject.org/</span>&gt;
+Enable debuginfod for this session? (y or [n]) y
+Debuginfod has been enabled.
+To make this setting permanent, add &apos;set debuginfod enabled on&apos; to .gdbinit.
+(No debugging symbols found in <span style="color:#4D9A05">./main</span>)                                                                                 
+(gdb) run
+Starting program: <span style="color:#4D9A05">/home/user/Documents/windows-vs-linux-loader-architecture/atexit-test/main</span> 
+[Thread debugging using libthread_db enabled]                                                                          
+Using host libthread_db library &quot;<span style="color:#4D9A05">/lib64/libthread_db.so.1</span>&quot;.
+Library 1 loaded successfully!                                                                                         
+
+Library 2 loaded successfully!                                                                                         
+
+Running atexit handler of program!
+
+
+Program received signal SIGTRAP, Trace/breakpoint trap.
+<span style="color:#3464A3">0x000000000040116a</span> in <span style="color:#C3A000">programFunc</span> ()
+(gdb) backtrace
+#0  <span style="color:#3464A3">0x000000000040116a</span> in <span style="color:#C3A000">programFunc</span> ()
+#1  <span style="color:#3464A3">0x00007ffff7e101e6</span> in <span style="color:#C3A000">__run_exit_handlers</span> (<span style="color:#05979A">status</span>=0, <span style="color:#05979A">listp</span>=&lt;optimized out&gt;, 
+    <span style="color:#05979A">run_list_atexit=run_list_atexit@entry</span>=true, <span style="color:#05979A">run_dtors=run_dtors@entry</span>=true) at <span style="color:#4D9A05">exit.c</span>:111
+#2  <span style="color:#3464A3">0x00007ffff7e1032e</span> in <span style="color:#C3A000">__GI_exit</span> (<span style="color:#05979A">status</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">exit.c</span>:141
+#3  <span style="color:#3464A3">0x00007ffff7df7b91</span> in <span style="color:#C3A000">__libc_start_call_main</span> (<span style="color:#05979A">main=main@entry</span>=0x40117f &lt;main&gt;, <span style="color:#05979A">argc=argc@entry</span>=1, 
+    <span style="color:#05979A">argv=argv@entry</span>=0x7fffffffe078) at <span style="color:#4D9A05">../sysdeps/nptl/libc_start_call_main.h</span>:74
+#4  <span style="color:#3464A3">0x00007ffff7df7c4b</span> in <span style="color:#C3A000">__libc_start_main_impl</span> (<span style="color:#05979A">main</span>=0x40117f &lt;main&gt;, <span style="color:#05979A">argc</span>=1, <span style="color:#05979A">argv</span>=0x7fffffffe078, 
+    <span style="color:#05979A">init</span>=&lt;optimized out&gt;, <span style="color:#05979A">fini</span>=&lt;optimized out&gt;, <span style="color:#05979A">rtld_fini</span>=&lt;optimized out&gt;, <span style="color:#05979A">stack_end</span>=0x7fffffffe068)
+    at <span style="color:#4D9A05">../csu/libc-start.c</span>:360
+#5  <span style="color:#3464A3">0x0000000000401095</span> in <span style="color:#C3A000">_start</span> ()
+(gdb) set print pretty
+(gdb) print __exit_funcs_lock
+$1 = 0
+(gdb) print _rtld_global
+$2 = {
+  <span style="color:#05979A">_dl_ns</span> = {{
+      <span style="color:#05979A">_ns_loaded</span> = <span style="color:#3464A3">0x7ffff7ffe2d0</span>,
+      <span style="color:#05979A">_ns_nloaded</span> = 6,
+      <span style="color:#05979A">_ns_main_searchlist</span> = <span style="color:#3464A3">0x7ffff7ffe5a8</span>,
+      <span style="color:#05979A">_ns_global_scope_alloc</span> = 0,
+      <span style="color:#05979A">_ns_global_scope_pending_adds</span> = 0,
+      <span style="color:#05979A">libc_map</span> = <span style="color:#3464A3">0x7ffff7fc20f0</span>,
+      <span style="color:#05979A">_ns_unique_sym_table</span> = {
+        <span style="color:#05979A">lock</span> = {
+          <span style="color:#05979A">mutex</span> = {
+            <span style="color:#05979A">__data</span> = {
+              <span style="color:#05979A">__lock</span> = 0,
+              <span style="color:#05979A">__count</span> = 0,
+              <span style="color:#05979A">__owner</span> = 0,
+              <span style="color:#05979A">__nusers</span> = 0,
+              <span style="color:#05979A">__kind</span> = 1,
+              <span style="color:#05979A">__spins</span> = 0,
+              <span style="color:#05979A">__elision</span> = 0,
+              <span style="color:#05979A">__list</span> = {
+                <span style="color:#05979A">__prev</span> = <span style="color:#3464A3">0x0</span>,
+                <span style="color:#05979A">__next</span> = <span style="color:#3464A3">0x0</span>
+              }
+            },
+            <span style="color:#05979A">__size</span> = &apos;\000&apos; &lt;repeats 16 times&gt;, &quot;\001&quot;, &apos;\000&apos; &lt;repeats 22 times&gt;,
+            <span style="color:#05979A">__align</span> = 0
+          }
+        },
+        <span style="color:#05979A">entries</span> = <span style="color:#3464A3">0x0</span>,
+        <span style="color:#05979A">size</span> = 0,
+        <span style="color:#05979A">n_elements</span> = 0,
+        <span style="color:#05979A">free</span> = <span style="color:#3464A3">0x0</span>
+      },
+      <span style="color:#05979A">_ns_debug</span> = {
+        <span style="color:#05979A">base</span> = {
+          <span style="color:#05979A">r_version</span> = 0,
+          <span style="color:#05979A">r_map</span> = <span style="color:#3464A3">0x0</span>,
+          <span style="color:#05979A">r_brk</span> = 0,
+          <span style="color:#05979A">r_state</span> = <span style="color:#05979A">RT_CONSISTENT</span>,
+          <span style="color:#05979A">r_ldbase</span> = 0
+        },
+        <span style="color:#05979A">r_next</span> = <span style="color:#3464A3">0x0</span>
+      }
+    }, {
+      <span style="color:#05979A">_ns_loaded</span> = <span style="color:#3464A3">0x0</span>,
+      <span style="color:#05979A">_ns_nloaded</span> = 0,
+      <span style="color:#05979A">_ns_main_searchlist</span> = <span style="color:#3464A3">0x0</span>,
+      <span style="color:#05979A">_ns_global_scope_alloc</span> = 0,
+      <span style="color:#05979A">_ns_global_scope_pending_adds</span> = 0,
+      <span style="color:#05979A">libc_map</span> = <span style="color:#3464A3">0x0</span>,
+      <span style="color:#05979A">_ns_unique_sym_table</span> = {
+        <span style="color:#05979A">lock</span> = {
+          <span style="color:#05979A">mutex</span> = {
+            <span style="color:#05979A">__data</span> = {
+              <span style="color:#05979A">__lock</span> = 0,
+              <span style="color:#05979A">__count</span> = 0,
+              <span style="color:#05979A">__owner</span> = 0,
+              <span style="color:#05979A">__nusers</span> = 0,
+              <span style="color:#05979A">__kind</span> = 0,
+              <span style="color:#05979A">__spins</span> = 0,
+              <span style="color:#05979A">__elision</span> = 0,
+              <span style="color:#05979A">__list</span> = {
+                <span style="color:#05979A">__prev</span> = <span style="color:#3464A3">0x0</span>,
+                <span style="color:#05979A">__next</span> = <span style="color:#3464A3">0x0</span>
+              }
+            },
+            <span style="color:#05979A">__size</span> = &apos;\000&apos; &lt;repeats 39 times&gt;,
+            <span style="color:#05979A">__align</span> = 0
+          }
+        },
+        <span style="color:#05979A">entries</span> = <span style="color:#3464A3">0x0</span>,
+        <span style="color:#05979A">size</span> = 0,
+        <span style="color:#05979A">n_elements</span> = 0,
+        <span style="color:#05979A">free</span> = <span style="color:#3464A3">0x0</span>
+      },
+      <span style="color:#05979A">_ns_debug</span> = {
+        <span style="color:#05979A">base</span> = {
+          <span style="color:#05979A">r_version</span> = 0,
+          <span style="color:#05979A">r_map</span> = <span style="color:#3464A3">0x0</span>,
+          <span style="color:#05979A">r_brk</span> = 0,
+          <span style="color:#05979A">r_state</span> = <span style="color:#05979A">RT_CONSISTENT</span>,
+          <span style="color:#05979A">r_ldbase</span> = 0
+        },
+        <span style="color:#05979A">r_next</span> = <span style="color:#3464A3">0x0</span>
+      }
+    } &lt;repeats 15 times&gt;},
+  <span style="color:#05979A">_dl_nns</span> = 1,
+  <span style="color:#05979A">_dl_load_lock</span> = {
+    <span style="color:#05979A">mutex</span> = {
+      <span style="color:#05979A">__data</span> = {
+        <span style="color:#05979A">__lock</span> = 0,
+        <span style="color:#05979A">__count</span> = 0,
+        <span style="color:#05979A">__owner</span> = 0,
+        <span style="color:#05979A">__nusers</span> = 0,
+        <span style="color:#05979A">__kind</span> = 1,
+        <span style="color:#05979A">__spins</span> = 0,
+        <span style="color:#05979A">__elision</span> = 0,
+        <span style="color:#05979A">__list</span> = {
+          <span style="color:#05979A">__prev</span> = <span style="color:#3464A3">0x0</span>,
+          <span style="color:#05979A">__next</span> = <span style="color:#3464A3">0x0</span>
+        }
+      },
+      <span style="color:#05979A">__size</span> = &apos;\000&apos; &lt;repeats 16 times&gt;, &quot;\001&quot;, &apos;\000&apos; &lt;repeats 22 times&gt;,
+      <span style="color:#05979A">__align</span> = 0
+    }
+  },
+  <span style="color:#05979A">_dl_load_write_lock</span> = {
+    <span style="color:#05979A">mutex</span> = {
+      <span style="color:#05979A">__data</span> = {
+        <span style="color:#05979A">__lock</span> = 0,
+        <span style="color:#05979A">__count</span> = 0,
+        <span style="color:#05979A">__owner</span> = 0,
+        <span style="color:#05979A">__nusers</span> = 0,
+        <span style="color:#05979A">__kind</span> = 1,
+        <span style="color:#05979A">__spins</span> = 0,
+        <span style="color:#05979A">__elision</span> = 0,
+        <span style="color:#05979A">__list</span> = {
+          <span style="color:#05979A">__prev</span> = <span style="color:#3464A3">0x0</span>,
+          <span style="color:#05979A">__next</span> = <span style="color:#3464A3">0x0</span>
+        }
+      },
+      <span style="color:#05979A">__size</span> = &apos;\000&apos; &lt;repeats 16 times&gt;, &quot;\001&quot;, &apos;\000&apos; &lt;repeats 22 times&gt;,
+      <span style="color:#05979A">__align</span> = 0
+    }
+  },
+  <span style="color:#05979A">_dl_load_tls_lock</span> = {
+    <span style="color:#05979A">mutex</span> = {
+      <span style="color:#05979A">__data</span> = {
+        <span style="color:#05979A">__lock</span> = 0,
+        <span style="color:#05979A">__count</span> = 0,
+        <span style="color:#05979A">__owner</span> = 0,
+        <span style="color:#05979A">__nusers</span> = 0,
+        <span style="color:#05979A">__kind</span> = 1,
+        <span style="color:#05979A">__spins</span> = 0,
+        <span style="color:#05979A">__elision</span> = 0,
+        <span style="color:#05979A">__list</span> = {
+          <span style="color:#05979A">__prev</span> = <span style="color:#3464A3">0x0</span>,
+          <span style="color:#05979A">__next</span> = <span style="color:#3464A3">0x0</span>
+        }
+      },
+      <span style="color:#05979A">__size</span> = &apos;\000&apos; &lt;repeats 16 times&gt;, &quot;\001&quot;, &apos;\000&apos; &lt;repeats 22 times&gt;,
+      <span style="color:#05979A">__align</span> = 0
+    }
+  },
+  <span style="color:#05979A">_dl_load_adds</span> = 6,
+  <span style="color:#05979A">_dl_initfirst</span> = <span style="color:#3464A3">0x0</span>,
+  <span style="color:#05979A">_dl_profile_map</span> = <span style="color:#3464A3">0x0</span>,
+  <span style="color:#05979A">_dl_num_relocations</span> = 112,
+  <span style="color:#05979A">_dl_num_cache_relocations</span> = 7,
+  <span style="color:#05979A">_dl_all_dirs</span> = <span style="color:#3464A3">0x7ffff7fc2050</span>,
+  <span style="color:#05979A">_dl_rtld_map</span> = {
+    <span style="color:#05979A">l_addr</span> = 140737353916416,
+    <span style="color:#05979A">l_name</span> = <span style="color:#3464A3">0x400318</span> &quot;/lib64/ld-linux-x86-64.so.2&quot;,
+    <span style="color:#05979A">l_ld</span> = <span style="color:#3464A3">0x7ffff7ffce40</span>,
+    <span style="color:#05979A">l_next</span> = <span style="color:#3464A3">0x405300</span>,
+    <span style="color:#05979A">l_prev</span> = <span style="color:#3464A3">0x7ffff7fc20f0</span>,
+    <span style="color:#05979A">l_real</span> = <span style="color:#3464A3">0x7ffff7ffdab0</span> &lt;<span style="color:#C3A000">_rtld_local</span>+2736&gt;,
+    <span style="color:#05979A">l_ns</span> = 0,
+    <span style="color:#05979A">l_libname</span> = <span style="color:#3464A3">0x7ffff7ffe270</span> &lt;<span style="color:#C3A000">_dl_rtld_libname</span>&gt;,
+    <span style="color:#05979A">l_info</span> = {<span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x7ffff7ffce50</span>, <span style="color:#3464A3">0x7ffff7ffce70</span>, <span style="color:#3464A3">0x7ffff7ffce80</span>, <span style="color:#3464A3">0x7ffff7ffceb0</span>, <span style="color:#3464A3">0x7ffff7ffcec0</span>, 
+      <span style="color:#3464A3">0x7ffff7ffced0</span>, <span style="color:#3464A3">0x7ffff7ffce90</span>, <span style="color:#3464A3">0x7ffff7ffcea0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x7ffff7ffce40</span>, <span style="color:#3464A3">0x0</span> &lt;repeats 15 times&gt;, 
+      <span style="color:#3464A3">0x7ffff7ffcf00</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x7ffff7ffcf40</span>, <span style="color:#3464A3">0x7ffff7ffcf30</span>, <span style="color:#3464A3">0x7ffff7ffcf50</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x7ffff7ffcef0</span>, 
+      <span style="color:#3464A3">0x7ffff7ffcee0</span>, <span style="color:#3464A3">0x7ffff7ffcf10</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x7ffff7ffcf20</span>, 
+      <span style="color:#3464A3">0x0</span> &lt;repeats 25 times&gt;, <span style="color:#3464A3">0x7ffff7ffce60</span>},
+    <span style="color:#05979A">l_phdr</span> = <span style="color:#3464A3">0x7ffff7fca040</span>,
+    <span style="color:#05979A">l_entry</span> = 0,
+    <span style="color:#05979A">l_phnum</span> = 11,
+    <span style="color:#05979A">l_ldnum</span> = 0,
+    <span style="color:#05979A">l_searchlist</span> = {
+      <span style="color:#05979A">r_list</span> = <span style="color:#3464A3">0x0</span>,
+      <span style="color:#05979A">r_nlist</span> = 0
+    },
+    <span style="color:#05979A">l_symbolic_searchlist</span> = {
+      <span style="color:#05979A">r_list</span> = <span style="color:#3464A3">0x0</span>,
+      <span style="color:#05979A">r_nlist</span> = 0
+    },
+    <span style="color:#05979A">l_loader</span> = <span style="color:#3464A3">0x0</span>,
+    <span style="color:#05979A">l_versions</span> = <span style="color:#3464A3">0x7ffff7fc2b10</span>,
+    <span style="color:#05979A">l_nversions</span> = 8,
+    <span style="color:#05979A">l_nbuckets</span> = 37,
+    <span style="color:#05979A">l_gnu_bitmask_idxbits</span> = 3,
+    <span style="color:#05979A">l_gnu_shift</span> = 8,
+    <span style="color:#05979A">l_gnu_bitmask</span> = <span style="color:#3464A3">0x7ffff7fca458</span>,
+    {
+      <span style="color:#05979A">l_gnu_buckets</span> = <span style="color:#3464A3">0x7ffff7fca478</span>,
+      <span style="color:#05979A">l_chain</span> = <span style="color:#3464A3">0x7ffff7fca478</span>
+    },
+    {
+      <span style="color:#05979A">l_gnu_chain_zero</span> = <span style="color:#3464A3">0x7ffff7fca508</span>,
+      <span style="color:#05979A">l_buckets</span> = <span style="color:#3464A3">0x7ffff7fca508</span>
+    },
+    <span style="color:#05979A">l_direct_opencount</span> = 0,
+    <span style="color:#05979A">l_type</span> = <span style="color:#05979A">lt_library</span>,
+    <span style="color:#05979A">l_dt_relr_ref</span> = 0,
+    <span style="color:#05979A">l_relocated</span> = 1,
+    <span style="color:#05979A">l_init_called</span> = 1,
+    <span style="color:#05979A">l_global</span> = 1,
+    <span style="color:#05979A">l_reserved</span> = 0,
+    <span style="color:#05979A">l_main_map</span> = 0,
+    <span style="color:#05979A">l_visited</span> = 1,
+    <span style="color:#05979A">l_map_used</span> = 1,
+    <span style="color:#05979A">l_map_done</span> = 0,
+    <span style="color:#05979A">l_phdr_allocated</span> = 0,
+    <span style="color:#05979A">l_soname_added</span> = 0,
+    <span style="color:#05979A">l_faked</span> = 0,
+    <span style="color:#05979A">l_need_tls_init</span> = 0,
+    <span style="color:#05979A">l_auditing</span> = 0,
+    <span style="color:#05979A">l_audit_any_plt</span> = 0,
+    <span style="color:#05979A">l_removed</span> = 0,
+    <span style="color:#05979A">l_contiguous</span> = 0,
+    <span style="color:#05979A">l_free_initfini</span> = 0,
+    <span style="color:#05979A">l_ld_readonly</span> = 0,
+    <span style="color:#05979A">l_find_object_processed</span> = 0,
+    <span style="color:#05979A">l_nodelete_active</span> = false,
+    <span style="color:#05979A">l_nodelete_pending</span> = false,
+    <span style="color:#05979A">l_property</span> = <span style="color:#05979A">lc_property_unknown</span>,
+    <span style="color:#05979A">l_x86_feature_1_and</span> = 0,
+    <span style="color:#05979A">l_x86_isa_1_needed</span> = 0,
+    <span style="color:#05979A">l_1_needed</span> = 0,
+    <span style="color:#05979A">l_rpath_dirs</span> = {
+      <span style="color:#05979A">dirs</span> = <span style="color:#3464A3">0x0</span>,
+      <span style="color:#05979A">malloced</span> = 0
+    },
+    <span style="color:#05979A">l_reloc_result</span> = <span style="color:#3464A3">0x0</span>,
+    <span style="color:#05979A">l_versyms</span> = <span style="color:#3464A3">0x7ffff7fcac02</span>,
+    <span style="color:#05979A">l_origin</span> = <span style="color:#3464A3">0x0</span>,
+    <span style="color:#05979A">l_map_start</span> = 140737353916416,
+    <span style="color:#05979A">l_map_end</span> = 140737354130120,
+    <span style="color:#05979A">l_init_called_next</span> = <span style="color:#3464A3">0x0</span>,
+    <span style="color:#05979A">l_scope_mem</span> = {<span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>},
+    <span style="color:#05979A">l_scope_max</span> = 0,
+    <span style="color:#05979A">l_scope</span> = <span style="color:#3464A3">0x0</span>,
+    <span style="color:#05979A">l_local_scope</span> = {<span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>},
+    <span style="color:#05979A">l_file_id</span> = {
+      <span style="color:#05979A">dev</span> = 0,
+      <span style="color:#05979A">ino</span> = 0
+    },
+    <span style="color:#05979A">l_runpath_dirs</span> = {
+      <span style="color:#05979A">dirs</span> = <span style="color:#3464A3">0x0</span>,
+      <span style="color:#05979A">malloced</span> = 0
+    },
+    <span style="color:#05979A">l_initfini</span> = <span style="color:#3464A3">0x0</span>,
+    <span style="color:#05979A">l_reldeps</span> = <span style="color:#3464A3">0x0</span>,
+    <span style="color:#05979A">l_reldepsmax</span> = 0,
+    <span style="color:#05979A">l_used</span> = 1,
+    <span style="color:#05979A">l_feature_1</span> = 0,
+    <span style="color:#05979A">l_flags_1</span> = 0,
+    <span style="color:#05979A">l_flags</span> = 0,
+    <span style="color:#05979A">l_idx</span> = 0,
+    <span style="color:#05979A">l_mach</span> = {
+      <span style="color:#05979A">plt</span> = 0,
+      <span style="color:#05979A">gotplt</span> = 0,
+      <span style="color:#05979A">tlsdesc_table</span> = <span style="color:#3464A3">0x0</span>
+    },
+    <span style="color:#05979A">l_lookup_cache</span> = {
+      <span style="color:#05979A">sym</span> = <span style="color:#3464A3">0x7ffff7fca860</span>,
+      <span style="color:#05979A">type_class</span> = 0,
+      <span style="color:#05979A">value</span> = <span style="color:#3464A3">0x7ffff7ffdab0</span> &lt;<span style="color:#C3A000">_rtld_local</span>+2736&gt;,
+      <span style="color:#05979A">ret</span> = <span style="color:#3464A3">0x7ffff7fca860</span>
+    },
+    <span style="color:#05979A">l_tls_initimage</span> = <span style="color:#3464A3">0x0</span>,
+    <span style="color:#05979A">l_tls_initimage_size</span> = 0,
+    <span style="color:#05979A">l_tls_blocksize</span> = 0,
+    <span style="color:#05979A">l_tls_align</span> = 0,
+    <span style="color:#05979A">l_tls_firstbyte_offset</span> = 0,
+    <span style="color:#05979A">l_tls_offset</span> = 0,
+    <span style="color:#05979A">l_tls_modid</span> = 0,
+    <span style="color:#05979A">l_tls_dtor_count</span> = 0,
+    <span style="color:#05979A">l_relro_addr</span> = 203040,
+    <span style="color:#05979A">l_relro_size</span> = 5856,
+    <span style="color:#05979A">l_serial</span> = 0
+  },
+  <span style="color:#05979A">_dl_rtld_auditstate</span> = {{
+      <span style="color:#05979A">cookie</span> = 0,
+      <span style="color:#05979A">bindflags</span> = 0
+    } &lt;repeats 16 times&gt;},
+  <span style="color:#05979A">_dl_x86_feature_1</span> = 0,
+  <span style="color:#05979A">_dl_x86_feature_control</span> = {
+    <span style="color:#05979A">ibt</span> = <span style="color:#05979A">cet_elf_property</span>,
+    <span style="color:#05979A">shstk</span> = <span style="color:#05979A">cet_elf_property</span>
+  },
+  <span style="color:#05979A">_dl_stack_flags</span> = 6,
+  <span style="color:#05979A">_dl_tls_dtv_gaps</span> = false,
+  <span style="color:#05979A">_dl_tls_max_dtv_idx</span> = 1,
+  <span style="color:#05979A">_dl_tls_dtv_slotinfo_list</span> = <span style="color:#3464A3">0x7ffff7fc2bd0</span>,
+  <span style="color:#05979A">_dl_tls_static_nelem</span> = 1,
+  <span style="color:#05979A">_dl_tls_static_used</span> = 136,
+  <span style="color:#05979A">_dl_tls_static_optional</span> = 512,
+  <span style="color:#05979A">_dl_initial_dtv</span> = <span style="color:#3464A3">0x7ffff7dce0e0</span>,
+  <span style="color:#05979A">_dl_tls_generation</span> = 1,
+  <span style="color:#05979A">_dl_scope_free_list</span> = <span style="color:#3464A3">0x0</span>,
+  <span style="color:#05979A">_dl_stack_used</span> = {
+    <span style="color:#05979A">next</span> = <span style="color:#3464A3">0x7ffff7ffe0a0</span> &lt;<span style="color:#C3A000">_rtld_local</span>+4256&gt;,
+    <span style="color:#05979A">prev</span> = <span style="color:#3464A3">0x7ffff7ffe0a0</span> &lt;<span style="color:#C3A000">_rtld_local</span>+4256&gt;
+  },
+  <span style="color:#05979A">_dl_stack_user</span> = {
+    <span style="color:#05979A">next</span> = <span style="color:#3464A3">0x7ffff7dcda00</span>,
+    <span style="color:#05979A">prev</span> = <span style="color:#3464A3">0x7ffff7dcda00</span>
+  },
+  <span style="color:#05979A">_dl_stack_cache</span> = {
+    <span style="color:#05979A">next</span> = <span style="color:#3464A3">0x7ffff7ffe0c0</span> &lt;<span style="color:#C3A000">_rtld_local</span>+4288&gt;,
+    <span style="color:#05979A">prev</span> = <span style="color:#3464A3">0x7ffff7ffe0c0</span> &lt;<span style="color:#C3A000">_rtld_local</span>+4288&gt;
+  },
+  <span style="color:#05979A">_dl_stack_cache_actsize</span> = 0,
+  <span style="color:#05979A">_dl_in_flight_stack</span> = 0,
+  <span style="color:#05979A">_dl_stack_cache_lock</span> = 0
+}
+(gdb) continue
+Continuing.
+Running atexit handler of library 2 (dlclose invocation)!
+
+
+Program received signal SIGTRAP, Trace/breakpoint trap.
+<span style="color:#3464A3">0x00007ffff7fb912d</span> in <span style="color:#C3A000">func2</span> () from <span style="color:#4D9A05">/home/user/Documents/windows-vs-linux-loader-architecture/atexit-test/lib2.so</span>
+(gdb) backtrace
+#0  <span style="color:#3464A3">0x00007ffff7fb912d</span> in <span style="color:#C3A000">func2</span> () from <span style="color:#4D9A05">/home/user/Documents/windows-vs-linux-loader-architecture/atexit-test/lib2.so</span>
+#1  <span style="color:#3464A3">0x00007ffff7e0fc3d</span> in <span style="color:#C3A000">__cxa_finalize</span> (<span style="color:#05979A">d</span>=0x7ffff7fbbdf8) at <span style="color:#4D9A05">cxa_finalize.c</span>:82
+#2  <span style="color:#3464A3">0x00007ffff7fb90f7</span> in <span style="color:#C3A000">__do_global_dtors_aux</span> ()
+   from <span style="color:#4D9A05">/home/user/Documents/windows-vs-linux-loader-architecture/atexit-test/lib2.so</span>
+#3  <span style="color:#3464A3">0x00007fffffffdaf0</span> in <span style="color:#C3A000">??</span> ()
+#4  <span style="color:#3464A3">0x00007ffff7fcb0f2</span> in <span style="color:#C3A000">_dl_call_fini</span> (<span style="color:#05979A">closure_map</span>=0x406660) at <span style="color:#4D9A05">dl-call_fini.c</span>:43
+Backtrace stopped: frame did not save the PC
+(gdb) print __exit_funcs_lock
+$3 = 0
+(gdb) print _rtld_global
+$4 = {
+  <span style="color:#05979A">_dl_ns</span> = {{
+      <span style="color:#05979A">_ns_loaded</span> = <span style="color:#3464A3">0x7ffff7ffe2d0</span>,
+      <span style="color:#05979A">_ns_nloaded</span> = 6,
+      <span style="color:#05979A">_ns_main_searchlist</span> = <span style="color:#3464A3">0x7ffff7ffe5a8</span>,
+      <span style="color:#05979A">_ns_global_scope_alloc</span> = 0,
+      <span style="color:#05979A">_ns_global_scope_pending_adds</span> = 0,
+      <span style="color:#05979A">libc_map</span> = <span style="color:#3464A3">0x7ffff7fc20f0</span>,
+      <span style="color:#05979A">_ns_unique_sym_table</span> = {
+        <span style="color:#05979A">lock</span> = {
+          <span style="color:#05979A">mutex</span> = {
+            <span style="color:#05979A">__data</span> = {
+              <span style="color:#05979A">__lock</span> = 0,
+              <span style="color:#05979A">__count</span> = 0,
+              <span style="color:#05979A">__owner</span> = 0,
+              <span style="color:#05979A">__nusers</span> = 0,
+              <span style="color:#05979A">__kind</span> = 1,
+              <span style="color:#05979A">__spins</span> = 0,
+              <span style="color:#05979A">__elision</span> = 0,
+              <span style="color:#05979A">__list</span> = {
+                <span style="color:#05979A">__prev</span> = <span style="color:#3464A3">0x0</span>,
+                <span style="color:#05979A">__next</span> = <span style="color:#3464A3">0x0</span>
+              }
+            },
+            <span style="color:#05979A">__size</span> = &apos;\000&apos; &lt;repeats 16 times&gt;, &quot;\001&quot;, &apos;\000&apos; &lt;repeats 22 times&gt;,
+            <span style="color:#05979A">__align</span> = 0
+          }
+        },
+        <span style="color:#05979A">entries</span> = <span style="color:#3464A3">0x0</span>,
+        <span style="color:#05979A">size</span> = 0,
+        <span style="color:#05979A">n_elements</span> = 0,
+        <span style="color:#05979A">free</span> = <span style="color:#3464A3">0x0</span>
+      },
+      <span style="color:#05979A">_ns_debug</span> = {
+        <span style="color:#05979A">base</span> = {
+          <span style="color:#05979A">r_version</span> = 0,
+          <span style="color:#05979A">r_map</span> = <span style="color:#3464A3">0x0</span>,
+          <span style="color:#05979A">r_brk</span> = 0,
+          <span style="color:#05979A">r_state</span> = <span style="color:#05979A">RT_CONSISTENT</span>,
+          <span style="color:#05979A">r_ldbase</span> = 0
+        },
+        <span style="color:#05979A">r_next</span> = <span style="color:#3464A3">0x0</span>
+      }
+    }, {
+      <span style="color:#05979A">_ns_loaded</span> = <span style="color:#3464A3">0x0</span>,
+      <span style="color:#05979A">_ns_nloaded</span> = 0,
+      <span style="color:#05979A">_ns_main_searchlist</span> = <span style="color:#3464A3">0x0</span>,
+      <span style="color:#05979A">_ns_global_scope_alloc</span> = 0,
+      <span style="color:#05979A">_ns_global_scope_pending_adds</span> = 0,
+      <span style="color:#05979A">libc_map</span> = <span style="color:#3464A3">0x0</span>,
+      <span style="color:#05979A">_ns_unique_sym_table</span> = {
+        <span style="color:#05979A">lock</span> = {
+          <span style="color:#05979A">mutex</span> = {
+            <span style="color:#05979A">__data</span> = {
+              <span style="color:#05979A">__lock</span> = 0,
+              <span style="color:#05979A">__count</span> = 0,
+              <span style="color:#05979A">__owner</span> = 0,
+              <span style="color:#05979A">__nusers</span> = 0,
+              <span style="color:#05979A">__kind</span> = 0,
+              <span style="color:#05979A">__spins</span> = 0,
+              <span style="color:#05979A">__elision</span> = 0,
+              <span style="color:#05979A">__list</span> = {
+                <span style="color:#05979A">__prev</span> = <span style="color:#3464A3">0x0</span>,
+                <span style="color:#05979A">__next</span> = <span style="color:#3464A3">0x0</span>
+              }
+            },
+            <span style="color:#05979A">__size</span> = &apos;\000&apos; &lt;repeats 39 times&gt;,
+            <span style="color:#05979A">__align</span> = 0
+          }
+        },
+        <span style="color:#05979A">entries</span> = <span style="color:#3464A3">0x0</span>,
+        <span style="color:#05979A">size</span> = 0,
+        <span style="color:#05979A">n_elements</span> = 0,
+        <span style="color:#05979A">free</span> = <span style="color:#3464A3">0x0</span>
+      },
+      <span style="color:#05979A">_ns_debug</span> = {
+        <span style="color:#05979A">base</span> = {
+          <span style="color:#05979A">r_version</span> = 0,
+          <span style="color:#05979A">r_map</span> = <span style="color:#3464A3">0x0</span>,
+          <span style="color:#05979A">r_brk</span> = 0,
+          <span style="color:#05979A">r_state</span> = <span style="color:#05979A">RT_CONSISTENT</span>,
+          <span style="color:#05979A">r_ldbase</span> = 0
+        },
+        <span style="color:#05979A">r_next</span> = <span style="color:#3464A3">0x0</span>
+      }
+    } &lt;repeats 15 times&gt;},
+  <span style="color:#05979A">_dl_nns</span> = 1,
+  <span style="color:#05979A">_dl_load_lock</span> = {
+    <span style="color:#05979A">mutex</span> = {
+      <span style="color:#05979A">__data</span> = {
+        <span style="color:#05979A">__lock</span> = 1,
+        <span style="color:#05979A">__count</span> = 1,
+        <span style="color:#05979A">__owner</span> = 48797,
+        <span style="color:#05979A">__nusers</span> = 1,
+        <span style="color:#05979A">__kind</span> = 1,
+        <span style="color:#05979A">__spins</span> = 0,
+        <span style="color:#05979A">__elision</span> = 0,
+        <span style="color:#05979A">__list</span> = {
+          <span style="color:#05979A">__prev</span> = <span style="color:#3464A3">0x0</span>,
+          <span style="color:#05979A">__next</span> = <span style="color:#3464A3">0x0</span>
+        }
+      },
+      <span style="color:#05979A">__size</span> = &quot;\001\000\000\000\001\000\000\000\235\276\000\000\001\000\000\000\001&quot;, &apos;\000&apos; &lt;repeats 22 times&gt;,
+      <span style="color:#05979A">__align</span> = 4294967297
+    }
+  },
+  <span style="color:#05979A">_dl_load_write_lock</span> = {
+    <span style="color:#05979A">mutex</span> = {
+      <span style="color:#05979A">__data</span> = {
+        <span style="color:#05979A">__lock</span> = 0,
+        <span style="color:#05979A">__count</span> = 0,
+        <span style="color:#05979A">__owner</span> = 0,
+        <span style="color:#05979A">__nusers</span> = 0,
+        <span style="color:#05979A">__kind</span> = 1,
+        <span style="color:#05979A">__spins</span> = 0,
+        <span style="color:#05979A">__elision</span> = 0,
+        <span style="color:#05979A">__list</span> = {
+          <span style="color:#05979A">__prev</span> = <span style="color:#3464A3">0x0</span>,
+          <span style="color:#05979A">__next</span> = <span style="color:#3464A3">0x0</span>
+        }
+      },
+      <span style="color:#05979A">__size</span> = &apos;\000&apos; &lt;repeats 16 times&gt;, &quot;\001&quot;, &apos;\000&apos; &lt;repeats 22 times&gt;,
+      <span style="color:#05979A">__align</span> = 0
+    }
+  },
+  <span style="color:#05979A">_dl_load_tls_lock</span> = {
+    <span style="color:#05979A">mutex</span> = {
+      <span style="color:#05979A">__data</span> = {
+        <span style="color:#05979A">__lock</span> = 0,
+        <span style="color:#05979A">__count</span> = 0,
+        <span style="color:#05979A">__owner</span> = 0,
+        <span style="color:#05979A">__nusers</span> = 0,
+        <span style="color:#05979A">__kind</span> = 1,
+        <span style="color:#05979A">__spins</span> = 0,
+        <span style="color:#05979A">__elision</span> = 0,
+        <span style="color:#05979A">__list</span> = {
+          <span style="color:#05979A">__prev</span> = <span style="color:#3464A3">0x0</span>,
+          <span style="color:#05979A">__next</span> = <span style="color:#3464A3">0x0</span>
+        }
+      },
+      <span style="color:#05979A">__size</span> = &apos;\000&apos; &lt;repeats 16 times&gt;, &quot;\001&quot;, &apos;\000&apos; &lt;repeats 22 times&gt;,
+      <span style="color:#05979A">__align</span> = 0
+    }
+  },
+  <span style="color:#05979A">_dl_load_adds</span> = 6,
+  <span style="color:#05979A">_dl_initfirst</span> = <span style="color:#3464A3">0x0</span>,
+  <span style="color:#05979A">_dl_profile_map</span> = <span style="color:#3464A3">0x0</span>,
+  <span style="color:#05979A">_dl_num_relocations</span> = 114,
+  <span style="color:#05979A">_dl_num_cache_relocations</span> = 7,
+  <span style="color:#05979A">_dl_all_dirs</span> = <span style="color:#3464A3">0x7ffff7fc2050</span>,
+  <span style="color:#05979A">_dl_rtld_map</span> = {
+    <span style="color:#05979A">l_addr</span> = 140737353916416,
+    <span style="color:#05979A">l_name</span> = <span style="color:#3464A3">0x400318</span> &quot;/lib64/ld-linux-x86-64.so.2&quot;,
+    <span style="color:#05979A">l_ld</span> = <span style="color:#3464A3">0x7ffff7ffce40</span>,
+    <span style="color:#05979A">l_next</span> = <span style="color:#3464A3">0x405300</span>,
+    <span style="color:#05979A">l_prev</span> = <span style="color:#3464A3">0x7ffff7fc20f0</span>,
+    <span style="color:#05979A">l_real</span> = <span style="color:#3464A3">0x7ffff7ffdab0</span> &lt;<span style="color:#C3A000">_rtld_local</span>+2736&gt;,
+    <span style="color:#05979A">l_ns</span> = 0,
+    <span style="color:#05979A">l_libname</span> = <span style="color:#3464A3">0x7ffff7ffe270</span> &lt;<span style="color:#C3A000">_dl_rtld_libname</span>&gt;,
+    <span style="color:#05979A">l_info</span> = {<span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x7ffff7ffce50</span>, <span style="color:#3464A3">0x7ffff7ffce70</span>, <span style="color:#3464A3">0x7ffff7ffce80</span>, <span style="color:#3464A3">0x7ffff7ffceb0</span>, <span style="color:#3464A3">0x7ffff7ffcec0</span>, 
+      <span style="color:#3464A3">0x7ffff7ffced0</span>, <span style="color:#3464A3">0x7ffff7ffce90</span>, <span style="color:#3464A3">0x7ffff7ffcea0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x7ffff7ffce40</span>, <span style="color:#3464A3">0x0</span> &lt;repeats 15 times&gt;, 
+      <span style="color:#3464A3">0x7ffff7ffcf00</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x7ffff7ffcf40</span>, <span style="color:#3464A3">0x7ffff7ffcf30</span>, <span style="color:#3464A3">0x7ffff7ffcf50</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x7ffff7ffcef0</span>, 
+      <span style="color:#3464A3">0x7ffff7ffcee0</span>, <span style="color:#3464A3">0x7ffff7ffcf10</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x7ffff7ffcf20</span>, 
+      <span style="color:#3464A3">0x0</span> &lt;repeats 25 times&gt;, <span style="color:#3464A3">0x7ffff7ffce60</span>},
+    <span style="color:#05979A">l_phdr</span> = <span style="color:#3464A3">0x7ffff7fca040</span>,
+    <span style="color:#05979A">l_entry</span> = 0,
+    <span style="color:#05979A">l_phnum</span> = 11,
+    <span style="color:#05979A">l_ldnum</span> = 0,
+    <span style="color:#05979A">l_searchlist</span> = {
+      <span style="color:#05979A">r_list</span> = <span style="color:#3464A3">0x0</span>,
+      <span style="color:#05979A">r_nlist</span> = 0
+    },
+    <span style="color:#05979A">l_symbolic_searchlist</span> = {
+      <span style="color:#05979A">r_list</span> = <span style="color:#3464A3">0x0</span>,
+      <span style="color:#05979A">r_nlist</span> = 0
+    },
+    <span style="color:#05979A">l_loader</span> = <span style="color:#3464A3">0x0</span>,
+    <span style="color:#05979A">l_versions</span> = <span style="color:#3464A3">0x7ffff7fc2b10</span>,
+    <span style="color:#05979A">l_nversions</span> = 8,
+    <span style="color:#05979A">l_nbuckets</span> = 37,
+    <span style="color:#05979A">l_gnu_bitmask_idxbits</span> = 3,
+    <span style="color:#05979A">l_gnu_shift</span> = 8,
+    <span style="color:#05979A">l_gnu_bitmask</span> = <span style="color:#3464A3">0x7ffff7fca458</span>,
+    {
+      <span style="color:#05979A">l_gnu_buckets</span> = <span style="color:#3464A3">0x7ffff7fca478</span>,
+      <span style="color:#05979A">l_chain</span> = <span style="color:#3464A3">0x7ffff7fca478</span>
+    },
+    {
+      <span style="color:#05979A">l_gnu_chain_zero</span> = <span style="color:#3464A3">0x7ffff7fca508</span>,
+      <span style="color:#05979A">l_buckets</span> = <span style="color:#3464A3">0x7ffff7fca508</span>
+    },
+    <span style="color:#05979A">l_direct_opencount</span> = 0,
+    <span style="color:#05979A">l_type</span> = <span style="color:#05979A">lt_library</span>,
+    <span style="color:#05979A">l_dt_relr_ref</span> = 0,
+    <span style="color:#05979A">l_relocated</span> = 1,
+    <span style="color:#05979A">l_init_called</span> = 1,
+    <span style="color:#05979A">l_global</span> = 1,
+    <span style="color:#05979A">l_reserved</span> = 0,
+    <span style="color:#05979A">l_main_map</span> = 0,
+    <span style="color:#05979A">l_visited</span> = 1,
+    <span style="color:#05979A">l_map_used</span> = 1,
+    <span style="color:#05979A">l_map_done</span> = 1,
+    <span style="color:#05979A">l_phdr_allocated</span> = 0,
+    <span style="color:#05979A">l_soname_added</span> = 0,
+    <span style="color:#05979A">l_faked</span> = 0,
+    <span style="color:#05979A">l_need_tls_init</span> = 0,
+    <span style="color:#05979A">l_auditing</span> = 0,
+    <span style="color:#05979A">l_audit_any_plt</span> = 0,
+    <span style="color:#05979A">l_removed</span> = 0,
+    <span style="color:#05979A">l_contiguous</span> = 0,
+    <span style="color:#05979A">l_free_initfini</span> = 0,
+    <span style="color:#05979A">l_ld_readonly</span> = 0,
+    <span style="color:#05979A">l_find_object_processed</span> = 0,
+    <span style="color:#05979A">l_nodelete_active</span> = false,
+    <span style="color:#05979A">l_nodelete_pending</span> = false,
+    <span style="color:#05979A">l_property</span> = <span style="color:#05979A">lc_property_unknown</span>,
+    <span style="color:#05979A">l_x86_feature_1_and</span> = 0,
+    <span style="color:#05979A">l_x86_isa_1_needed</span> = 0,
+    <span style="color:#05979A">l_1_needed</span> = 0,
+    <span style="color:#05979A">l_rpath_dirs</span> = {
+      <span style="color:#05979A">dirs</span> = <span style="color:#3464A3">0x0</span>,
+      <span style="color:#05979A">malloced</span> = 0
+    },
+    <span style="color:#05979A">l_reloc_result</span> = <span style="color:#3464A3">0x0</span>,
+    <span style="color:#05979A">l_versyms</span> = <span style="color:#3464A3">0x7ffff7fcac02</span>,
+    <span style="color:#05979A">l_origin</span> = <span style="color:#3464A3">0x0</span>,
+    <span style="color:#05979A">l_map_start</span> = 140737353916416,
+    <span style="color:#05979A">l_map_end</span> = 140737354130120,
+    <span style="color:#05979A">l_init_called_next</span> = <span style="color:#3464A3">0x0</span>,
+    <span style="color:#05979A">l_scope_mem</span> = {<span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>},
+    <span style="color:#05979A">l_scope_max</span> = 0,
+    <span style="color:#05979A">l_scope</span> = <span style="color:#3464A3">0x0</span>,
+    <span style="color:#05979A">l_local_scope</span> = {<span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>},
+    <span style="color:#05979A">l_file_id</span> = {
+      <span style="color:#05979A">dev</span> = 0,
+      <span style="color:#05979A">ino</span> = 0
+    },
+    <span style="color:#05979A">l_runpath_dirs</span> = {
+      <span style="color:#05979A">dirs</span> = <span style="color:#3464A3">0x0</span>,
+      <span style="color:#05979A">malloced</span> = 0
+    },
+    <span style="color:#05979A">l_initfini</span> = <span style="color:#3464A3">0x0</span>,
+    <span style="color:#05979A">l_reldeps</span> = <span style="color:#3464A3">0x0</span>,
+    <span style="color:#05979A">l_reldepsmax</span> = 0,
+    <span style="color:#05979A">l_used</span> = 1,
+    <span style="color:#05979A">l_feature_1</span> = 0,
+    <span style="color:#05979A">l_flags_1</span> = 0,
+    <span style="color:#05979A">l_flags</span> = 0,
+    <span style="color:#05979A">l_idx</span> = -1,
+    <span style="color:#05979A">l_mach</span> = {
+      <span style="color:#05979A">plt</span> = 0,
+      <span style="color:#05979A">gotplt</span> = 0,
+      <span style="color:#05979A">tlsdesc_table</span> = <span style="color:#3464A3">0x0</span>
+    },
+    <span style="color:#05979A">l_lookup_cache</span> = {
+      <span style="color:#05979A">sym</span> = <span style="color:#3464A3">0x7ffff7fca860</span>,
+      <span style="color:#05979A">type_class</span> = 0,
+      <span style="color:#05979A">value</span> = <span style="color:#3464A3">0x7ffff7ffdab0</span> &lt;<span style="color:#C3A000">_rtld_local</span>+2736&gt;,
+      <span style="color:#05979A">ret</span> = <span style="color:#3464A3">0x7ffff7fca860</span>
+    },
+    <span style="color:#05979A">l_tls_initimage</span> = <span style="color:#3464A3">0x0</span>,
+    <span style="color:#05979A">l_tls_initimage_size</span> = 0,
+    <span style="color:#05979A">l_tls_blocksize</span> = 0,
+    <span style="color:#05979A">l_tls_align</span> = 0,
+    <span style="color:#05979A">l_tls_firstbyte_offset</span> = 0,
+    <span style="color:#05979A">l_tls_offset</span> = 0,
+    <span style="color:#05979A">l_tls_modid</span> = 0,
+    <span style="color:#05979A">l_tls_dtor_count</span> = 0,
+    <span style="color:#05979A">l_relro_addr</span> = 203040,
+    <span style="color:#05979A">l_relro_size</span> = 5856,
+    <span style="color:#05979A">l_serial</span> = 0
+  },
+  <span style="color:#05979A">_dl_rtld_auditstate</span> = {{
+      <span style="color:#05979A">cookie</span> = 0,
+      <span style="color:#05979A">bindflags</span> = 0
+    } &lt;repeats 16 times&gt;},
+  <span style="color:#05979A">_dl_x86_feature_1</span> = 0,
+  <span style="color:#05979A">_dl_x86_feature_control</span> = {
+    <span style="color:#05979A">ibt</span> = <span style="color:#05979A">cet_elf_property</span>,
+    <span style="color:#05979A">shstk</span> = <span style="color:#05979A">cet_elf_property</span>
+  },
+  <span style="color:#05979A">_dl_stack_flags</span> = 6,
+  <span style="color:#05979A">_dl_tls_dtv_gaps</span> = false,
+  <span style="color:#05979A">_dl_tls_max_dtv_idx</span> = 1,
+  <span style="color:#05979A">_dl_tls_dtv_slotinfo_list</span> = <span style="color:#3464A3">0x7ffff7fc2bd0</span>,
+  <span style="color:#05979A">_dl_tls_static_nelem</span> = 1,
+  <span style="color:#05979A">_dl_tls_static_used</span> = 136,
+  <span style="color:#05979A">_dl_tls_static_optional</span> = 512,
+  <span style="color:#05979A">_dl_initial_dtv</span> = <span style="color:#3464A3">0x7ffff7dce0e0</span>,
+  <span style="color:#05979A">_dl_tls_generation</span> = 1,
+  <span style="color:#05979A">_dl_scope_free_list</span> = <span style="color:#3464A3">0x0</span>,
+  <span style="color:#05979A">_dl_stack_used</span> = {
+    <span style="color:#05979A">next</span> = <span style="color:#3464A3">0x7ffff7ffe0a0</span> &lt;<span style="color:#C3A000">_rtld_local</span>+4256&gt;,
+    <span style="color:#05979A">prev</span> = <span style="color:#3464A3">0x7ffff7ffe0a0</span> &lt;<span style="color:#C3A000">_rtld_local</span>+4256&gt;
+  },
+  <span style="color:#05979A">_dl_stack_user</span> = {
+    <span style="color:#05979A">next</span> = <span style="color:#3464A3">0x7ffff7dcda00</span>,
+    <span style="color:#05979A">prev</span> = <span style="color:#3464A3">0x7ffff7dcda00</span>
+  },
+  <span style="color:#05979A">_dl_stack_cache</span> = {
+    <span style="color:#05979A">next</span> = <span style="color:#3464A3">0x7ffff7ffe0c0</span> &lt;<span style="color:#C3A000">_rtld_local</span>+4288&gt;,
+    <span style="color:#05979A">prev</span> = <span style="color:#3464A3">0x7ffff7ffe0c0</span> &lt;<span style="color:#C3A000">_rtld_local</span>+4288&gt;
+  },
+  <span style="color:#05979A">_dl_stack_cache_actsize</span> = 0,
+  <span style="color:#05979A">_dl_in_flight_stack</span> = 0,
+  <span style="color:#05979A">_dl_stack_cache_lock</span> = 0
+}
+(gdb) continue
+Continuing.
+Running atexit handler of library 1!
+
+
+Program received signal SIGTRAP, Trace/breakpoint trap.
+<span style="color:#3464A3">0x00007ffff7fbe12d</span> in <span style="color:#C3A000">func1</span> () from <span style="color:#4D9A05">/home/user/Documents/windows-vs-linux-loader-architecture/atexit-test/lib1.so</span>
+(gdb) backtrace
+#0  <span style="color:#3464A3">0x00007ffff7fbe12d</span> in <span style="color:#C3A000">func1</span> () from <span style="color:#4D9A05">/home/user/Documents/windows-vs-linux-loader-architecture/atexit-test/lib1.so</span>
+#1  <span style="color:#3464A3">0x00007ffff7e101e6</span> in <span style="color:#C3A000">__run_exit_handlers</span> (<span style="color:#05979A">status</span>=0, <span style="color:#05979A">listp</span>=&lt;optimized out&gt;, 
+    <span style="color:#05979A">run_list_atexit=run_list_atexit@entry</span>=true, <span style="color:#05979A">run_dtors=run_dtors@entry</span>=true) at <span style="color:#4D9A05">exit.c</span>:111
+#2  <span style="color:#3464A3">0x00007ffff7e1032e</span> in <span style="color:#C3A000">__GI_exit</span> (<span style="color:#05979A">status</span>=&lt;optimized out&gt;) at <span style="color:#4D9A05">exit.c</span>:141
+#3  <span style="color:#3464A3">0x00007ffff7df7b91</span> in <span style="color:#C3A000">__libc_start_call_main</span> (<span style="color:#05979A">main=main@entry</span>=0x40117f &lt;main&gt;, <span style="color:#05979A">argc=argc@entry</span>=1, 
+    <span style="color:#05979A">argv=argv@entry</span>=0x7fffffffe078) at <span style="color:#4D9A05">../sysdeps/nptl/libc_start_call_main.h</span>:74
+#4  <span style="color:#3464A3">0x00007ffff7df7c4b</span> in <span style="color:#C3A000">__libc_start_main_impl</span> (<span style="color:#05979A">main</span>=0x40117f &lt;main&gt;, <span style="color:#05979A">argc</span>=1, <span style="color:#05979A">argv</span>=0x7fffffffe078, 
+    <span style="color:#05979A">init</span>=&lt;optimized out&gt;, <span style="color:#05979A">fini</span>=&lt;optimized out&gt;, <span style="color:#05979A">rtld_fini</span>=&lt;optimized out&gt;, <span style="color:#05979A">stack_end</span>=0x7fffffffe068)
+    at <span style="color:#4D9A05">../csu/libc-start.c</span>:360
+#5  <span style="color:#3464A3">0x0000000000401095</span> in <span style="color:#C3A000">_start</span> ()
+(gdb) print __exit_funcs_lock
+$5 = 0
+(gdb) print _rtld_global
+$6 = {
+  <span style="color:#05979A">_dl_ns</span> = {{
+      <span style="color:#05979A">_ns_loaded</span> = <span style="color:#3464A3">0x7ffff7ffe2d0</span>,
+      <span style="color:#05979A">_ns_nloaded</span> = 5,
+      <span style="color:#05979A">_ns_main_searchlist</span> = <span style="color:#3464A3">0x7ffff7ffe5a8</span>,
+      <span style="color:#05979A">_ns_global_scope_alloc</span> = 0,
+      <span style="color:#05979A">_ns_global_scope_pending_adds</span> = 0,
+      <span style="color:#05979A">libc_map</span> = <span style="color:#3464A3">0x7ffff7fc20f0</span>,
+      <span style="color:#05979A">_ns_unique_sym_table</span> = {
+        <span style="color:#05979A">lock</span> = {
+          <span style="color:#05979A">mutex</span> = {
+            <span style="color:#05979A">__data</span> = {
+              <span style="color:#05979A">__lock</span> = 0,
+              <span style="color:#05979A">__count</span> = 0,
+              <span style="color:#05979A">__owner</span> = 0,
+              <span style="color:#05979A">__nusers</span> = 0,
+              <span style="color:#05979A">__kind</span> = 1,
+              <span style="color:#05979A">__spins</span> = 0,
+              <span style="color:#05979A">__elision</span> = 0,
+              <span style="color:#05979A">__list</span> = {
+                <span style="color:#05979A">__prev</span> = <span style="color:#3464A3">0x0</span>,
+                <span style="color:#05979A">__next</span> = <span style="color:#3464A3">0x0</span>
+              }
+            },
+            <span style="color:#05979A">__size</span> = &apos;\000&apos; &lt;repeats 16 times&gt;, &quot;\001&quot;, &apos;\000&apos; &lt;repeats 22 times&gt;,
+            <span style="color:#05979A">__align</span> = 0
+          }
+        },
+        <span style="color:#05979A">entries</span> = <span style="color:#3464A3">0x0</span>,
+        <span style="color:#05979A">size</span> = 0,
+        <span style="color:#05979A">n_elements</span> = 0,
+        <span style="color:#05979A">free</span> = <span style="color:#3464A3">0x0</span>
+      },
+      <span style="color:#05979A">_ns_debug</span> = {
+        <span style="color:#05979A">base</span> = {
+          <span style="color:#05979A">r_version</span> = 0,
+          <span style="color:#05979A">r_map</span> = <span style="color:#3464A3">0x0</span>,
+          <span style="color:#05979A">r_brk</span> = 0,
+          <span style="color:#05979A">r_state</span> = <span style="color:#05979A">RT_CONSISTENT</span>,
+          <span style="color:#05979A">r_ldbase</span> = 0
+        },
+        <span style="color:#05979A">r_next</span> = <span style="color:#3464A3">0x0</span>
+      }
+    }, {
+      <span style="color:#05979A">_ns_loaded</span> = <span style="color:#3464A3">0x0</span>,
+      <span style="color:#05979A">_ns_nloaded</span> = 0,
+      <span style="color:#05979A">_ns_main_searchlist</span> = <span style="color:#3464A3">0x0</span>,
+      <span style="color:#05979A">_ns_global_scope_alloc</span> = 0,
+      <span style="color:#05979A">_ns_global_scope_pending_adds</span> = 0,
+      <span style="color:#05979A">libc_map</span> = <span style="color:#3464A3">0x0</span>,
+      <span style="color:#05979A">_ns_unique_sym_table</span> = {
+        <span style="color:#05979A">lock</span> = {
+          <span style="color:#05979A">mutex</span> = {
+            <span style="color:#05979A">__data</span> = {
+              <span style="color:#05979A">__lock</span> = 0,
+              <span style="color:#05979A">__count</span> = 0,
+              <span style="color:#05979A">__owner</span> = 0,
+              <span style="color:#05979A">__nusers</span> = 0,
+              <span style="color:#05979A">__kind</span> = 0,
+              <span style="color:#05979A">__spins</span> = 0,
+              <span style="color:#05979A">__elision</span> = 0,
+              <span style="color:#05979A">__list</span> = {
+                <span style="color:#05979A">__prev</span> = <span style="color:#3464A3">0x0</span>,
+                <span style="color:#05979A">__next</span> = <span style="color:#3464A3">0x0</span>
+              }
+            },
+            <span style="color:#05979A">__size</span> = &apos;\000&apos; &lt;repeats 39 times&gt;,
+            <span style="color:#05979A">__align</span> = 0
+          }
+        },
+        <span style="color:#05979A">entries</span> = <span style="color:#3464A3">0x0</span>,
+        <span style="color:#05979A">size</span> = 0,
+        <span style="color:#05979A">n_elements</span> = 0,
+        <span style="color:#05979A">free</span> = <span style="color:#3464A3">0x0</span>
+      },
+      <span style="color:#05979A">_ns_debug</span> = {
+        <span style="color:#05979A">base</span> = {
+          <span style="color:#05979A">r_version</span> = 0,
+          <span style="color:#05979A">r_map</span> = <span style="color:#3464A3">0x0</span>,
+          <span style="color:#05979A">r_brk</span> = 0,
+          <span style="color:#05979A">r_state</span> = <span style="color:#05979A">RT_CONSISTENT</span>,
+          <span style="color:#05979A">r_ldbase</span> = 0
+        },
+        <span style="color:#05979A">r_next</span> = <span style="color:#3464A3">0x0</span>
+      }
+    } &lt;repeats 15 times&gt;},
+  <span style="color:#05979A">_dl_nns</span> = 1,
+  <span style="color:#05979A">_dl_load_lock</span> = {
+    <span style="color:#05979A">mutex</span> = {
+      <span style="color:#05979A">__data</span> = {
+        <span style="color:#05979A">__lock</span> = 0,
+        <span style="color:#05979A">__count</span> = 0,
+        <span style="color:#05979A">__owner</span> = 0,
+        <span style="color:#05979A">__nusers</span> = 0,
+        <span style="color:#05979A">__kind</span> = 1,
+        <span style="color:#05979A">__spins</span> = 0,
+        <span style="color:#05979A">__elision</span> = 0,
+        <span style="color:#05979A">__list</span> = {
+          <span style="color:#05979A">__prev</span> = <span style="color:#3464A3">0x0</span>,
+          <span style="color:#05979A">__next</span> = <span style="color:#3464A3">0x0</span>
+        }
+      },
+      <span style="color:#05979A">__size</span> = &apos;\000&apos; &lt;repeats 16 times&gt;, &quot;\001&quot;, &apos;\000&apos; &lt;repeats 22 times&gt;,
+      <span style="color:#05979A">__align</span> = 0
+    }
+  },
+  <span style="color:#05979A">_dl_load_write_lock</span> = {
+    <span style="color:#05979A">mutex</span> = {
+      <span style="color:#05979A">__data</span> = {
+        <span style="color:#05979A">__lock</span> = 0,
+        <span style="color:#05979A">__count</span> = 0,
+        <span style="color:#05979A">__owner</span> = 0,
+        <span style="color:#05979A">__nusers</span> = 0,
+        <span style="color:#05979A">__kind</span> = 1,
+        <span style="color:#05979A">__spins</span> = 0,
+        <span style="color:#05979A">__elision</span> = 0,
+        <span style="color:#05979A">__list</span> = {
+          <span style="color:#05979A">__prev</span> = <span style="color:#3464A3">0x0</span>,
+          <span style="color:#05979A">__next</span> = <span style="color:#3464A3">0x0</span>
+        }
+      },
+      <span style="color:#05979A">__size</span> = &apos;\000&apos; &lt;repeats 16 times&gt;, &quot;\001&quot;, &apos;\000&apos; &lt;repeats 22 times&gt;,
+      <span style="color:#05979A">__align</span> = 0
+    }
+  },
+  <span style="color:#05979A">_dl_load_tls_lock</span> = {
+    <span style="color:#05979A">mutex</span> = {
+      <span style="color:#05979A">__data</span> = {
+        <span style="color:#05979A">__lock</span> = 0,
+        <span style="color:#05979A">__count</span> = 0,
+        <span style="color:#05979A">__owner</span> = 0,
+        <span style="color:#05979A">__nusers</span> = 0,
+        <span style="color:#05979A">__kind</span> = 1,
+        <span style="color:#05979A">__spins</span> = 0,
+        <span style="color:#05979A">__elision</span> = 0,
+        <span style="color:#05979A">__list</span> = {
+          <span style="color:#05979A">__prev</span> = <span style="color:#3464A3">0x0</span>,
+          <span style="color:#05979A">__next</span> = <span style="color:#3464A3">0x0</span>
+        }
+      },
+      <span style="color:#05979A">__size</span> = &apos;\000&apos; &lt;repeats 16 times&gt;, &quot;\001&quot;, &apos;\000&apos; &lt;repeats 22 times&gt;,
+      <span style="color:#05979A">__align</span> = 0
+    }
+  },
+  <span style="color:#05979A">_dl_load_adds</span> = 6,
+  <span style="color:#05979A">_dl_initfirst</span> = <span style="color:#3464A3">0x0</span>,
+  <span style="color:#05979A">_dl_profile_map</span> = <span style="color:#3464A3">0x0</span>,
+  <span style="color:#05979A">_dl_num_relocations</span> = 114,
+  <span style="color:#05979A">_dl_num_cache_relocations</span> = 7,
+  <span style="color:#05979A">_dl_all_dirs</span> = <span style="color:#3464A3">0x7ffff7fc2050</span>,
+  <span style="color:#05979A">_dl_rtld_map</span> = {
+    <span style="color:#05979A">l_addr</span> = 140737353916416,
+    <span style="color:#05979A">l_name</span> = <span style="color:#3464A3">0x400318</span> &quot;/lib64/ld-linux-x86-64.so.2&quot;,
+    <span style="color:#05979A">l_ld</span> = <span style="color:#3464A3">0x7ffff7ffce40</span>,
+    <span style="color:#05979A">l_next</span> = <span style="color:#3464A3">0x405300</span>,
+    <span style="color:#05979A">l_prev</span> = <span style="color:#3464A3">0x7ffff7fc20f0</span>,
+    <span style="color:#05979A">l_real</span> = <span style="color:#3464A3">0x7ffff7ffdab0</span> &lt;<span style="color:#C3A000">_rtld_local</span>+2736&gt;,
+    <span style="color:#05979A">l_ns</span> = 0,
+    <span style="color:#05979A">l_libname</span> = <span style="color:#3464A3">0x7ffff7ffe270</span> &lt;<span style="color:#C3A000">_dl_rtld_libname</span>&gt;,
+    <span style="color:#05979A">l_info</span> = {<span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x7ffff7ffce50</span>, <span style="color:#3464A3">0x7ffff7ffce70</span>, <span style="color:#3464A3">0x7ffff7ffce80</span>, <span style="color:#3464A3">0x7ffff7ffceb0</span>, <span style="color:#3464A3">0x7ffff7ffcec0</span>, 
+      <span style="color:#3464A3">0x7ffff7ffced0</span>, <span style="color:#3464A3">0x7ffff7ffce90</span>, <span style="color:#3464A3">0x7ffff7ffcea0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x7ffff7ffce40</span>, <span style="color:#3464A3">0x0</span> &lt;repeats 15 times&gt;, 
+      <span style="color:#3464A3">0x7ffff7ffcf00</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x7ffff7ffcf40</span>, <span style="color:#3464A3">0x7ffff7ffcf30</span>, <span style="color:#3464A3">0x7ffff7ffcf50</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x7ffff7ffcef0</span>, 
+      <span style="color:#3464A3">0x7ffff7ffcee0</span>, <span style="color:#3464A3">0x7ffff7ffcf10</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x7ffff7ffcf20</span>, 
+      <span style="color:#3464A3">0x0</span> &lt;repeats 25 times&gt;, <span style="color:#3464A3">0x7ffff7ffce60</span>},
+    <span style="color:#05979A">l_phdr</span> = <span style="color:#3464A3">0x7ffff7fca040</span>,
+    <span style="color:#05979A">l_entry</span> = 0,
+    <span style="color:#05979A">l_phnum</span> = 11,
+    <span style="color:#05979A">l_ldnum</span> = 0,
+    <span style="color:#05979A">l_searchlist</span> = {
+      <span style="color:#05979A">r_list</span> = <span style="color:#3464A3">0x0</span>,
+      <span style="color:#05979A">r_nlist</span> = 0
+    },
+    <span style="color:#05979A">l_symbolic_searchlist</span> = {
+      <span style="color:#05979A">r_list</span> = <span style="color:#3464A3">0x0</span>,
+      <span style="color:#05979A">r_nlist</span> = 0
+    },
+    <span style="color:#05979A">l_loader</span> = <span style="color:#3464A3">0x0</span>,
+    <span style="color:#05979A">l_versions</span> = <span style="color:#3464A3">0x7ffff7fc2b10</span>,
+    <span style="color:#05979A">l_nversions</span> = 8,
+    <span style="color:#05979A">l_nbuckets</span> = 37,
+    <span style="color:#05979A">l_gnu_bitmask_idxbits</span> = 3,
+    <span style="color:#05979A">l_gnu_shift</span> = 8,
+    <span style="color:#05979A">l_gnu_bitmask</span> = <span style="color:#3464A3">0x7ffff7fca458</span>,
+    {
+      <span style="color:#05979A">l_gnu_buckets</span> = <span style="color:#3464A3">0x7ffff7fca478</span>,
+      <span style="color:#05979A">l_chain</span> = <span style="color:#3464A3">0x7ffff7fca478</span>
+    },
+    {
+      <span style="color:#05979A">l_gnu_chain_zero</span> = <span style="color:#3464A3">0x7ffff7fca508</span>,
+      <span style="color:#05979A">l_buckets</span> = <span style="color:#3464A3">0x7ffff7fca508</span>
+    },
+    <span style="color:#05979A">l_direct_opencount</span> = 0,
+    <span style="color:#05979A">l_type</span> = <span style="color:#05979A">lt_library</span>,
+    <span style="color:#05979A">l_dt_relr_ref</span> = 0,
+    <span style="color:#05979A">l_relocated</span> = 1,
+    <span style="color:#05979A">l_init_called</span> = 1,
+    <span style="color:#05979A">l_global</span> = 1,
+    <span style="color:#05979A">l_reserved</span> = 0,
+    <span style="color:#05979A">l_main_map</span> = 0,
+    <span style="color:#05979A">l_visited</span> = 1,
+    <span style="color:#05979A">l_map_used</span> = 1,
+    <span style="color:#05979A">l_map_done</span> = 1,
+    <span style="color:#05979A">l_phdr_allocated</span> = 0,
+    <span style="color:#05979A">l_soname_added</span> = 0,
+    <span style="color:#05979A">l_faked</span> = 0,
+    <span style="color:#05979A">l_need_tls_init</span> = 0,
+    <span style="color:#05979A">l_auditing</span> = 0,
+    <span style="color:#05979A">l_audit_any_plt</span> = 0,
+    <span style="color:#05979A">l_removed</span> = 0,
+    <span style="color:#05979A">l_contiguous</span> = 0,
+    <span style="color:#05979A">l_free_initfini</span> = 0,
+    <span style="color:#05979A">l_ld_readonly</span> = 0,
+    <span style="color:#05979A">l_find_object_processed</span> = 0,
+    <span style="color:#05979A">l_nodelete_active</span> = false,
+    <span style="color:#05979A">l_nodelete_pending</span> = false,
+    <span style="color:#05979A">l_property</span> = <span style="color:#05979A">lc_property_unknown</span>,
+    <span style="color:#05979A">l_x86_feature_1_and</span> = 0,
+    <span style="color:#05979A">l_x86_isa_1_needed</span> = 0,
+    <span style="color:#05979A">l_1_needed</span> = 0,
+    <span style="color:#05979A">l_rpath_dirs</span> = {
+      <span style="color:#05979A">dirs</span> = <span style="color:#3464A3">0x0</span>,
+      <span style="color:#05979A">malloced</span> = 0
+    },
+    <span style="color:#05979A">l_reloc_result</span> = <span style="color:#3464A3">0x0</span>,
+    <span style="color:#05979A">l_versyms</span> = <span style="color:#3464A3">0x7ffff7fcac02</span>,
+    <span style="color:#05979A">l_origin</span> = <span style="color:#3464A3">0x0</span>,
+    <span style="color:#05979A">l_map_start</span> = 140737353916416,
+    <span style="color:#05979A">l_map_end</span> = 140737354130120,
+    <span style="color:#05979A">l_init_called_next</span> = <span style="color:#3464A3">0x0</span>,
+    <span style="color:#05979A">l_scope_mem</span> = {<span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>},
+    <span style="color:#05979A">l_scope_max</span> = 0,
+    <span style="color:#05979A">l_scope</span> = <span style="color:#3464A3">0x0</span>,
+    <span style="color:#05979A">l_local_scope</span> = {<span style="color:#3464A3">0x0</span>, <span style="color:#3464A3">0x0</span>},
+    <span style="color:#05979A">l_file_id</span> = {
+      <span style="color:#05979A">dev</span> = 0,
+      <span style="color:#05979A">ino</span> = 0
+    },
+    <span style="color:#05979A">l_runpath_dirs</span> = {
+      <span style="color:#05979A">dirs</span> = <span style="color:#3464A3">0x0</span>,
+      <span style="color:#05979A">malloced</span> = 0
+    },
+    <span style="color:#05979A">l_initfini</span> = <span style="color:#3464A3">0x0</span>,
+    <span style="color:#05979A">l_reldeps</span> = <span style="color:#3464A3">0x0</span>,
+    <span style="color:#05979A">l_reldepsmax</span> = 0,
+    <span style="color:#05979A">l_used</span> = 1,
+    <span style="color:#05979A">l_feature_1</span> = 0,
+    <span style="color:#05979A">l_flags_1</span> = 0,
+    <span style="color:#05979A">l_flags</span> = 0,
+    <span style="color:#05979A">l_idx</span> = -1,
+    <span style="color:#05979A">l_mach</span> = {
+      <span style="color:#05979A">plt</span> = 0,
+      <span style="color:#05979A">gotplt</span> = 0,
+      <span style="color:#05979A">tlsdesc_table</span> = <span style="color:#3464A3">0x0</span>
+    },
+    <span style="color:#05979A">l_lookup_cache</span> = {
+      <span style="color:#05979A">sym</span> = <span style="color:#3464A3">0x7ffff7fca860</span>,
+      <span style="color:#05979A">type_class</span> = 0,
+      <span style="color:#05979A">value</span> = <span style="color:#3464A3">0x7ffff7ffdab0</span> &lt;<span style="color:#C3A000">_rtld_local</span>+2736&gt;,
+      <span style="color:#05979A">ret</span> = <span style="color:#3464A3">0x7ffff7fca860</span>
+    },
+    <span style="color:#05979A">l_tls_initimage</span> = <span style="color:#3464A3">0x0</span>,
+    <span style="color:#05979A">l_tls_initimage_size</span> = 0,
+    <span style="color:#05979A">l_tls_blocksize</span> = 0,
+    <span style="color:#05979A">l_tls_align</span> = 0,
+    <span style="color:#05979A">l_tls_firstbyte_offset</span> = 0,
+    <span style="color:#05979A">l_tls_offset</span> = 0,
+    <span style="color:#05979A">l_tls_modid</span> = 0,
+    <span style="color:#05979A">l_tls_dtor_count</span> = 0,
+    <span style="color:#05979A">l_relro_addr</span> = 203040,
+    <span style="color:#05979A">l_relro_size</span> = 5856,
+    <span style="color:#05979A">l_serial</span> = 0
+  },
+  <span style="color:#05979A">_dl_rtld_auditstate</span> = {{
+      <span style="color:#05979A">cookie</span> = 0,
+      <span style="color:#05979A">bindflags</span> = 0
+    } &lt;repeats 16 times&gt;},
+  <span style="color:#05979A">_dl_x86_feature_1</span> = 0,
+  <span style="color:#05979A">_dl_x86_feature_control</span> = {
+    <span style="color:#05979A">ibt</span> = <span style="color:#05979A">cet_elf_property</span>,
+    <span style="color:#05979A">shstk</span> = <span style="color:#05979A">cet_elf_property</span>
+  },
+  <span style="color:#05979A">_dl_stack_flags</span> = 6,
+  <span style="color:#05979A">_dl_tls_dtv_gaps</span> = false,
+  <span style="color:#05979A">_dl_tls_max_dtv_idx</span> = 1,
+  <span style="color:#05979A">_dl_tls_dtv_slotinfo_list</span> = <span style="color:#3464A3">0x7ffff7fc2bd0</span>,
+  <span style="color:#05979A">_dl_tls_static_nelem</span> = 1,
+  <span style="color:#05979A">_dl_tls_static_used</span> = 136,
+  <span style="color:#05979A">_dl_tls_static_optional</span> = 512,
+  <span style="color:#05979A">_dl_initial_dtv</span> = <span style="color:#3464A3">0x7ffff7dce0e0</span>,
+  <span style="color:#05979A">_dl_tls_generation</span> = 1,
+  <span style="color:#05979A">_dl_scope_free_list</span> = <span style="color:#3464A3">0x0</span>,
+  <span style="color:#05979A">_dl_stack_used</span> = {
+    <span style="color:#05979A">next</span> = <span style="color:#3464A3">0x7ffff7ffe0a0</span> &lt;<span style="color:#C3A000">_rtld_local</span>+4256&gt;,
+    <span style="color:#05979A">prev</span> = <span style="color:#3464A3">0x7ffff7ffe0a0</span> &lt;<span style="color:#C3A000">_rtld_local</span>+4256&gt;
+  },
+  <span style="color:#05979A">_dl_stack_user</span> = {
+    <span style="color:#05979A">next</span> = <span style="color:#3464A3">0x7ffff7dcda00</span>,
+    <span style="color:#05979A">prev</span> = <span style="color:#3464A3">0x7ffff7dcda00</span>
+  },
+  <span style="color:#05979A">_dl_stack_cache</span> = {
+    <span style="color:#05979A">next</span> = <span style="color:#3464A3">0x7ffff7ffe0c0</span> &lt;<span style="color:#C3A000">_rtld_local</span>+4288&gt;,
+    <span style="color:#05979A">prev</span> = <span style="color:#3464A3">0x7ffff7ffe0c0</span> &lt;<span style="color:#C3A000">_rtld_local</span>+4288&gt;
+  },
+  <span style="color:#05979A">_dl_stack_cache_actsize</span> = 0,
+  <span style="color:#05979A">_dl_in_flight_stack</span> = 0,
+  <span style="color:#05979A">_dl_stack_cache_lock</span> = 0
+}
+(gdb) continue
+Continuing.
+[Inferior 1 (process 48797) exited normally]
+(gdb) exit</pre>
