@@ -83,7 +83,7 @@ Windows `LdrpModuleDatatableLock`
   - Performs full blocking (exclusive/write) access to its respective **module information data structures**
     - This includes two linked lists (`InLoadOrderModuleList` and `InMemoryOrderModuleList`), a hash table, two red-black trees, and two directed acyclic graphs
         - **Note:** The DAGs only require `LdrpModuleDatatableLock` protection to ensure synchronization/consistency with other module information data structures during write operations (e.g. adding/deleting nodes)
-            - In addition to acquiring the `LdrpModuleDatatableLock` lock, safely modifying the DAGs requires that your thread be the loader owner (`LoadOwner` in the TEB and incrementing `ntdll!LdrpWorkInProgress`)
+            - In addition to acquiring the `LdrpModuleDatatableLock` lock, safely modifying the DAGs requires that your thread be the loader owner (`LoadOwner` in `TEB.SameTebFlags` and incrementing `ntdll!LdrpWorkInProgress`)
             - Read operations (e.g. walking the DAGs) are naturally protected depending on where the load owner is in the loading process (see: [`LDR_DDAG_NODE.State` Analysis](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#ldr_ddag_nodestate-analysis))
     - This lock also protects some structure members contained within these data structures (e.g. the `LDR_DDAG_NODE.LoadCount` reference count)
   - Windows shortly acquires `LdrpModuleDatatableLock` **many times** (I counted 17 exactly) for every `LoadLibrary` (tested with a full path to an empty DLL; a completely fresh Visual Studio DLL project)
@@ -176,7 +176,7 @@ However, Windows has more synchronization objects that control the loader, inclu
     - These threads show up as `ntdll!TppWorkerThread` threads in WinDbg
     - There's a list head, after which each `LIST_ENTRY` points into the stack memory a thread within the `ntdll!TppWorkerThread` function's stack frame
       - The `TpInitializePackage` function (called by `LdrpInitializeProcess`) initializes the list head, then the main `ntdll!TppWorkerThread` function of each new thread belonging to a thread pool adds itself to the list
-    - The threads in this list include threads belonging to the loader worker thread pool (`LoaderWorker` in the TEB)
+    - The threads in this list include threads belonging to the loader worker thread pool (`LoaderWorker` in `TEB.SameTebFlags`)
 - `LDR_DATA_TABLE_ENTRY.Lock`
   - Starting with Windows 10, each `LDR_DATA_TABLE_ENTRY` has a [`PVOID` `Lock` member](https://www.geoffchappell.com/studies/windows/km/ntoskrnl/inc/api/ntldr/ldr_data_table_entry.htm) (it replaced a `Spare` slot)
   - `LdrpWriteBackProtectedDelayLoad` uses this per-node lock to implement some level of protection during delay loading
@@ -583,7 +583,7 @@ In the modern Windows loader, there's a clear trend regarding how the Windows lo
 
 The loader primarily uses locks to protect the state. State, kept consistent through the use of locks, is what the loader predominantly uses to decide what actions it should perform. So, there's a level of indirection here.
 
-Some good examples of such state include (see the relevant locks): `LDR_DDAG_NODE.LDR_DDAG_STATE`, `ntdll!LdrpWorkInProgress`, and `TEB.LoadOwner`
+Some good examples of such state include (see the relevant locks): `LDR_DDAG_NODE.LDR_DDAG_STATE`, `ntdll!LdrpWorkInProgress`, and `LoadOwner` in `TEB.SameTebFlags`)
 
 There's one minor exception to this rule where the loader regularly depends on the locking status of a lock itself (minor because this lock isn't central to the loader state machine, and a typical process won't even run any DLL notification callbacks): `ntdll!LdrpDllNotificationLock`
 
@@ -663,7 +663,7 @@ Now, let's see how the modern Windows loader handles this. In `LdrGetProcedureAd
         // Test whether module module initialization should occur
         // LdrGetProcedureAddressForCaller receives this as its fifth argument, KERNELBASE!GetProcAddresForCaller (called by KERNELBASE!GetProcAddress) always sets it to TRUE
         && ExecuteInit
-        // Test for the current thread having the TEB.LoadOwner flag
+        // Test for the current thread having the LoadOwner flag in TEB.SameTebFlags
         && (NtCurrentTeb()->SameTebFlags & 0x1000) != 0
         // Test for the current thread not holding the LdrpDllNotificationLock lock (i.e. we're not executing a DLL notification callback)
         && !(unsigned int)RtlIsCriticalSectionLockedByThread(&LdrpDllNotificationLock) )
@@ -678,9 +678,9 @@ Now, let's see how the modern Windows loader handles this. In `LdrGetProcedureAd
 
 Huh? `LdrGetProcedureAddressForCaller` didn't acquire loader lock, yet it is performing module initialization! How could that be safe?
 
-It's a layer of abstraction. By testing the module's `LDR_DDAG_STATE`, `TEB.LoadOwner`, `ntdll!LdrpDllNotificationLock`, and `ExecuteInit` states, `LdrGetProcedureAddressForCaller` knows that the only way the loader would have let it reach this point where all these conditions pass is if it were safe to do module initialization. `LdrGetProcedureAddressForCaller` doesn't have to be aware of loader lock because it trusts the loader state machine to have done the right thing before handing off execution to `LdrGetProcedureAddressForCaller`.
+It's a layer of abstraction. By testing the module's `LDR_DDAG_STATE`, `LoadOwner` in `TEB.SameTebFlags`, `ntdll!LdrpDllNotificationLock`, and `ExecuteInit` states, `LdrGetProcedureAddressForCaller` knows that the only way the loader would have let it reach this point where all these conditions pass is if it were safe to do module initialization. `LdrGetProcedureAddressForCaller` doesn't have to be aware of loader lock because it trusts the loader state machine to have done the right thing before handing off execution to `LdrGetProcedureAddressForCaller`.
 
-This premise holds up when considering where the loader must be for all conditions to pass. Two of the things the `LdrpPrepareModuleForExecution` function does is run DLL notification callbacks (calls `LdrpNotifyLoadOfGraph`) and then perform module initialization (calls `LdrpInitializeGraphRecurse`). We know a module's [`LDR_DDAG_STATE` is set to `LdrModulesReadyToInit`](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#ldr_ddag_nodestate-analysis) immediately before running any DLL notification callbacks. DLL notification callbacks may call into third-party code (anyone can register for a callback), and a thread executing a DLL notification callback holds `ntdll!LdrpDllNotificationLock` as it runs. `TEB.LoadOwner` correlates with `ntdll!LdrpWorkInProgress`; it's what a thread uses to inform itself that it's responsible for the work in progress. Lastly, `ExecuteInit` is the fifth argument passed to `LdrGetProcedureAddressForCaller`, so should NTDLL want to get the address of a procedure within a module while the conditions up to this point pass without doing module initialization, it could simply pass the `ExecuteInit` argument as `FALSE`. By process of elimination, this logically leaves module initialization (i.e. `DllMain`) as the only place this code path of `LdrGetProcedureAddressForCaller` could execute. And everybody knows that `DllMain` is run under loader lock.
+This premise holds up when considering where the loader must be for all conditions to pass. Two of the things the `LdrpPrepareModuleForExecution` function does is run DLL notification callbacks (calls `LdrpNotifyLoadOfGraph`) and then perform module initialization (calls `LdrpInitializeGraphRecurse`). We know a module's [`LDR_DDAG_STATE` is set to `LdrModulesReadyToInit`](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#ldr_ddag_nodestate-analysis) immediately before running any DLL notification callbacks. DLL notification callbacks may call into third-party code (anyone can register for a callback), and a thread executing a DLL notification callback holds `ntdll!LdrpDllNotificationLock` as it runs. `LoadOwner` in `TEB.SameTebFlags` correlates with `ntdll!LdrpWorkInProgress`; it's what a thread uses to inform itself that it's responsible for the work in progress. Lastly, `ExecuteInit` is the fifth argument passed to `LdrGetProcedureAddressForCaller`, so should NTDLL want to get the address of a procedure within a module while the conditions up to this point pass without doing module initialization, it could simply pass the `ExecuteInit` argument as `FALSE`. By process of elimination, this logically leaves module initialization (i.e. `DllMain`) as the only place this code path of `LdrGetProcedureAddressForCaller` could execute. And everybody knows that `DllMain` is run under loader lock.
 
 Therefore, by testing all these conditions, `LdrGetProcedureAddressForCaller` knows that the loader will already have acquired loader lock if need be. Having passed these conditions, `LdrGetProcedureAddressForCaller` could also recursively acquire loader lock itself. However, there's no point in expending the extra resources to do that when it's already known to be safe to perform module initialization now. Additionally, other than module initialization, a process acquires loader lock at its exit (`RtlExitUserProcess`), so testing these conditions instead of loader lock ensures `LdrGetProcedureAddressForCaller` doesn't initialize a module during this phase of the process.
 
@@ -836,7 +836,7 @@ In the documentation for [`CoInitializeEx`](https://learn.microsoft.com/en-us/wi
 
 This warning concerns a lock hierarchy violation risk between the native (e.g. `ntdll!LdrpLoaderLock`) and COM (e.g. `combase!gComLock`, `combase!gChannelInitLock`, and `combase!gOXIDLock`) synchronization mechanisms. Realizing this risk, however unlikely, would lead to an [ABBA deadlock](https://www.oreilly.com/library/view/hands-on-system-programming/9781788998475/edf57b67-a572-4202-8e56-18c85c2141e4.xhtml). Ideally, Microsoft would ensure a clean lock hierarchy between these subsystems by controlling load/unload order, adding some shared piece of state to synchronize on before acquiring locks, or otherwise (it's perhaps easier said than done given the monolithic nature of it all). [Microsoft has realized this risk in their code](https://devblogs.microsoft.com/oldnewthing/20140821-00/?p=183) (note that [starting with OLE 2, OLE is built on top of COM](https://stackoverflow.com/a/8929732), so they share internals). The simplest method for fixing this ABBA deadlock would be to acquire the loader lock (it's in the PEB) before the COM lock, thereby keeping a clean lock hierarchy. However, this method would decrease concurrency, thus reducing performance. Another solution would be to specifically target COM functions that interact with the native loader while already holding the COM lock, such as `CoFreeUnused­Libraries`. `CoFreeUnused­Libraries` would leave the COM shared data structures/components in a consistent state before unlocking the COM lock and then perform consistency checks after reacquiring the COM lock. COM architecture might precisely track each component's state to support its reentrant design. A state tracking mechanism could work like `LDR_DDAG_STATE` in the native loader. `Co­Free­Unused­Libraries` will acquire loader lock followed by the COM lock and then perform its task of freeing unused libraries. [My inspiration for the second approach partially came from the GNU loader.](https://elixir.bootlin.com/glibc/glibc-2.38/source/elf/dl-lookup.c#L580) In both solutions, the process maintains a single coherent lock hierarchy. Thus, either of these solutions would solve the potential for an ABBA deadlock upon calling `CoFreeUnused­Libraries`.
 
-If some COM operation requires threads that *load additional libraries* (**Is this something that can happen? As noted in our concurrency experiments, it's a naturally tricky situation that even the GNU loader will deadlock under.** This is a tangent from the topic of ABBA deadlock.), then spawn that thread with the `THREAD_CREATE_FLAGS_SKIP_LOADER_INIT` flag (or remove thread blockers) and add library loading tasks to a global "load queue". The load queue will be similar to the existing work queue (which exists solely for parallelizing mapping and snapping work to improve performance) except for storing loader tasks for processing by the load owner (i.e. not just mapping or snapping). The current load owner (`LoadOwner` flag in the TEB) will intermittently check the load queue and drain it on the other thread's behalf. The thread spawning a new thread would ideally check if it's under loader lock, and if so, wait on the new thread at least long enough to drain the new thread's load queue. If what libraries the new thread needs is known beforehand, then opt to load them on the load owner thread before spawning the new thread. Having a dedicated `LoadOwner` thread, provided suitable optimizations are in place, may also be a solution. **`DllMain` can now safely run *any* COM code.** Applying this solution to the CLR may mean removing `.cctor` because its continued presence means foreign (third-party) code could violate the loader lock -> CLR assembly initialization lock (I'm assuming the CLR loader has an assembly initialization lock similar to the native loader) hierarchy without our knowledge. The other solution is what Microsoft engineers currently advise, which is to write a rule saying that nobody should do COM (e.g. `CoInitializeEx`) from `DllMain`, which works great until people, such as Microsoft employees, do COM from `DllMain` (or one of many other places the loader unexpectedly holds loader lock) and Microsoft must reactively involve the CLR loader so "unmanaged and managed initialization is done in two separate and distinct stages" (introducing non-standard `.cctor` PE section) over the native loader to workaround "loader lock issues".
+If some COM operation requires threads that *load additional libraries* (**Is this something that can happen? As noted in our concurrency experiments, it's a naturally tricky situation that even the GNU loader will deadlock under.** This is a tangent from the topic of ABBA deadlock.), then spawn that thread with the `THREAD_CREATE_FLAGS_SKIP_LOADER_INIT` flag (or remove thread blockers) and add library loading tasks to a global "load queue". The load queue will be similar to the existing work queue (which exists solely for parallelizing mapping and snapping work to improve performance) except for storing loader tasks for processing by the load owner (i.e. not just mapping or snapping). The current load owner (`LoadOwner` flag in `TEB.SameTebFlags`) will intermittently check the load queue and drain it on the other thread's behalf. The thread spawning a new thread would ideally check if it's under loader lock, and if so, wait on the new thread at least long enough to drain the new thread's load queue. If what libraries the new thread needs is known beforehand, then opt to load them on the load owner thread before spawning the new thread. Having a dedicated `LoadOwner` thread, provided suitable optimizations are in place, may also be a solution. **`DllMain` can now safely run *any* COM code.** Applying this solution to the CLR may mean removing `.cctor` because its continued presence means foreign (third-party) code could violate the loader lock -> CLR assembly initialization lock (I'm assuming the CLR loader has an assembly initialization lock similar to the native loader) hierarchy without our knowledge. The other solution is what Microsoft engineers currently advise, which is to write a rule saying that nobody should do COM (e.g. `CoInitializeEx`) from `DllMain`, which works great until people, such as Microsoft employees, do COM from `DllMain` (or one of many other places the loader unexpectedly holds loader lock) and Microsoft must reactively involve the CLR loader so "unmanaged and managed initialization is done in two separate and distinct stages" (introducing non-standard `.cctor` PE section) over the native loader to workaround "loader lock issues".
 
 Given how monolithic Windows tends to be, the second solution for ABBA deadlock would be challenging; however, concurrency is hardly ever easy, and Microsoft engineers have taken on more complex problems. It's possible to make it work. **The monolithic architecture of Windows is often what unexpectedly causes problems between these separate lock hierarchies to arise in the first place (e.g. due to a Windows API function internally doing COM without the programmer's explicit knowledge).**
 
@@ -899,46 +899,57 @@ The `LdrpDrainWorkQueue` function takes one argument. This argument is a boolean
 
 ```C
 // Variable names are my own
-struct _TEB *__fastcall LdrpDrainWorkQueue(BOOL isProcessingSingleWorkItem)
+struct _TEB *__fastcall LdrpDrainWorkQueue(BOOL IsProcessingSingleWorkItem)
 {
-    HANDLE eventHandle;
-    BOOL RetryOrReturnEarly = FALSE;
+    HANDLE EventHandle;
+    BOOL RetryOrReturnEarly;
+    CHAR LdrpDetourExistAtStart;
+    PVOID LdrpWorkQueueNextEntry;
+    ULONG_PTR LdrpWorkQueueLinkHolderCheckCorruptionTemp; // This is used for conducting a corruption check of the LdrpWorkQueue doubly linked list, terminating the offending process with RtlFailFast code FAST_FAIL_CORRUPT_LIST_ENTRY if so (used in the first piece of snipped code)
+    BOOL LdrpDetourExistAtStartBoolean;
+    PVOID CurrentTeb;
+    ULONG_PTR RetryQueue; // The flink
+    ULONG_PTR RetryQueueBlink; // Used in snipped code: "Add work item to LdrpRetryQueue"
 
-    eventHandle = (HANDLE)LdrpWorkCompleteEvent;
-    if ( !isProcessingSingleWorkItem )
+    EventHandle = (HANDLE)LdrpWorkCompleteEvent;
+    RetryOrReturnEarly = FALSE
+
+    if ( !IsProcessingSingleWorkItem )
         eventHandle = LdrpLoadCompleteEvent;
 
-    while ( 1 )
+    while ( TRUE )
     {
-        while ( 1 )
+        while ( TRUE )
         {
-            // * This code decides, among other things, whether to synchronize on LdrpWorkCompleteEvent or LdrpLoadCompleteEvent potentially *
+            RtlEnterCriticalSection(&LdrpWorkQueueLock);
             // LdrpDetourExists relates to LdrpCriticalLoaderFunctions; see this document's section on that
             LdrpDetourExistAtStart = LdrpDetourExist;
-            if ( !LdrpDetourExist || isProcessingSingleWorkItem == TRUE )
+            if ( !LdrpDetourExist || IsProcessingSingleWorkItem == TRUE )
             {
                 // Notice that the LDRP_LOAD_CONTEXT entry flink is being dereferenced to get the next entry in the LdrpWorkQueue list
                 LdrpWorkQueueNextEntry = (__int64 *)LdrpWorkQueue;
-... snip ...
+                // TODO: * Corruption check on LdrpWorkQueue list, modify list and other things*
+                ... snip ...
             }
             else
             {
-                if ( LdrpWorkInProgress == isProcessingSingleWorkItem ) {
+                if ( LdrpWorkInProgress == IsProcessingSingleWorkItem ) {
                     LdrpWorkInProgress = 1;
-                    RetryOrReturnEarly = 1;
+                    RetryOrReturnEarly = TRUE;
                 }
                 // NOTE: This path always sets LdrpWorkQueueNextEntry = LdrpWorkQueue so the following check on whether LdrpWorkQueue is empty will always pass
                 LdrpWorkQueueNextEntry = &LdrpWorkQueue;
             }
-            // Retries using ntdll!LdrpRetryQueue list (I haven't looked into this)
+            RtlLeaveCriticalSection(&LdrpWorkQueueLock);
+
             if ( RetryOrReturnEarly )
                 break;
             // Tests if LdrpWorkQueue is empty
-            // LdrpWorkQueueNextEntry (my made-up name) points to the next LDRP_LOAD_CONTEXT entry in the LdrpWorkQueue list
+            // LdrpWorkQueueNextEntry points to the next LDRP_LOAD_CONTEXT entry in the LdrpWorkQueue list (at least if there is one)
             // If the LdrpWorkQueue list head equals the next entry in the circular linked list, the list must be empty
             if ( &LdrpWorkQueue == LdrpWorkQueueNextEntry )
             {
-                NtWaitForSingleObject(eventHandle, 0, 0i64);
+                NtWaitForSingleObject(EventHandle, 0, NULL);
             }
             else
             {
@@ -950,19 +961,25 @@ struct _TEB *__fastcall LdrpDrainWorkQueue(BOOL isProcessingSingleWorkItem)
             }
         }
   
-    // Test if not isProcessingSingleWorkItem OR LdrpRetryQueue is empty
-    if ( !isProcessingSingleWorkItem || &LdrpRetryQueue == (__int64 *)LdrpRetryQueue )
-        break;
-    // * Add work item to LdrpRetryQueue code *
-... snip ...
+        // Check whether to retry using ntdll!LdrpRetryQueue list (I haven't looked into this)
+        // Test if not IsProcessingSingleWorkItem OR LdrpRetryQueue is empty
+        if ( !IsProcessingSingleWorkItem || &LdrpRetryQueue == (__int64 *)LdrpRetryQueue )
+            break;
+        RtlEnterCriticalSection(&LdrpWorkQueueLock);
+        RetryQueue = LdrpRetryQueue;
+        // TODO: * Add work item to LdrpRetryQueue code *
+        ... snip ...
+        RtlLeaveCriticalSection(&LdrpWorkQueueLock);
+        RetryOrReturnEarly = FALSE;
     }
 
     // Set current thread as the load owner so the rest of the loading process can take place upon returning
     // This happens *after* processing (i.e. mapping and snapping) work
     // Note that parallel loaders threads never call LdrpDrainWorkQueue (they do LdrpWorkCallback -> LdrpProcessWork)
-    result = NtCurrentTeb();
-    result->SameTebFlags |= 0x1000u;
-    return result;
+    // Likely retuns a pointer to the TEB because that's faster than having the caller retrieve the TEB again
+    CurrentTeb = NtCurrentTeb();
+    CurrentTeb->SameTebFlags |= 0x1000u;
+    return CurrentTeb;
 }
 ```
 
@@ -999,7 +1016,7 @@ Notably, there are many more instances of synchronizing on the completion of pro
 Comparing the loader's number of calls to `LdrpDrainWorkQueue` in contrast to directly calling `LdrpProcessWork`, we see the former is considerably more prevalent:
 
 ```
-0:000> # "call    ntdll!LdrpProcessWork" 00007ffb`1ca70000 L9999999
+0:000> # "call    ntdll!LdrpProcessWork" <NTDLL ADDRESS> L9999999
 ntdll!LdrpLoadDependentModule+0x184c:
 00007ffb`1ca8942c e8cb570400      call    ntdll!LdrpProcessWork (00007ffb`1cacebfc)
 ntdll!LdrpLoadDllInternal+0x13a:
@@ -1010,7 +1027,7 @@ ntdll!LdrpWorkCallback+0x6e:
 00007ffb`1cacebde e819000000      call    ntdll!LdrpProcessWork (00007ffb`1cacebfc)
 ```
 
-There are only three occurrences of the loader directly calling `LdrpProcessWork` versus the twenty times it calls `LdrpDrainWorkQueue`.
+There are only three occurrences of the loader directly calling `LdrpProcessWork` (not including the call from `LdrpDrainWorkQueue`) versus the twenty times it calls `LdrpDrainWorkQueue`.
 
 ## When the Process Would Rather Terminate Then Wait on a Critical Section
 
@@ -1139,7 +1156,7 @@ Watch for reads/writes to a critical section's locking status.
 ```cmd
 ba r4 @@C++(&((ntdll!_RTL_CRITICAL_SECTION *)@@(ntdll!LdrpDllNotificationLock))->LockCount)
 ```
-I tested placing a watchpoint on loader lock (`LdrpLoaderLock`). Doing this on a modern Windows loader won't tell you much because, as previously mentioned, it's the state, such as the `LDR_DDAG_NODE.State` or `TEB.LoadOwner` that the loader internally tests to make decisions. Setting this watchpoint myself during complex operations, I've never seen an occurrence of Windows using the `ntdll!RtlIsCriticalSectionLocked` or `ntdll!RtlIsCriticalSectionLockedByThread` functions to branch on the state of loader lock itself.
+I tested placing a watchpoint on loader lock (`LdrpLoaderLock`). Doing this on a modern Windows loader won't tell you much because, as previously mentioned, it's the state, such as the `LDR_DDAG_NODE.State` or `LoadOwner` in `TEB.SameTebFlags` that the loader internally tests to make decisions. Setting this watchpoint myself during complex operations, I've never seen an occurrence of Windows using the `ntdll!RtlIsCriticalSectionLocked` or `ntdll!RtlIsCriticalSectionLockedByThread` functions to branch on the state of loader lock itself.
 
 ### Track Loader Events
 
