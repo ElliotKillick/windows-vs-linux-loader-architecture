@@ -1027,7 +1027,7 @@ Anyone who's learned about concurrency throughout their computer science program
 
 **Status:** Fully reverse engineered! ✔️
 
-`LdrpDrainWorkQueue` is the high-level mapping and snapping function. It's frequently called all throughout the loader, so I made reversing it my priority. See the [LdrpDrainWorkQueue and LdrpProcessWork](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#ldrpdrainworkqueue-and-ldrpprocesswork) section for more info, and the [`LDR_DDAG_NODE.State` Analysis](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#ldr_ddag_nodestate-analysis) section for context on how this function fits in with the rest of the loader.
+`LdrpDrainWorkQueue` is the high-level mapping and snapping function. It's frequently called all throughout the loader, so I made reversing it my priority. See the [LdrpDrainWorkQueue and LdrpProcessWork](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#ldrpdrainworkqueue-and-ldrpprocesswork) and [`LdrpLoadCompleteEvent` and `LdrpWorkCompleteEvent`](#ldrploadcompleteevent-and-ldrpworkcompleteevent) sections for more info. For context on how the `LdrpDrainWorkQueue` function fits in with the rest of the loader, see the [`LDR_DDAG_NODE.State` Analysis](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#ldr_ddag_nodestate-analysis) section.
 
 
 ```C
