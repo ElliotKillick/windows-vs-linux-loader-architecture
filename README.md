@@ -28,7 +28,7 @@ All of the information contained here covers Windows 10 22H2 and glibc 2.38. Som
   - [Concurrency Experiments Conclusion](#concurrency-experiments-conclusion)
   - [Comparing OS Library Loading Locations](#comparing-os-library-loading-locations)
   - [DllMain vs Global Constructors and Destructors](#dllmain-vs-global-constructors-and-destructors)
-  - [Lazy Loading and Lazy Binding OS Comparison](#lazy-loading-and-lazy-binding-os-comparison)
+  - [Lazy Loading and Lazy Linking OS Comparison](#lazy-loading-and-lazy-linking-os-comparison)
   - [`LDR_DDAG_NODE.State` Analysis](#ldr_ddag_nodestate-analysis)
   - [Procedure/Symbol Lookup Comparison (Windows `GetProcAddress` vs POSIX `dlsym` GNU Implementation)](#proceduresymbol-lookup-comparison-windows-getprocaddress-vs-posix-dlsym-gnu-implementation)
     - [How Does `GetProcAddress`/`dlsym` Handle Concurrent Library Unload?](#how-does-getprocaddressdlsym-handle-concurrent-library-unload)
@@ -292,9 +292,9 @@ Indeed, the Windows loader is an intricate and monolithic state machine. Its com
     - [Microsoft documentation](https://learn.microsoft.com/en-us/cpp/build/reference/linker-support-for-delay-loaded-dlls): "A DLL project that delays the loading of one or more DLLs itself shouldn't call a delay-loaded entry point in `DllMain`."
   - Linux: ✔️
     - Both dynamic loading (`dlopen`) and dynamic linking (at load time) tests were done in the most equivalent way
-  - As mentioned in the [Lazy Loading and Lazy Binding OS Comparison](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#lazy-loading-and-lazy-binding-os-comparison) section, Linux doesn't natively support lazy loading
+  - As mentioned in the [Lazy Loading and Lazy Linking OS Comparison](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#lazy-loading-and-lazy-linking-os-comparison) section, Linux doesn't natively support lazy loading
     - However, effectively accomplishing lazy loading through various techniques comes down to recursive loading, which is already known to work
-    - What I tested in this experiment is that [lazy binding](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture/tree/main/lazy-bind) works under `_dl_load_lock`
+    - What I tested in this experiment is that [lazy linking](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture/tree/main/lazy-bind) works under `_dl_load_lock`
     - Regardless, the GNU loader is immune to lazy loading deadlocks, so it gets a pass
 - Spawning a thread and then waiting for its creation/termination from a global constructor
   - Windows: ✘ (deadlock)
@@ -325,7 +325,7 @@ The Windows loader, in contrast to the GNU loader (or Unix-like loaders in gener
 
 - Windows is a monolith
   - The monolithic architecture of the Windows API may cause separate lock hierarchies to interleave between threads resulting in an ABBA deadlock
-  - Countless Windows API operations may [unexpectedly launch a COM server](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#dllmain-loader-lock--com-and-clr) (e.g. [WinHTTP AutoProxy](https://learn.microsoft.com/en-us/windows/win32/winhttp/autoproxy-issues-in-winhttp#security-risk-mitigation))
+  - Countless Windows API operations may [unexpectedly launch a COM server](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#on-making-com-from-dllmain-safe) (e.g. [WinHTTP AutoProxy](https://learn.microsoft.com/en-us/windows/win32/winhttp/autoproxy-issues-in-winhttp#security-risk-mitigation))
   - The Windows threading implementation meshes with the loader at thread startup and exit
   - Windows kernel mode and user mode closely integrate (NT and NTDLL), whereas, on GNU/Linux, these two vital OS components aren't even made by the same people (glibc userland and Linux kernel all held together by, at minimum, the POSIX, System V ABI, and C standards)
   - Contrast this with the [Unix philosophy](https://en.wikipedia.org/wiki/Unix_philosophy), which encourages modularity
@@ -375,17 +375,17 @@ The CLR loader uses a module's [`.cctor` section](https://web.archive.org/web/20
 
 The Windows loader calls a module's `LDR_DATA_TABLE_ENTRY.EntryPoint` at module initialization; it has no knowledge of `DllMain` or C++ global constructors/destructors. Merging these into one callable `EntryPoint` is the job of a compiler. For instance, MSVC, which compiles a stub into your DLL that calls any global constructors/destructors followed by `DllMain`.
 
-## Lazy Loading and Lazy Binding OS Comparison
+## Lazy Loading and Lazy Linking OS Comparison
 
-It's important to differentiate between loading and binding. Loading involves mapping into memory. Binding refers to resolving symbols. Doing either of these operations lazily means that it's done on an as-needed basis instead of all at process startup or all at library load for the latter operation.
+It's important to differentiate between loading and linking. Loading involves mapping into memory. Linking (sometimes also known as "binding") refers to resolving symbols. Doing either of these operations lazily means that it's done on an as-needed basis instead of all at process startup or all at library load in the case of lazy linking.
 
-Windows collectively refers to lazy loading and lazy binding as "delay loading". However, I use the distinguished terms throughout this section.
+Windows collectively refers to lazy loading and lazy linking as "delay loading". However, I use the distinguished terms throughout this section.
 
 Lazy loading exists as a first-class citizen on Windows but not on Unix systems. While it's a potentially useful optimization, architectural differences make it less needed on Unix systems than Windows. Windows prefers fewer programs with more threads, which get their functionality from libraries. In contrast, Unix favors more programs with fewer threads, leading to, on average, fewer libraries per process. Looking at the lengthy dependency chains for many common DLLs ties this in with the more monolithic architecture of Windows.
 
 One can quickly check the dependency chain of a DLL by using `dumpbin`, which is a tool that ships with Visual Studio: `dumpbin.exe /imports C:\Windows\System32\shell32.dll`
 
-Using `dumpbin` on `kernel32.dll` reveals it contains a lazy load for `rpcrt4.dll` when any of these [also lazy binding imports](https://learn.microsoft.com/en-us/cpp/build/reference/linker-support-for-delay-loaded-dlls#dump-delay-loaded-imports) are called:
+Using `dumpbin` on `kernel32.dll` reveals it contains a lazy load for `rpcrt4.dll` when any of these [also lazy linking imports](https://learn.microsoft.com/en-us/cpp/build/reference/linker-support-for-delay-loaded-dlls#dump-delay-loaded-imports) are called:
 
 ```
 Section contains the following delay load imports:
@@ -413,7 +413,7 @@ Section contains the following delay load imports:
           6B824219             210 RpcStringFreeW
 ```
 
-On Windows, lazy loading/linking (the latter may also be known as binding) is both a [feature of the MSVC linker](https://learn.microsoft.com/en-us/cpp/build/reference/linker-support-for-delay-loaded-dlls) and the Windows loader with the NTDLL exported functions `LdrResolveDelayLoadsFromDll`, `LdrResolveDelayLoadedAPI`, and `LdrQueryOptionalDelayLoadedAPI` (more functions internally, not exposed as exports).
+On Windows, lazy loading/linking is both a [feature of the MSVC linker](https://learn.microsoft.com/en-us/cpp/build/reference/linker-support-for-delay-loaded-dlls) and the Windows loader with the NTDLL exported functions `LdrResolveDelayLoadsFromDll`, `LdrResolveDelayLoadedAPI`, and `LdrQueryOptionalDelayLoadedAPI` (more functions internally, not exposed as exports).
 
 On Unix systems, lazy loading can be effectively achieved by doing `dlopen` and then `dlsym` at run-time. There are [techniques to get more seamless lazy loading on Unix systems](https://github.com/yugr/Implib.so), but only with caveats. One could also employ a [proxy design pattern](https://stackoverflow.com/a/23405008) in their code to achieve the effect. Mac used to support lazy loading until [Apple removed this feature from the linker used by Xcode](https://developer.apple.com/forums/thread/131252). Apple likely removed lazy loading because it's inherently vulnerable to deadlocking on loader lock. This vulnerability is due to lazy loading's ability to cause an application to load a library unexpectedly when calling a lazy-loaded function.
 
@@ -636,7 +636,7 @@ In the ReactOS code for `LdrpGetProcedureAddress`, we see this happen:
             LdrEntry = CONTAINING_RECORD(Entry,
                                          LDR_DATA_TABLE_ENTRY,
                                          InInitializationOrderLinks);
- 
+
             /* Make sure we didn't process it yet*/
             /* MY COMMENT: If module initialization hasn't already run... */
             if (!(LdrEntry->Flags & LDRP_ENTRY_PROCESSED))
@@ -675,7 +675,7 @@ Now, let's see how the modern Windows loader handles this. In `LdrGetProcedureAd
     // If LdrpResolveProcedureAddress succeeds
     if ( ReturnValue >= 0 )
     {
-      // Test for the searched module having a LDR_DDAG_STATE of LdrModulesReadyToInit 
+      // Test for the searched module having a LDR_DDAG_STATE of LdrModulesReadyToInit
       if ( Current_Module_LDR_DDAG_STATE == 7
         // Test whether module module initialization should occur
         // LdrGetProcedureAddressForCaller receives this as its fifth argument, KERNELBASE!GetProcAddresForCaller (called by KERNELBASE!GetProcAddress) always sets it to TRUE
@@ -722,7 +722,7 @@ Not acquiring loader lock here is safe because the legacy loader, like the moder
 The modern loader optimizes waiting by using the `LdrpInitCompleteEvent` Win32 event instead of sleeping for a set time. The modern loader also includes a `ntdll!LdrpProcessInitialized` spinlock. However, the loader may only spin on it until event creation (`NtCreateEvent`), at which point the loader waits solely using that synchronization object. While `ntdll!LdrInitState` is `0`, it's safe not to acquire any locks. This includes accessing shared module information data structures without acquiring `ntdll!LdrpModuleDataTableLock` and performing module initialization/deinitialization. `ntdll!LdrInitState` changes to `1` immediately after `LdrpInitializeProcess` calls `LdrpEnableParallelLoading` which creates the loader work threads. However, these loader work threads won't have any work yet, so it should still be safe not to acquire locks during this time. In practice, one can see that the loader may call the `LdrpInitShimEngine` function before `LdrpEnableParallelLoading` (not always; it happens when running Google Chrome under WinDbg). The `LdrpInitShimEngine` function calls `LdrpLoadShimEngine`, which does a whole bunch of typically unsafe actions like module initialization (calls `LdrpInitalizeNode` directly and calls `LdrpInitializeShimDllDependencies`, which in turn calls `LdrpInitializeGraphRecurse`) without loader lock and walking the `PEB_LDR_DATA.InLoadOrderModuleList` without acquiring `ntdll!LdrpModuleDataTableLock`. Of course, all these actions are safe due to the unique circumstances of process initialization. Note that the shim initialization function may still acquire the `LdrpDllNotificationLock` lock not for safety but because the loader branches on its state using the `RtlIsCriticalSectionLockedByThread` function.
 
 The modern loader explicitly checks `ntdll!LdrInitState` to optionally perform locking as an optimization in a few places. Notably, the `ntdll!RtlpxLookupFunctionTable` function (this is in connection to the `ntdll!LdrpInvertedFunctionTable` data structure, which is something I haven't looked into yet) opts to perform no locking (`ntdll!LdrpInvertedFunctionTableSRWLock`) before accessing shared data structures if `ntdll!LdrInitState` does not equal 3 (i.e. loader initialization is done). Similarly, the `ntdll!LdrLockLoaderLock` function only acquires loader lock if loader initialization is done.
-  
+
 There's a notable difference between how the legacy loader vs the modern loader performs library loading and initialization at process startup (and beyond). In [`LdrpInitializeProcess`](https://doxygen.reactos.org/d8/d6b/ldrinit_8c.html#a97503515fe28999c98ebaf868687d1de), the legacy loader calls `LdrpWalkImportDescriptor` to "walk the IAT and load all the DLLs" (mapping and snapping) in one big step then later calls `LdrpRunInitializeRoutines` to initialize all the DLLs in one big step. In contrast, the modern `LdrpInitializeProcess` loads and initializes DLLs in small steps based on how libraries rely on each other according to the dependency graph. The new approach makes it significantly less likely for one DLL to use another DLL that has been mapped and snapped but not yet initialized. **Therefore, the modern loader's attention to order of operations when loading libraries makes `DllMain` much "safer" than the legacy loader.**
 
 Windows must wait on loader initialization due to its [architecture of libraries providing core system functionality](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#concurrency-experiments-conclusion). If other threads are able to launch (e.g. from `DllMain`) before finishing loading and initializing library dependencies then problems could arise. Since the process is already limited to a single thread, Microsoft takes advantage of this opportunity to also implement some performance optimizations that forego locking during loader initialization.
@@ -774,7 +774,7 @@ HWND hwnd = GetDesktopWindow();
 // explorer "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Accessories\Notepad.lnk"
 LPCSTR linkFilePath = "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Accessories\\Notepad.lnk";
 WCHAR resolvedPath[MAX_PATH];
-       
+
 hres = CoInitializeEx(NULL, 0);
 
 if (SUCCEEDED(hres)) {
@@ -1026,11 +1026,11 @@ Anyone who's learned about concurrency throughout their computer science program
 ### `LdrpDrainWorkQueue`
 
 **Status:** Fully reverse engineered! ✔️
-  
+
 `LdrpDrainWorkQueue` is the high-level mapping and snapping function. It's frequently called all throughout the loader, so I made reversing it my priority. See the [LdrpDrainWorkQueue and LdrpProcessWork](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#ldrpdrainworkqueue-and-ldrpprocesswork) section for more info, and the [`LDR_DDAG_NODE.State` Analysis](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#ldr_ddag_nodestate-analysis) section for context on how this function fits in with the rest of the loader.
 
 
-```C 
+```C
 // Variable names are my own
 
 // The caller decides whether it wants LdrpDrainWorkQueue to synchronize on the entire load completing (i.e. setting ntdll!LdrpWorkInProgress to 0 and decommissioning of the current thread as the load owner) or *only* the current work completing (i.e. processing all work in the queue)
@@ -1107,7 +1107,7 @@ struct PTEB __fastcall LdrpDrainWorkQueue(BOOL SynchronizeOnWorkCompletion)
                 LdrpProcessWork(LdrpWorkQueueEntry - 8, LdrpDetourExistAtStart);
             }
         }
-  
+
         // Test if not SynchronizeOnWorkCompletion OR LdrpRetryQueue is empty
         //
         // WinDbg disassembly (IDA disassembly with "cs:" and decompilation is poor here):
@@ -1121,7 +1121,7 @@ struct PTEB __fastcall LdrpDrainWorkQueue(BOOL SynchronizeOnWorkCompletion)
         RtlEnterCriticalSection(&LdrpWorkQueueLock);
 
         // Complete a retried mapping and snapping operation
-    
+
         // Remove work item from LdrpRetryQueue/LdrpWorkQueue
         // Reverse engineered based on WinDbg disassembly due to the IDA issue described above
         // This is likely some macro (please contribute if you know)
@@ -1177,7 +1177,7 @@ NTSTATUS LdrpDecrementModuleLoadCountEx(LDR_DATA_TABLE_ENTRY Entry, BOOL DontCom
     // If the next reference counter decrement will drop the LDR_DDAG_NODE into having zero references then we may want to retry later
     if ( DontCompleteUnload && Entry->DdagNode->LoadCount == 1 )
     {
-        // NTSTATUS code 0xC000022D: https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-erref/596a1078-e883-4972-9bbc-49e60bebca55 
+        // NTSTATUS code 0xC000022D: https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-erref/596a1078-e883-4972-9bbc-49e60bebca55
         return STATUS_RETRY;
     }
 
@@ -1228,7 +1228,7 @@ Trace all `DdagNode.State` values starting from its initial allocation to the ne
 ```cmd
 bp ntdll!LdrpAllocateModuleEntry "bp /1 @$ra \"bc 999; ba999 w8 @@C++(&((ntdll!_LDR_DATA_TABLE_ENTRY *)@$retreg)->DdagNode->State) \\\"ub . L1; g\\\"; g\"; g"
 ```
-- This command breaks on `ntdll!LdrpAllocateModuleEntry`, sets a temporary breakpoint on its return address (`@$ra`), then continuing execution, sets a watchpoint on `DdagNode.State` in the returned `LDR_DATA_TABLE_ENTRY`, and log the previous disassembly line on watchpoint hit 
+- This command breaks on `ntdll!LdrpAllocateModuleEntry`, sets a temporary breakpoint on its return address (`@$ra`), then continuing execution, sets a watchpoint on `DdagNode.State` in the returned `LDR_DATA_TABLE_ENTRY`, and log the previous disassembly line on watchpoint hit
 - We must clear the previous watchpoint (`bc 999`) to set a new one every time a new module load occurs (`ModLoad` message in WinDbg debug output). Deleting hardware breakpoints is necessary because they are a finite resource.
 
 Throw this in with the trace command after `ub . L1;` to check some locks: `!critsec LdrpLoaderLock; dp LdrpModuleDataTableLock L1;`
@@ -1389,7 +1389,7 @@ Warning and error messages: `eb ntdll!LdrpDebugFlags 2`
 Info messages: `eb ntdll!LdrpDebugFlags 4`
 
 No messages + debug break on errors: `eb ntdll!LdrpDebugFlags 10`
-  
+
 No messages + debug break on warnings: `eb ntdll!LdrpDebugFlags 40`
 
 No messages + debug break on warnings or errors: `eb ntdll!LdrpDebugFlags 50`
