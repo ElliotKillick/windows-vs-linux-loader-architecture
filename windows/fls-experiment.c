@@ -59,7 +59,8 @@ void __stdcall flsCallback1(PVOID flsData) {
     // flsCallback1
     // flsCallback1
     // flsCallback1
-    // ... This goes on forever until the program crashes due to stack overflow! ...
+    // The same FLS callback will run multiple times!
+    // ... This goes on forever until the program crashes due to stack overflow! (although, that's really our fault)...
     ExitThread(0);
 #endif
 #endif

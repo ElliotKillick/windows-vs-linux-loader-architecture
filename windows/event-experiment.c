@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <Windows.h>
 
 // The typical usage pattern for an event is to signal when something completes and unsignal while something is incomplete (e.g. LdrpInitCompleteEvent)
@@ -23,10 +22,11 @@ int main() {
 
     // Event is waiting, so execution waits
     // WinDbg command: !handle MyEvent 8
+    // We expectedly hang here
     WaitForSingleObject(myEvent, INFINITE);
 
-    // Unlike critical sections, events don't support recursive acquisition on the same thread.
-    //
-    // When an event is set, execution only proceeds for a SINGLE waiting thread.
+    // When an auto-reset event is set, execution only proceeds for a SINGLE waiting thread before the event waits.
     // This behavior means an auto-reset event performs mutual exclusion between threads, similar to a critical section.
+    //
+    // Unlike critical sections, events don't support recursive acquisition on the same thread.
 }
