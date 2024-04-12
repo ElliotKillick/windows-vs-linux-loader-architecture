@@ -79,7 +79,7 @@ The Linux (glibc) module list is a non-circular doubly linked list of type [`lin
 
 OS-level synchronization mechanisms of all kinds, including thread synchronization mechanisms (i.e. Windows critical section or POSIX mutex), exclusive/write and shared/read locks, and other synchronization objects (Windows). OS-level, meaning these locks may make a system call (a `syscall` instruction on x86-64) to perform a non-busy wait if the synchronization mechanism is owned/contended/waiting.
 
-Some lock varieties are a mix of an OS lock and a spinlock (i.e. busy loop). For example, both a Windows critical section and a [GNU mutex](https://www.gnu.org/software/libc/manual/html_node/POSIX-Thread-Tunables.html) (*not* POSIX; this is a GNU extension) support specifying a spin count. A spin count is a potential performance optimization for avoiding expensive context switches between user mode and kernel mode.
+Some lock varieties are a mix of an OS lock and a spinlock (i.e. [busy loop](https://en.wikipedia.org/wiki/Busy_waiting)). For example, both a Windows critical section and a [GNU mutex](https://www.gnu.org/software/libc/manual/html_node/POSIX-Thread-Tunables.html) (*not* POSIX; this is a GNU extension) support specifying a spin count. A spin count is a potential performance optimization for avoiding expensive context switches between user mode and kernel mode.
 
 Most OS locks use atomic flags to implement locking primitives when there's no contention (e.g. implemented with the `lock cmpxchg` instruction on x86). An exception to this would be Win32 event synchronization objects, which rely entirely on system calls (i.e. `NtSetEvent` and `NtResetEvent` functions are just stubs containing a `syscall` instruction).
 
@@ -931,7 +931,7 @@ The `LdrpDrainWorkQueue` function calls `NtWaitForSingleObject` on these auto-re
 
 The `LdrpDrainWorkQueue` function takes one argument. This argument is a boolean, indicating whether the function should wait on `LdrpLoadCompleteEvent` or `LdrpWorkCompleteEvent` loader event before draining the work queue. **Please see my [reverse engineering of the `LdrpDrainWorkQueue` function](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#ldrpdrainworkqueue).**
 
-Notice the infinite loop immediately around waiting for an event. This loop is necessary because the loader never manually resets an event, which means an event could be left over as set from a previous loader operation. Thus, `NtWaitForSingleObject` would allow execution to proceed to the next loop around, and if `LdrpDrainWorkQueue` doesn't break out of the loop (`break`) this time, `LdrpDrainWorkQueue` will wait on the now waiting loader event. I've seen this very thing occur during `LdrpDrainWorkQueue` run-time. Therefore, how `LdrpDrainWorkQueue` synchronizes on a loader event may cause it to operate effectively like a spinlock for one iteration.
+The loader `LdrpLoadCompleteEvent` or `LdrpWorkCompleteEvent` events synchronize when the `LdrpDrainWorkQueue` function should do a loop around (the inner infinite `while ( TRUE )` loop) to try draining work. If the `LdrpLoadCompleteEvent` and `LdrpWorkCompleteEvent` were *always* set, the loader would never crash. However, it would effectively turn the entire inner `while ( TRUE )` loop of the `LdrpDrainWorkQueue` function into a spinlock that's constantly acquiring the `LdrpWorkQueueLock` critical section lock (this lock protects the relevant shared state) to see if there's new work to drain while testing on `CompleteRetryOrReturn` to know if the code should break out of the loop. I've tested this myself by permanently setting both events (just close their handles and then recreate them as events which don't auto-reset) thereby ensuring the loader never crashes without these events; your CPU usage just goes very high due to [busy waiting](https://en.wikipedia.org/wiki/Busy_waiting) instead of waiting.
 
 What follows documents what parts of the loader call `LdrpDrainWorkQueue` while synchronizing on either the `LdrpLoadCompleteEvent` or `LdrpWorkCompleteEvent` loader event (data gathered by searching disassembly for calls to the `LdrpDrainWorkQueue` function):
 
@@ -1040,7 +1040,7 @@ Anyone who's learned about concurrency throughout their computer science program
 struct PTEB __fastcall LdrpDrainWorkQueue(BOOL SynchronizeOnWorkCompletion)
 {
     HANDLE EventHandle;
-    BOOL CompleteRetryOrReturnEarly;
+    BOOL CompleteRetryOrReturn;
     BOOL LdrpDetourExistAtStart;
     PLIST_ENTRY LdrpWorkQueueEntry;
     //PLIST_ENTRY LinkHolderCheckCorruptionTemp; // This variable is inlined by the call to RtlpCheckListEntry
@@ -1049,7 +1049,7 @@ struct PTEB __fastcall LdrpDrainWorkQueue(BOOL SynchronizeOnWorkCompletion)
     PLIST_ENTRY LdrpRetryQueueBlink;
 
     EventHandle = (HANDLE)LdrpWorkCompleteEvent;
-    CompleteRetryOrReturnEarly = FALSE
+    CompleteRetryOrReturn = FALSE
 
     if ( !SynchronizeOnWorkCompletion )
         EventHandle = LdrpLoadCompleteEvent;
@@ -1072,7 +1072,7 @@ struct PTEB __fastcall LdrpDrainWorkQueue(BOOL SynchronizeOnWorkCompletion)
                 if (&LdrpWorkQueue == LdrpWorkQueueEntry) {
                     if (LdrpWorkInProgress == SynchronizeOnWorkCompletion) {
                         LdrpWorkInProgress = 1;
-                        CompleteRetryOrReturnEarly = 1;
+                        CompleteRetryOrReturn = 1;
                     }
                 } else {
                     if (!LdrpDetourExistAtStart)
@@ -1085,14 +1085,14 @@ struct PTEB __fastcall LdrpDrainWorkQueue(BOOL SynchronizeOnWorkCompletion)
             {
                 if ( LdrpWorkInProgress == SynchronizeOnWorkCompletion ) {
                     LdrpWorkInProgress = 1;
-                    CompleteRetryOrReturnEarly = TRUE;
+                    CompleteRetryOrReturn = TRUE;
                 }
                 // NOTE: This path always sets LdrpWorkQueueEntry = LdrpWorkQueue so the following check on whether LdrpWorkQueue is empty will always pass
                 LdrpWorkQueueEntry = &LdrpWorkQueue;
             }
             RtlLeaveCriticalSection(&LdrpWorkQueueLock);
 
-            if ( CompleteRetryOrReturnEarly )
+            if ( CompleteRetryOrReturn )
                 break;
             // Test if LdrpWorkQueue is empty
             // LdrpWorkQueueEntry may point to the last LDRP_LOAD_CONTEXT entry in the LdrpWorkQueue list
@@ -1115,7 +1115,7 @@ struct PTEB __fastcall LdrpDrainWorkQueue(BOOL SynchronizeOnWorkCompletion)
         // cmp     qword ptr [ntdll!LdrpRetryQueue (7ffb5bebc3a0)], rbx
         // je      ntdll!LdrpDrainWorkQueue+0xb1 (7ffb5bdaea85)
         // https://stackoverflow.com/a/68702967
-        if ( !SynchronizeOnWorkCompletion || &LdrpRetryQueue == *LdrpRetryQueue )
+        if ( !SynchronizeOnWorkCompletion || &LdrpRetryQueue == LdrpRetryQueue.Flink )
             break;
 
         RtlEnterCriticalSection(&LdrpWorkQueueLock);
@@ -1147,7 +1147,7 @@ struct PTEB __fastcall LdrpDrainWorkQueue(BOOL SynchronizeOnWorkCompletion)
         LdrpRetryingModuleIndex = 0;                        // movdqu  xmmword ptr [ntdll!LdrpRetryingModuleIndex (7ffb5bebd350)], xmm0
 
         RtlLeaveCriticalSection(&LdrpWorkQueueLock);
-        CompleteRetryOrReturnEarly = FALSE;
+        CompleteRetryOrReturn = FALSE;
     }
 
     // Set current thread as the load owner so the rest of the loading process can take place upon returning
@@ -1175,6 +1175,7 @@ NTSTATUS LdrpDecrementModuleLoadCountEx(LDR_DATA_TABLE_ENTRY Entry, BOOL DontCom
     DWORD_PTR LdrpReleaseLoaderLockReserved; // Not used or even initialized, so I still consider this function fully reverse engineered (also, LdrpReleaseLoaderLock never touches this parameter)
 
     // If the next reference counter decrement will drop the LDR_DDAG_NODE into having zero references then we may want to retry later
+    // Specifying DontCompleteUnload = FALSE requires that the caller has made this thread the load owner
     if ( DontCompleteUnload && Entry->DdagNode->LoadCount == 1 )
     {
         // NTSTATUS code 0xC000022D: https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-erref/596a1078-e883-4972-9bbc-49e60bebca55
