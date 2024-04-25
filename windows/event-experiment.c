@@ -1,6 +1,7 @@
 #include <Windows.h>
 
-// The typical usage pattern for an event is to signal when something completes and unsignal while something is incomplete (e.g. LdrpInitCompleteEvent)
+// The typical usage pattern for an event is to signal when something completes and unsignal while something is incomplete
+// For example, the LdrpInitCompleteEvent loader event signals when loader initialization is complete
 // https://learn.microsoft.com/en-us/windows/win32/sync/event-objects
 // https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-resetevent#remarks
 
