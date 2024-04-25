@@ -115,8 +115,8 @@ Windows `LdrpLoaderLock`
   - Protects the `InInitializationOrderModuleList` linked list and blocks concurrent module initialization/deinitialization
     - At process exit, `RtlExitUserProcess` acquires loader lock before running library deinitialization case (`DLL_PROCESS_DETACH`) of `DllMain`
   - Protects against concurrent DLL thread initialization/deinitialization during `DLL_THREAD_ATTACH`/`DLL_THREAD_DETACH`
-    - As well as so an inititializing module doesn't have it's `DLL_THREAD_ATTACH` run before its `DLL_PROCESS_ATTACH` (or vice-versa during deinitialization)
-  - On the modern Windows loader, loader lock remains locked as each full dependency chain of a loading DLL, including the loading DLL itself, is initialized (i.e. the loader locks loader lock once before starting `LdrpInitRecurseGraph` and unlocks after returning from that function)
+    - The lock also ensures a module doesn't have it's `DLL_THREAD_ATTACH` run before its `DLL_PROCESS_ATTACH` (or vice-versa during deinitialization)
+  - On the modern Windows loader at `DLL_PROCESS_ATTACH`, the loader lock remains locked as each full dependency chain of a loading DLL, including the loading DLL itself, is initialized (i.e. the loader locks loader lock once before starting `LdrpInitializeGraphRecurse` and unlocks after returning from that function)
   - Loader lock protects against concurrent module initialization because the initialization routine of one module may depend on another module already being initialized, hence why library initialization must be serialized (i.e. done in series; not in parallel)
   - Implemented as a critical section
 
