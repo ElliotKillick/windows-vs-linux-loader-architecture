@@ -127,7 +127,7 @@ Linux (GNU loader) `_dl_load_lock`
     - This protection includes concurrent module initialization similar to how a modern Windows `ntdll!LdrpLoaderLock` does
     - For example, `_dl_load_lock` protects a concurrent `dlclose` from running a library's global destructors before that library's global constructors has finished running
   - `_dl_load_lock` is at the top of the [loader's lock hierarchy](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#gnu-loader-lock-hierarchy)
-  - Since `_dl_load_lock` protcts the entire library loading/unloading process from beginning to end, the closest modern Windows loader equivalent is the soon-to-be load owner [incrementing ntdll!LdrpWorkInProgress from 0 to 1](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#ldr_ddag_nodestate-analysis) (combined with holding `ntdll!LdrpLoaderLock`)
+  - Since `_dl_load_lock` protcts the entire library loading/unloading process from beginning to end, the closest modern Windows loader equivalent synchronization mechanism would be the `LdrpLoadCompleteEvent` loader event (this is when is the soon-to-be load owner thread [increments ntdll!LdrpWorkInProgress from 0 to 1](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#ldr_ddag_nodestate-analysis)) combined with holding the `ntdll!LdrpLoaderLock` lock
 
 Linux (GNU loader) [`_ns_unique_sym_table.lock`](https://elixir.bootlin.com/glibc/glibc-2.38/source/elf/rtld.c#L337)
   - This is a per-namespace lock for protecting that namespace's **unique** (`GNU_STB_UNIQUE`) symbol hash table
