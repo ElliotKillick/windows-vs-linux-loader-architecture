@@ -1,15 +1,15 @@
-# Microsoft Development Blogs Search
+# Microsoft Developer Blogs Search
 
-This section provides a Python script for downloading Microsoft devblogs articles. We then comprehensively search the text of the downloaded articles.
+This sections provides the outputs of grepping Old New Thing articles for the terms "loader lock" and "DllMain". The comprehensive search is helpful for learning about the relevant Windows internals, backstory, and for reverse engineering.
 
-DevBlogs has RSS feeds but they only store back to the last few articles. The DevBlogs site uses Wordpress (on the WP Engine platform, according to the HTTP `x-powered-by` response header), so we can't pull from a GitHub repo either. Google can be hit-or-miss. Hence, we must search articles by parsing the website's HTML and grabbing each one individually.
+For the search script, see the [Microsoft Developer Blogs Search repo](https://github.com/ElliotKillick/ms-devblogs-search).
 
 Grep articles:
 
 ```shell
-grep -rIni DllMain > ../loader-lock.txt
+grep -rIni -B5 -A5 DllMain > ../dllmain.txt
 ```
 
 ```shell
-grep -rIni "loader lock" > ../dllmain.txt
+grep -rIni -B5 -A5 "loader lock" > ../loader-lock.txt
 ```
