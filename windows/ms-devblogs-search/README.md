@@ -7,9 +7,9 @@ For the search script, see the [Microsoft Developer Blogs Search repo](https://g
 Grep articles:
 
 ```shell
-grep -rIni -B5 -A5 DllMain > ../dllmain.txt
+grep -rin -B5 -A5 DllMain > ../dllmain.txt
 ```
 
 ```shell
-grep -rIni -B5 -A5 "loader lock" > ../loader-lock.txt
+grep -rin -B5 -A5 "loader lock" > ../loader-lock.txt
 ```
