@@ -51,6 +51,9 @@ All of the information contained here covers Windows 10 22H2 and glibc 2.38. Som
   - [`LoadLibrary` vs `dlopen` Return Type](#loadlibrary-vs-dlopen-return-type)
   - [Investigating COM Server Deadlock from `DllMain`](#investigating-com-server-deadlock-from-dllmain)
   - [On Making COM from `DllMain` Safe](#on-making-com-from-dllmain-safe)
+    - [Avoiding ABBA Deadlock](#avoiding-abba-deadlock)
+    - [Other Deadlock Possibilities](#other-deadlock-possibilities)
+    - [Conclusion](#conclusion)
   - [Case Study on ABBA Deadlock Between the Loader Lock and GDI+ Lock](#case-study-on-abba-deadlock-between-the-loader-lock-and-gdi-lock)
   - [`LdrpDrainWorkQueue` and `LdrpProcessWork`](#ldrpdrainworkqueue-and-ldrpprocesswork)
   - [`LdrpLoadCompleteEvent` and `LdrpWorkCompleteEvent`](#ldrploadcompleteevent-and-ldrpworkcompleteevent)
@@ -133,7 +136,7 @@ Linux (GNU loader) [`_ns_unique_sym_table.lock`](https://elixir.bootlin.com/glib
   - This is a per-namespace lock for protecting that namespace's **unique** (`GNU_STB_UNIQUE`) symbol hash table
   - `GNU_STB_UNIQUE` symbols are a type of symbol that a module can expose; they are considered a misfeature of the GNU loader
   - As standardized by the ELF executable format, the GNU loader uses a per-module statically allocated (at compile time) symbol table for locating symbols within a module (`.so` shared object file); however, the `_ns_unique_sym_table.lock` lock protects a separate dynamically allocated hash table specially for `GNU_STB_UNIQUE` symbols
-    - See the [Procedure/Symbol Lookup Comparison (Windows `GetProcAddress` vs POSIX `dlsym` GNU Implementation)](#proceduresymbol-lookup-comparison-windows-getprocaddress-vs-posix-dlsym-gnu-implementation) section for more info on how the GNU loader typically locates symbols
+    - See the [Procedure/Symbol Lookup Comparison (Windows `GetProcAddress` vs POSIX `dlsym` GNU Implementation)](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#proceduresymbol-lookup-comparison-windows-getprocaddress-vs-posix-dlsym-gnu-implementation) section for more info on how the GNU loader typically locates symbols
     - In Windows terminology, the closest approximation to a symbol would be a DLL's function exports (there's no mention of the word "export" in the `objdump` manual)
   - You can use `objdump -t` to dump all the symbols, including unique symbols, of an ELF file
     - `objdump -t` displays unique global symbols (as the manual references them) with the `u` flag character
@@ -145,23 +148,26 @@ This is where the [loader's locks](https://elixir.bootlin.com/glibc/glibc-2.38/s
 However, Windows has more synchronization mechanisms that control the loader, including:
 - Loader events ([Win32 event objects](windows/event-experiment.c)), including:
   - `ntdll!LdrpInitCompleteEvent`
-    - This event being set indicates process initialization is complete
-    - `LdrpInitialize` (`_LdrpInitialize`) creates this event
-      - This event is created before process initialization
+    - This event being set indicates loader initialization is complete
+      - Loader initialization includes process initialization
+      - This event is *only* set (`NtSetEvent`) by the `LdrpProcessInitializationComplete` function soon after `LdrpInitializeProcess` returns, at which point it's never set/unset again
     - Thread startup waits on this
-    - This event is *only* set (`NtSetEvent`) by the `LdrpProcessInitializationComplete` function soon after `LdrpInitializeProcess` returns, at which point it's never set/unset again
-    - This event is created in the nonsignaled (i.e. waiting) state
+    - This event is **not** an auto-reset event is and created in the nonsignaled (i.e. waiting) state
+    - The `LdrpInitialize` (`_LdrpInitialize`) function creates this event
+      - This event is created before loader initialization begins (early at process creation)
   - `ntdll!LdrpLoadCompleteEvent`
-    - Created by `LdrpInitParallelLoadingSupport` calling `LdrpCreateLoaderEvents`
+    - This event being set indicates an [entire load/unload](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#ldr_ddag_nodestate-analysis) has completed.
+      - This event is set (`NtSetEvent`) in the `LdrpDropLastInProgressCount` function before relinquishing control as the load owner (`LoadOwner` flag in `TEB.SameTebFlags`)
     - Thread startup waits on this
-    - This event is set in `LdrpDropLastInProgressCount` before relinquishing control as the `LoadOwner`
-    - This event is created in the nonsignaled (i.e. waiting) state
-  - `LdrpWorkCompleteEvent`
+    - This event **is** an auto-reset event and is created in the nonsignaled (i.e. waiting) state
     - Created by `LdrpInitParallelLoadingSupport` calling `LdrpCreateLoaderEvents`
-    - This event may be set (`NtSetEvent`) immediately before the `LdrpProcessWork` function returns
-    - This event is created in the nonsignaled (i.e. waiting) state
-  - All of these events are created by NTDLL at process startup using `NtCreateEvent`
-  - For in-depth information on the latter two events, see the section on [LdrpLoadCompleteEvent vs LdrpWorkCompleteEvent](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#ldrploadcompleteevent-and-ldrpworkcompleteevent)
+  - `LdrpWorkCompleteEvent`
+    - This event being set indicates the loader has completed processing (i.e. mapping and snapping) the entire work queue and all loader work threads are finished processing work
+      - This event is set (`NtSetEvent`) immediately before the `LdrpProcessWork` function returns *if* the work queue is now empty or all current loader worker threads are finished processing work
+    - This event **is** an auto-reset event and is created in the nonsignaled (i.e. waiting) state
+    - Created by `LdrpInitParallelLoadingSupport` calling `LdrpCreateLoaderEvents`
+  - All of these events are created by NTDLL at loader/process startup using `NtCreateEvent`
+  - For in-depth information on the latter two events, see the section on [`LdrpLoadCompleteEvent` and `LdrpWorkCompleteEvent`](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#ldrploadcompleteevent-and-ldrpworkcompleteevent)
 - `ntdll!LdrpWorkQueueLock`
   - Implemented as a critical section
   - Used in `LdrpDrainWorkQueue` so only one thread can access the `LdrpWorkQueue` queue at a time
@@ -283,9 +289,9 @@ A state value may either be shared state or local state (i.e. whether separate t
     - This could be useful for creating new threads without being blocked by loader events
     - Threads with the `SkipLoaderInit` flag can be created using [`NtCreateThreadEx`](https://ntdoc.m417z.com/ntcreatethreadex)
 - `ntdll!LdrpMapAndSnapWork`
-  - An undocumented, global structure that `LoaderWorker` threads read from to get mapping and snapping work
-  - The first member of this undocumented structure is an atomic reference counter that gets incremented whenever work is enqueued (`ntdll!LdrpQueueWork` function) to the global work queue (`ntdll!LdrpWorkQueue` linked list) and decremented whenever a `LoaderWorker` thread consumes work
-  - The undocumented structure is incremented by the `ntdll!TppWorkPost` function (called by `ntdll!LdrpQueueWork`) and decremented by the `ntdll!TppIopCallbackEpilog` function (called by thread pool internals in a `LoaderWorker` thread), which means this undocumented structure belongs to thread pool internals and so is a bit out of scope here
+  - An undocumented, global structure that loader worker (`LoaderWorker` flag in `TEB.SameTebFlags`) threads read from to get mapping and snapping work
+  - The first member of this undocumented structure is an atomic reference counter that gets incremented whenever work is enqueued (`ntdll!LdrpQueueWork` function) to the global work queue (`ntdll!LdrpWorkQueue` linked list) and decremented whenever a loader worker thread consumes work
+  - The undocumented structure is incremented by the `ntdll!TppWorkPost` function (called by `ntdll!LdrpQueueWork`) and decremented by the `ntdll!TppIopCallbackEpilog` function (called by thread pool internals in a loader worker thread), which means this undocumented structure belongs to thread pool internals and so is a bit out of scope here
 
 Indeed, the Windows loader is an intricate and monolithic state machine. Its complexity stands out when put side-by-side with the simple glibc loader on Linux. This complexity helps explain why process creation on Linux is faster than on Windows.
 
@@ -460,7 +466,7 @@ Each state represents a **stage of loader work**. This table comprehensively doc
 
 Loader work requires first incrementing the [`ntdll!LdrpWorkInProgress` reference counter](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#state). `ntdll!LdrpWorkInProgress` can only safely be decremented when the loader has completed all stages of loader work on the module(s) it's operating on. Only one thread, the caller of `LdrpDrainWorkQueue` (i.e. the future load owner), can do loader work at a time. For instance, a **typical load ranging from <code>LdrModulesPlaceHolder</code> to <code>LdrModulesReadyToRun</code>** (may also include `LdrModulesMerged`) or a **typical unload ranging from <code>LdrModulesUnloading</code> to <code>LdrModulesUnloaded</code>**.
 
-When loading a library, loader work begins with the requesting thread calling `LdrpDrainWorkQueue` to perform mapping and snapping (i.e. both together is "processing"). By calling `LdrpDrainWorkQueue`, the thread requesting a library load agrees to become the load owner (`TEB.LoadOwner`). `LdrpDrainWorkQueue` increments `ntdll!LdrpWorkInProgress` and does the necessary mapping and snapping work, offloading this work to the parallel loader worker threads (`LoaderWorker` flag in `TEB.SameTebFlags`) whenever possible. Every increment to the `ntdll!LdrpWorkInProgress` reference counter past the initial increment from `0` to `1` by `LdrpDrainWorkQueue` indicates another loader worker thread processing a work item in parallel. While `ntdll!LdrpWorkInProgress` equals `1`, the last thing `LdrpDrainWorkQueue` does before returning is set the current thread as the load owner. With mapping and snapping complete, it's the load owner's job to fulfill the remainder of the loading process. The loader only uses the `ntdll!LdrpWorkQueue` linked list data structure for enqueuing mapping and snapping work to the work queue. For all other operations, the loader primarily relies on the `Dependencies` and `IncomingDependencies` module information DAG data structures to navigate modules. From `LdrpDrainWorkQueue` to `LdrpDropLastInProgressCount` (where `ntdll!LdrpWorkInProgress` is finally set to `0` and the current thread is decommissioned as the load owner) ties the entire loading process together. For more information, see the **[full reverse engineering of the `LdrpDrainWorkQueue` function](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#ldrpdrainworkqueue)**.
+When loading a library, loader work begins with the requesting thread calling `LdrpDrainWorkQueue` to perform mapping and snapping (i.e. both together is "processing"). By calling `LdrpDrainWorkQueue`, the thread requesting a library load agrees to become the load owner (`LoadOwner` flag in `TEB.SameTebFlags`). `LdrpDrainWorkQueue` increments `ntdll!LdrpWorkInProgress` and does the necessary mapping and snapping work, offloading this work to the parallel loader worker threads (`LoaderWorker` flag in `TEB.SameTebFlags`) whenever possible. Every increment to the `ntdll!LdrpWorkInProgress` reference counter past the initial increment from `0` to `1` by `LdrpDrainWorkQueue` indicates another loader worker thread processing a work item in parallel. While `ntdll!LdrpWorkInProgress` equals `1`, the last thing `LdrpDrainWorkQueue` does before returning is set the current thread as the load owner. With mapping and snapping complete, it's the load owner's job to fulfill the remainder of the loading process. The loader only uses the `ntdll!LdrpWorkQueue` linked list data structure for enqueuing mapping and snapping work to the work queue. For all other operations, the loader primarily relies on the `Dependencies` and `IncomingDependencies` module information DAG data structures to navigate modules. From `LdrpDrainWorkQueue` to `LdrpDropLastInProgressCount` (where `ntdll!LdrpWorkInProgress` is finally set to `0` and the current thread is decommissioned as the load owner) ties the entire loading process together. For more information, see the **[full reverse engineering of the `LdrpDrainWorkQueue` function](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#ldrpdrainworkqueue)**.
 
  <table summary="All LDR_DDAG_NODE.LDR_DDAG_STATE states, the function(s) responsible for each state change, and more information">
   <tr>
@@ -871,9 +877,9 @@ Here's the deadlocked call stack showing that <code>NtAlpcSend<strong>Wait</stro
 
 The `NtAlpcSendWaitReceivePort` function is indeed waiting for something, thus the reason for our deadlock.
 
-Note that the deadlock occurs on the first call to a COM method (`hres = ppf->Load(wsz, STGM_READ)`), not we signal with `CoCreateInstance` to create an in-process COM server (`CLSCTX_INPROC_SERVER`). The deadlock occurs here because a COM server's startup is lazy loading. Lazy loading occurs for the most common `CLSCTX_INPROC_SERVER` execution context, but not necessarily for other execution contexts such as [`CLSCTX_LOCAL_SERVER`](https://learn.microsoft.com/en-us/windows/win32/api/wtypesbase/ne-wtypesbase-clsctx#constants) (thereby causing the deadlock within the `CoCreateInstance` function itself).
+Note that the deadlock occurs later on the first call to a COM method (`hres = ppf->Load(wsz, STGM_READ)`), not when we initially call `CoCreateInstance` to create an in-process COM server (`CLSCTX_INPROC_SERVER`). The deadlock occurs here because a COM server's startup is lazy loading. Lazy loading occurs for the most common `CLSCTX_INPROC_SERVER` execution context, but not necessarily for other execution contexts such as [`CLSCTX_LOCAL_SERVER`](https://learn.microsoft.com/en-us/windows/win32/api/wtypesbase/ne-wtypesbase-clsctx#constants) (the deadlock occurs in the `CoCreateInstance` function itself in the latter execution contect).
 
-Notice this call stack is similar to the deadlock we receive from [`ShellExecute` under `DllMain`](https://elliotonsecurity.com/perfect-dll-hijacking/shellexecute-initial-deadlock-point-stack-trace.png). As we know from "Perfect DLL Hijacking", loader lock is the root cause of this deadlock and releasing this lock allows execution to continue (also, see the `DEBUG NOTICE` in the LdrLockLiberator project). However, setting a read watchpoint on loader lock reveals that user-mode COM internals never check the state of the loader lock. This finding leads me to believe that the remote procedure call by `ntdll!NtAlpcSendWaitReceivePort` causes a remote process (`csrss.exe`?) to introspect on the state of loader lock within our process, potentially explaining why WinDbg never hits our watchpoint. Starting a COM server (`combase!CComApartment::StartServer`) involves calling [`NdrClientCall2`](https://learn.microsoft.com/en-us/windows/win32/api/rpcndr/nf-rpcndr-ndrclientcall2) to perform a remote procedure call. In particular, the `combase!ServerAllocateOXIDAndOID` function does RPC according to the [`lclor` interface](https://github.com/ionescu007/hazmat5/blob/main/lclor.idl).
+Notice this call stack is similar to the deadlock we receive from [`ShellExecute` under `DllMain`](https://elliotonsecurity.com/perfect-dll-hijacking/shellexecute-initial-deadlock-point-stack-trace.png). As we know from "Perfect DLL Hijacking", loader lock is the root cause of this deadlock and releasing this lock allows execution to continue (also, see the `DEBUG NOTICE` in the LdrLockLiberator project for further potential blockers). However, setting a read watchpoint on loader lock reveals that user-mode COM internals never check the state of the loader lock. This finding leads me to believe that the local procedure call by `ntdll!NtAlpcSendWaitReceivePort` causes a remote process (`csrss.exe`?) to introspect on the state of loader lock within our process, potentially explaining why WinDbg never hits our watchpoint. Starting a COM server (`combase!CComApartment::StartServer`) involves calling [`NdrClientCall2`](https://learn.microsoft.com/en-us/windows/win32/api/rpcndr/nf-rpcndr-ndrclientcall2) to perform a local procedure call (technically "LRPC" which is RPC done locally). COM must support real RPC (to another machine) in the case of DCOM, which was eventually integrated into COM (this is likely what `combase!CComApartment::InitRemoting` in the call stack refers to). In particular, the `combase!ServerAllocateOXIDAndOID` function does RPC according to the [`lclor` interface](https://github.com/ionescu007/hazmat5/blob/main/lclor.idl).
 
 [Microsoft explains this deadlock](https://learn.microsoft.com/en-us/cpp/dotnet/initialization-of-mixed-assemblies) (emphasis mine):
 
@@ -881,13 +887,13 @@ Notice this call stack is similar to the deadlock we receive from [`ShellExecute
 
 > The CLR will attempt to automatically load that assembly, which may require the Windows loader to **block** on the loader lock. A deadlock occurs since the loader lock is already held by code earlier in the call sequence.
 
-Note that Microsoft wrote this documentation to resolve loader lock issues high-level developers may come across with the CLR (the .NET runtime environment); however, it appears that it [also roughly applies to COM](https://stackoverflow.com/a/35517052) (where the deadlocking in the call stack looks similar). Microsoft likely takes this step to **mitigate the danger of a partially initialized module or partially loaded (uninitialized) modules**. Given Microsoft's architecture of providing functionality through DLLs and the fact [COM may specially integrate with a DLL](https://stackoverflow.com/questions/12680981/com-vs-non-com-dll) (a COM DLL typically exports [<code>DLLRegisterServer</code> and <code>DLLUnregisterServer</code> functions](https://stackoverflow.com/a/49920874)), this answer appears sensible. Additionally, I reason that initializing a COM object, like a CLR assembly, may take "actions that are invalid under loader" (e.g. spawning and waiting on a thread deadlocks on Windows). So, instead of allowing for non-determinism, Microsoft took steps to make starting an in-process COM server from `DllMain` deadlock deterministically.
+Note that Microsoft wrote this documentation to resolve loader lock issues high-level developers may come across with the CLR (the .NET runtime environment); however, it appears that it [also roughly applies to COM](https://stackoverflow.com/a/35517052) (where the deadlocked in the call stack looks similar). Microsoft likely takes this step to **mitigate the danger of a partially initialized module or partially loaded (fully uninitialized) modules**. Given Microsoft's architecture of providing functionality through DLLs and the fact [COM may specially integrate with a DLL](https://stackoverflow.com/questions/12680981/com-vs-non-com-dll) (a COM DLL typically exports [<code>DLLRegisterServer</code> and <code>DLLUnregisterServer</code> functions](https://stackoverflow.com/a/49920874)), this answer appears sensible. Additionally, I reason that initializing a COM object, like a CLR assembly, may take "actions that are invalid under loader" (e.g. spawning and waiting on a thread deadlocks on Windows). So, instead of allowing for "non-determinism", Microsoft took steps to make starting an in-process COM server from `DllMain` deadlock deterministically.
 
-Emphasis on the word "block" because it indicates that, in this case, Windows treats loader lock as an [readers-writer lock](https://en.wikipedia.org/wiki/Readers%E2%80%93writer_lock) (SRW lock in Windows) that's been acquired in exclusive/write mode instead of a critical section (a thread synchronization mechanism), the latter of which allows recursive acquisition (reacquiring a lock on the same thread; doing this action safely requires the surrounding code to have a [reentrant design](https://en.wikipedia.org/wiki/Reentrancy_(computing))). This fact aligns with what we see when starting a COM server from `DllMain`.
+Emphasis on the word "block" because it indicates that, in this case, Windows treats loader lock as a [readers-writer lock](https://en.wikipedia.org/wiki/Readers%E2%80%93writer_lock) (SRW lock in Windows) that's been acquired in exclusive/write mode instead of a critical section (a thread synchronization mechanism), the latter of which allows recursive acquisition (reacquiring a lock on the same thread; doing this action safely requires the surrounding code to have a [reentrant design](https://en.wikipedia.org/wiki/Reentrancy_(computing))). This fact aligns with what we see when starting a COM server from `DllMain`.
 
 While Microsoft has designed the loader to be reentrant (e.g. to support loading a library from another library's `DllMain`; [although it's not best practice](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#the-root-of-dllmain-problems)), there are still other unfavourable properties, which we have covered, about performing ceratin actions under loader lock. Thus, explaining why Microsoft would prefer to deadlock deterministically here (even when loading a non-COM DLL) rather than *potentially* get a hard to disagnose and debug deadlock/crash later.
 
-When building a .NET project, [compiling a binary with the `/clr` option causes the MSVC compiler to put global constructors in the `.cctor` section](https://learn.microsoft.com/en-us/cpp/dotnet/initialization-of-mixed-assemblies#example). Now, the high-level [CLR loader](https://www.oreilly.com/library/view/programming-sql-server/0596004796/ch04.html) will perform initialization of the global consturctors/destructors instead of the native loader, thus working around "loader lock issues" that are symptomatic of Windows architecture. Note that `DllMain` is still run by the native loader under loader lock.
+When building a .NET project, [compiling a binary with the `/clr` option causes the MSVC compiler to put global constructors in the `.cctor` section](https://learn.microsoft.com/en-us/cpp/dotnet/initialization-of-mixed-assemblies#example). Now, the high-level [CLR loader](https://www.oreilly.com/library/view/essential-net-volume/0201734117/0201734117_ch02lev1sec5.html) will perform initialization of the global consturctors/destructors instead of the native loader, thus working around "loader lock issues" that are symptomatic of Windows architecture. Note that `DllMain` is still run by the native loader under loader lock.
 
 Please note that the above analysis is a strong theory based on the surrounding evidence and my work. However, verifying it with full certainty would require checking whether the remote process is checking the loader lock of our process. I want to figure out how to debug this; please do contribute if you know.
 
@@ -895,23 +901,43 @@ Please note that the above analysis is a strong theory based on the surrounding 
 
 In this section will analyze why doing COM initialization or start a COM server from `DllMain` is currently unsafe and more interestingly, how these actions could be made safe.
 
+### Avoiding ABBA Deadlock
+
 In the documentation for [`CoInitializeEx`](https://learn.microsoft.com/en-us/windows/win32/api/combaseapi/nf-combaseapi-coinitializeex) lies this statement:
 
 > Because there is no way to control the order in which in-process servers are loaded or unloaded, do not call CoInitialize, CoInitializeEx, or CoUninitialize from the DllMain function.
 
 This warning concerns the risk of nesting the native (e.g. `ntdll!LdrpLoaderLock`) and COM (e.g. `combase!gComLock`, `combase!gChannelInitLock`, and `combase!g<a href="https://devblogs.microsoft.com/oldnewthing/20210108-00/?p=104684" target="_blank">OXID</a>Lock`) lock hierarchies within a thread. Realizing this risk would require at least two threads acquiring the locks in different orders to interleave, thus causing an ABBA deadlock. Ideally, Microsoft would support this by ensuring a clean lock hierarchy between these subsystems or controlling load/unload order (it's easier said than done given the monolithic nature of it all). [Microsoft has realized this risk in their code](https://devblogs.microsoft.com/oldnewthing/20140821-00/?p=183) (note that [starting with OLE 2, OLE is built on top of COM](https://stackoverflow.com/a/8929732), so they share internals). The simplest method for fixing this ABBA deadlock would be to acquire the loader lock (it's in the PEB) before the COM lock, thereby keeping a clean lock hierarchy. However, this method would decrease concurrency, thus reducing performance. Another solution would be to specifically target COM functions that interact with the native loader while already holding the COM lock, such as `CoFreeUnusedLibraries`. `CoFreeUnusedLibraries` would leave the COM shared data structures/components in a consistent state before unlocking the COM lock, acquire loader lock, and then perform consistency checks after reacquiring the COM lock. COM architecture might precisely track each component's state to support its reentrant design. A state tracking mechanism could work like `LDR_DDAG_STATE` in the native loader. `CoFreeUnusedLibraries` will acquire loader lock followed by the COM lock(s) and then perform its task of freeing unused libraries. [My inspiration for the second approach partially came from the GNU loader.](https://elixir.bootlin.com/glibc/glibc-2.38/source/elf/dl-lookup.c#L580) In both solutions, the process maintains a single coherent lock hierarchy. Thus, either of these solutions would solve the potential for an ABBA deadlock upon calling `CoFreeUnusedLibraries` when combined with some module's `DllMain` interacting with COM at the same time.
 
-If some COM operation requires threads that *load additional libraries* (**Is this something that can happen? As noted in our concurrency experiments, it's a naturally tricky situation that even the GNU loader will deadlock under.** We're no longer talking about ABBA deadlock.), then spawn that thread with the `THREAD_CREATE_FLAGS_SKIP_LOADER_INIT` flag (or remove thread blockers) and add library loading work items to the established global work queue (new with Windows 10). The parallel loader threads (threads with the `LoaderWorker` flag in `TEB.SameTebFlags`) would handle mapping and snapping. At which point, the load owner thread (the thread our `DllMain` is running on) would be able to finish the remaining loader work. The thread (internally calling `NtCreateThreadEx`, "thread A") spawning a new thread would ideally check if it's under loader lock, and if so, wait on the new thread ("thread B") until the entire load (`LdrpLoadCompleteEvent`) is complete on thread A (this works due to the loader being reentrant). The load owner thread (`LoadOwner` flag in `TEB.SameTebFlags`) would then operate as normal, completing the remaining loader work (e.g. module initialization) on thread B's behalf. If what libraries the thread B needs is known beforehand (it should be possible to know this in dynamic linking situations), then opt to load them directly on the load owner thread before spawning thread B or allowing thread B to run. In this case, an optimization could be made to do the thread creation system call (this call is asynchronous and it will take some time before the kernel actually spawns the thread into our process) before doing loader work. Having a dedicated load owner thread at all times (similar to the current `LoaderWorker` threads), provided suitable optimizations are in place, may also be a solution. **`DllMain` can now safely run *any* COM code.** Applying this solution to the CLR may mean removing the CLR loader because its continued presence means foreign (third-party) code could violate the loader lock ➜ CLR assembly initialization lock (I'm assuming the CLR loader has an assembly initialization lock similar to the native loader) hierarchy without our knowledge. The other solution is what Microsoft engineers currently advise, which is to write a rule saying that nobody should do COM (e.g. `CoInitializeEx`) from `DllMain`, which works great until people, such as Microsoft employees, do COM from `DllMain` (or one of many other places the loader unexpectedly holds loader lock) and Microsoft must involve a loader on top of a loader (the CLR loader) so "unmanaged and managed initialization is done in two separate and distinct stages" over the native loader to workaround "loader lock issues" that are symptomatic of Windows architecture.
-
 Given how monolithic Windows tends to be, the second solution for ABBA deadlock would be challenging; however, concurrency is hardly ever easy, and Microsoft engineers have taken on more complex problems. It's possible to make it work. **The monolithic architecture of Windows is often what unexpectedly causes problems between these separate lock hierarchies to arise in the first place (e.g. due to a Windows API function internally doing COM without the programmer's explicit knowledge).**
 
-Note that the solutions I provide above are [mostly thought experiments](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#investigating-com-server-deadlock-from-dllmain) (especially when it comes to launching an in-process COM server). Due to [Windows' architectural issues](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#the-root-of-dllmain-problems), I can only offer bandage patches.
+### Other Deadlock Possibilities
+
+COM may perform other operations that cause a deadlock:
+
+If some COM operation requires spawning and waiting on a new thread, then spawn that thread with the `THREAD_CREATE_FLAGS_SKIP_LOADER_INIT` flag (or remove loader thread blockers). I think skipping/removing thread blockers would be the only way to avoid deadlock here when accounting for both `DLL_THREAD_ATTACH` and `DLL_THREAD_DETACH` (i.e. we can't temporarily offload some loading operations or otherwise, just for thread startup).
+
+If some COM operation further requires that waited on new thread to *load additional libraries* (**Is this something that can happen? As noted in our concurrency experiments, it's a naturally tricky situation that even the GNU loader will deadlock under.**) then things get hard (if not impossible). As a thought experiment though, we will give it our best shot. We are currently on "thread A" and the thread we just spawned is "thread B". Thread A is already the load owner. So, our approach to avoiding deadlock should be to attempt offloading library loading work from thread B to thread A (thread A would have to wait to see if it picks up any work) *or* just have thread A wait so thread B can act as the load owner for a bit. We will go for the second option. After thread A does the system call to spawn thread B, thread A (in `NtCreateThreadEx`) should check if it's under loader lock. If so, thread A must wait until it receives a signal from thread B that it's completed its loader work. Thread B should assign its thread as the load owner (`LoadOwner` flag in `TEB.SameTebFlags`; the global `LdrpWorkInProgress` state is already `1`) at the same time as thread A is already the load owner. With thread A waiting, thread B can now safely load libraries as normal and this works because the loader is reentrant and due to all the loader data structures being global. When thread B finishes loader work, it can signal thread A to proceed.
+
+**As with any approach, there are glaring issues with this method to avoiding deadlock.** The first issue is that thread B cannot know when it will be done with loader work (if it is to do any; assuming we already removed loader thread blockers) because the loader cannot forsee dynamic loading operations (`LoadLibrary`/`FreeLibrary` or delay loading) ahead of time. Some Unix-like loader implementations [don't support dynamic loading](https://github.com/bpowers/musl/blob/master/src/ldso/dlopen.c) due to the deadlock problems that can occur when libraries load unexpectedly and the performance benefits you can achieve from not having to program for that scenario. The ideal situation is always to load all a program's dependencies once at process startup then never load/unload libraries again for the lifetime of the process. This issue is already a showstopper, but in the name of education, we will continue on. The second issue comes from the fact that thread A is in a module's `DllMain` performing its initialization. So, complex operation in general could be problematic because the module spawning a thread from its `DllMain` may be partially initialized or other dependent modules still completely uninitialized (the latter could only be due to circular dependencies in a modern loader). The third issue is that waiting on a thread for any amount of time when not explicitly told to (`WaitForSingleObject(hThread)`) leads to poor performance. There are probably more issues.
+
+Having a dedicated load owner thread at all times (similar to the current loader worker threads), provided suitable optimizations are in place, is likely the most realistic and workable solution. Although, Microsoft would have to create a mechanism for threaded operations (e.g. `FlsAlloc`, `FlsGetValue`, and `FlsSetValue` functions) done at `DLL_THREAD_ATTACH` and `DLL_THREAD_DETACH` to affect and access the thread requesting the `DLL_THREAD_ATTACH`/`DLL_THREAD_DETACH` instead of the dedicated load owner thread itself (also, the `GetCurrentThread` and `GetCurrentThreadId` functions may have to lie to maintain application compatibility).
+
+### Conclusion
+
+**`DllMain` can now safely run COM code (in theory).**
+
+Note that applying this solution to the CLR may mean removing the [CLR loader](https://www.oreilly.com/library/view/essential-net-volume/0201734117/0201734117_ch02lev1sec5.html) because its continued presence means foreign (third-party) code could violate the loader lock ➜ CLR assembly initialization lock (I'm assuming the CLR loader has an assembly initialization lock similar to the native loader's loader lock) lock hierarchy without our knowledge.
+
+The other solution is what most Microsoft engineers currently advise, which is to write a rule saying that nobody should do COM (e.g. `CoInitializeEx`) from `DllMain`, which works great until people, such as Microsoft employees, do COM from `DllMain` (or one of many other places the loader unexpectedly holds loader lock). Additionally, in the case of CLR, requiring Microsoft creates a loader on top of a loader (the CLR loader) so "unmanaged and managed initialization is done in two separate and distinct stages" over the native loader to workaround "loader lock issues" that are symptomatic of Windows architecture.
+
+Note that the solutions I provide above are mostly thought experiments (especially when it comes to [launching an in-process COM server](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#investigating-com-server-deadlock-from-dllmain)). Due to [Windows' architectural issues](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#the-root-of-dllmain-problems), I can only offer bandage patches.
 
 ## Case Study on ABBA Deadlock Between the Loader Lock and GDI+ Lock
 
-This case study is not regarding code that Microsoft engineers wrote but of a third-party shell extension that this Old New Thing article reports on. [Here we have the ABBA deadlock between loader lock and GDI+ lock](https://devblogs.microsoft.com/oldnewthing/20160805-00/?p=94035). The ABBA deadlock occurs more inadvertently than in the previous COM case study because of the `GdiPlus!GdiplusShutdown` thread waiting for a worker thread that holds the loader lock (so, there's a layer of indirection). Microsoft documentation and this Old New Thing article says the root cause of this problem is running `GdiPlus!GdiplusStartup` from `DllMain`. However, my opinion on the root cause of this problem leans more on the architectural side of things, and it's that each library's `DllMain` receives `DLL_THREAD_ATTACH` and `DLL_THREAD_DETACH` notifications in the first place. As noted elsewhere in this document, these notifications are effectively useless, and well-written libraries often disable them to improve performance. So, it would appear that DLL thread notifications come with more disadvantages than advantages. I'm also unaware of any other operating system requiring such notifications.
+This case study is not regarding code that Microsoft engineers wrote but of a third-party shell extension that this Old New Thing article reports on. [Here we have the ABBA deadlock between loader lock and GDI+ lock](https://devblogs.microsoft.com/oldnewthing/20160805-00/?p=94035). The ABBA deadlock occurs more inadvertently than in the previously shown COM case study because of the `GdiPlus!GdiplusShutdown` thread waiting for a worker thread that holds the loader lock (so, there's a layer of indirection). Microsoft documentation and this Old New Thing article says the root cause of this problem is running `GdiPlus!GdiplusStartup` from `DllMain`. However, my opinion on the root cause of this problem leans more on the architectural side of things, and it's that each library's `DllMain` receives `DLL_THREAD_ATTACH` and `DLL_THREAD_DETACH` notifications in the first place. As noted elsewhere in this document, these notifications are effectively useless, and well-written libraries often disable them to improve performance. So, it would appear that DLL thread notifications come with more disadvantages than advantages. I'm also unaware of any other operating system requiring such notifications.
 
-In this scenario, if Windows could refrain from the practice of ["DLLs creating worker threads behind your back"](https://devblogs.microsoft.com/oldnewthing/20100122-00/?p=15193), then that would also nullify the issue (although in the GDI+ case, GUI programs typically require at least one spare thread for the [message/event loop](https://en.wikipedia.org/wiki/Message_loop_in_Microsoft_Windows), these threads shouldn't be created without the programmer's knowledge).
+In this scenario, if Windows could refrain from the practice of ["DLLs creating worker threads behind your back"](https://devblogs.microsoft.com/oldnewthing/20100122-00/?p=15193), then that would also nullify the issue (although in the GDI+ case, GUI programs typically require at least one spare thread for the [message/event loop](https://en.wikipedia.org/wiki/Message_loop_in_Microsoft_Windows), the Windows API shouldn't create these threads without the programmer's knowledge).
 
 ## `LdrpDrainWorkQueue` and `LdrpProcessWork`
 
@@ -919,15 +945,49 @@ The high-level `LdrpDrainWorkQueue` and `LdrpProcessWork` **parallel** loader fu
 
 The `LdrpDrainWorkQueue` function empties the work queue by processing all work in the work queue. `LdrpDrainWorkQueue` iterates over the `ntdll!LdrpWorkQueue` linked list, calling `LdrpProcessWork` on each work item to achieve its goal.
 
-Processing a work item means doing mapping *or* snapping work on it, or both. `LdrpProcessWork` checks a module's `LDR_DDAG_STATE`. If it's zero (i.e. `LdrModulesPlaceHolder`), the module is unmapped, so `LdrpProcessWork` maps it; otherwise, `LdrpProcessWork` snaps it. In the mapping *and* snapping scenario, `LdrpProcessWork` calls `LdrpMapDllFullPath` or `LdrpMapDllSearchPath`. These mapping functions internally call through to the bloated (in my opinion, because it's doing things beyond what its name suggests) `LdrpMapDllWithSectionHandle` function. After mapping, `LdrpMapDllWithSectionHandle` decides whether also to do snapping by checking what `LdrpFindLoadedDllByMappingLockHeld` outputted for its fourth (`out`) argument (more research required). If this fourth argument outputs a non-zero value, `LdrpMapDllWithSectionHandle` calls `LdrpLoadContextReplaceModule` to enqueue the work (`LdrpQueueWork`) to the work queue; otherwise, `LdrpMapDllWithSectionHandle` adds the mapped module into the module information data structures (`LdrpInsertDataTableEntry` and `LdrpInsertModuleToIndexLockHeld`) before snapping. The loader can add a module's `LDRP_LOAD_CONTEXT` (undocumented structure; allocated by the `LdrpAllocatePlaceHolder` function) to the work queue before that module's `LDR_DATA_TABLE_ENTRY` has even been added to any of the module information data structures. The parallel loader worker threads may call `LdrpWorkCallback` ➜ `LdrpProcessWork` to pick up some mapping and/or snapping operations from the work queue as a performance optimization.
+Processing a work item means doing mapping *or* snapping work on it, or both. `LdrpProcessWork` checks a module's `LDR_DDAG_STATE`. If it's zero (i.e. `LdrModulesPlaceHolder`), the module is unmapped, so `LdrpProcessWork` maps it; otherwise, `LdrpProcessWork` snaps it. In the mapping *and* snapping scenario, `LdrpProcessWork` calls `LdrpMapDllFullPath` or `LdrpMapDllSearchPath`. These mapping functions internally call through to the bloated (in my opinion, because it's doing things beyond what its name suggests) `LdrpMapDllWithSectionHandle` function. After mapping, `LdrpMapDllWithSectionHandle` decides whether also to do snapping by checking what `LdrpFindLoadedDllByMappingLockHeld` outputted for its fourth (`out`) argument (more research required). If this fourth argument outputs a non-zero value, `LdrpMapDllWithSectionHandle` calls `LdrpLoadContextReplaceModule` to enqueue the work (`LdrpQueueWork`) to the work queue; otherwise, `LdrpMapDllWithSectionHandle` adds the mapped module into the module information data structures (`LdrpInsertDataTableEntry` and `LdrpInsertModuleToIndexLockHeld`) before snapping. The loader can add a module's `LDRP_LOAD_CONTEXT` (undocumented structure; allocated by the `LdrpAllocatePlaceHolder` function) to the work queue before that module's `LDR_DATA_TABLE_ENTRY` has even been added to any of the module information data structures.
 
-A work item refers to one `LDRP_LOAD_CONTEXT` entry (undocumented structure) in the loader work queue (`ntdll!LdrpWorkQueue`) linked list. Each work item relates directly to one module because they're allocated at the same time with the `LdrpAllocatePlaceHolder` function and each `LDRP_LOAD_CONTEXT` contains that a `UNICODE_STRING` of its own DLL's `BaseDllName` as its first member. However, processing a single work item for one module can still indirectly cause other modules to process within the same call to `LdrpProcessWork` because `LdrpMapDllWithSectionHandle` may call `LdrpMapAndSnapDependency` to process dependencies. Depending on the `LDRP_LOAD_CONTEXT` structure contents (undocumented), `LdrpMapAndSnapDependency` may outsource further work by enqueuing it (`LdrpQueueWork`) to the work queue (`ntdll!LdrpWorkQueue`) where `LoaderWoker` threads can process the work or process the dependency itself.
+A work item refers to one `LDRP_LOAD_CONTEXT` entry (undocumented structure) in the loader work queue (`ntdll!LdrpWorkQueue`) linked list. Each work item relates directly to one module because they're allocated at the same time with the `LdrpAllocatePlaceHolder` function and each `LDRP_LOAD_CONTEXT` contains that a `UNICODE_STRING` of its own DLL's `BaseDllName` as its first member. However, processing a single work item for one module can still indirectly cause other modules to process within the same call to `LdrpProcessWork` because `LdrpMapDllWithSectionHandle` may call `LdrpMapAndSnapDependency` to process dependencies. Depending on the `LDRP_LOAD_CONTEXT` structure contents (undocumented), `LdrpMapAndSnapDependency` may process the further work itself or outsource that work by enqueuing it (`LdrpQueueWork`) to the work queue (`ntdll!LdrpWorkQueue`) where loader worker (`LoaderWorker` flag in `TEB.SameTebFlags`) threads can process the work. A parallel loader worker threads receive a callback (thread pool internals) to its `LdrpWorkCallback` entrypoint which then calls `LdrpProcessWork` to pick up some mapping and snapping operations from the work queue as a performance optimization.
 
 ## `LdrpLoadCompleteEvent` and `LdrpWorkCompleteEvent`
 
-When the loader sets the `LdrpLoadCompleteEvent` event, it's signalling that the loader is reemerging from completing all mapping and/or snapping work for the **entire** work queue. When this occurs, it directly correlates with `LdrpWorkInProgress` equalling zero and the decommissioning of the current thread as the `LoadOwner` (see `ntdll!LdrpDropLastInProgressCount` function for evidence of this).
+When the loader sets the `LdrpLoadCompleteEvent` event, it's signalling that the loader is reemerging from completing all mapping and snapping work for the **entire** work queue. When this occurs, it directly correlates with `LdrpWorkInProgress` equalling zero and the decommissioning of the current thread as the load owner (`LoadOwner` flag in `TEB.SameTebFlags`). Here's a minimal reverse engineering of the `ntdll!LdrpDropLastInProgressCount` function showing this:
 
-When the loader sets the `LdrpWorkCompleteEvent` event, it's signalling that the loader has completed the mapping and/or work of **one** work item.
+```C
+NTSTATUS LdrpDropLastInProgressCount()
+{
+    // Remove thread's load owner flag
+    PTEB CurrentTeb = NtCurrentTeb();
+    CurrentTeb->SameTebFlags &= ~LoadOwner; // 0x1000
+
+    // Load/unload is now complete
+    RtlEnterCriticalSection(&LdrpWorkQueueLock);
+    LdrpWorkInProgress = 0;
+    RtlLeaveCriticalSection(&LdrpWorkQueueLock);
+
+    // Signal completion of load/unload to any waiting threads
+    return NtSetEvent(LdrpLoadCompleteEvent, NULL);
+}
+```
+
+When the loader sets the `LdrpWorkCompleteEvent` event, it's signalling that the loader has completed the mapping and snapping work on the entire work queue including across all of the currently processing loader worker (`LoaderWorker` flag in `TEB.SameTebFlags`) threads. Here's a minimal reverse enginering of where the `ntdll!LdrpProcessWork` function returns showing this:
+
+```C
+   // Second argument of LdrpProcessWork: isCurrentThreadLoadOwner
+   // If the current thread is a loader worker (i.e. not a load owner)
+   if (!isCurrentThreadLoadOwner)
+   {
+        RtlEnterCriticalSection(&LdrpWorkQueueLock);
+        // If the work queue is empty AND we we are the last loader worker thread processing work
+        // There were some double negatives I had to sort out here in the reverse engineering
+        BOOL doSetEvent = &LdrpWorkQueue == LdrpWorkQueue.Flink && --LdrpWorkInProgress == 1
+        Status = RtlLeaveCriticalSection(&LdrpWorkQueueLock);
+        if ( doSetEvent )
+            return NtSetEvent(LdrpWorkCompleteEvent, NULL);
+    }
+
+    return Status;
+```
 
 Here are all the loader's usages of `LdrpLoadCompleteEvent` and `LdrpWorkCompleteEvent`:
 
@@ -953,7 +1013,7 @@ ntdll!LdrpProcessWork$fin$0+0x7c:
 00007ffd`289b5ad7 488b0dd2680c00  mov     rcx,qword ptr [ntdll!LdrpWorkCompleteEvent (00007ffd`28a7c3b0)]
 ```
 
-The `LdrpCreateLoaderEvents` function creates both events. The `LdrpDrainWorkQueue` function may wait on either `LdrpLoadCompleteEvent` or `LdrpWorkCompleteEvent`. Only the `LdrpDrainWorkQueue` function sets `LdrpLoadCompleteEvent`. Only the `LdrpProcessWork` function sets `LdrpWorkCompleteEvent`.
+The `LdrpCreateLoaderEvents` function creates both events. The `LdrpDrainWorkQueue` function may wait on either `LdrpLoadCompleteEvent` or `LdrpWorkCompleteEvent`. Only the `LdrpDropLastInProgressCount` function sets `LdrpLoadCompleteEvent`. Only the `LdrpProcessWork` function sets `LdrpWorkCompleteEvent`.
 
 At event creation (`NtCreateEvent`), `LdrpLoadCompleteEvent` and `LdrpWorkCompleteEvent` are configured to be auto-reset events:
 
@@ -968,30 +1028,30 @@ The loader `LdrpLoadCompleteEvent` or `LdrpWorkCompleteEvent` events synchronize
 What follows documents what parts of the loader call `LdrpDrainWorkQueue` while synchronizing on either the `LdrpLoadCompleteEvent` or `LdrpWorkCompleteEvent` loader event (data gathered by searching disassembly for calls to the `LdrpDrainWorkQueue` function):
 
 ```
-ntdll!LdrUnloadDll+0x80: FALSE
+ntdll!LdrUnloadDll+0x80:                          FALSE
 ntdll!RtlQueryInformationActivationContext+0x43c: FALSE
-ntdll!LdrShutdownThread+0x98: FALSE
-ntdll!LdrpInitializeThread+0x86: FALSE
-ntdll!LdrpLoadDllInternal+0xbe: FALSE
-ntdll!LdrpLoadDllInternal+0x144: TRUE
-ntdll!LdrpLoadDllInternal$fin$0+0x38: TRUE
-ntdll!LdrGetProcedureAddressForCaller+0x270: FALSE
-ntdll!LdrEnumerateLoadedModules+0xa7: FALSE
-ntdll!RtlExitUserProcess+0x23: TRUE OR FALSE
+ntdll!LdrShutdownThread+0x98:                     FALSE
+ntdll!LdrpInitializeThread+0x86:                  FALSE
+ntdll!LdrpLoadDllInternal+0xbe:                   FALSE
+ntdll!LdrpLoadDllInternal+0x144:                  TRUE
+ntdll!LdrpLoadDllInternal$fin$0+0x38:             TRUE
+ntdll!LdrGetProcedureAddressForCaller+0x270:      FALSE
+ntdll!LdrEnumerateLoadedModules+0xa7:             FALSE
+ntdll!RtlExitUserProcess+0x23:                    TRUE OR FALSE
   - Depends on `TEB.SameTebFlags`, typically FALSE if `LoadOwner` or `LoadWorker` flags are absent, TRUE if either of these flags is present
-ntdll!RtlPrepareForProcessCloning+0x23: FALSE
-ntdll!LdrpFindLoadedDll+0x9127a: FALSE
-ntdll!LdrpFastpthReloadedDll+0x9033a: FALSE
-ntdll!LdrpInitializeImportRedirection+0x46d44: FALSE
-ntdll!LdrInitShimEngineDynamic+0x3c: FALSE
-ntdll!LdrpInitializeProcess+0x130a: FALSE
-ntdll!LdrpInitializeProcess+0x1d0d: FALSE
-ntdll!LdrpInitializeProcess+0x1e22: TRUE
-ntdll!LdrpInitializeProcess+0x1f33: FALSE
-ntdll!RtlCloneUserProcess+0x71: FALSE
+ntdll!RtlPrepareForProcessCloning+0x23:           FALSE
+ntdll!LdrpFindLoadedDll+0x9127a:                  FALSE
+ntdll!LdrpFastpthReloadedDll+0x9033a:             FALSE
+ntdll!LdrpInitializeImportRedirection+0x46d44:    FALSE
+ntdll!LdrInitShimEngineDynamic+0x3c:              FALSE
+ntdll!LdrpInitializeProcess+0x130a:               FALSE
+ntdll!LdrpInitializeProcess+0x1d0d:               FALSE
+ntdll!LdrpInitializeProcess+0x1e22:               TRUE
+ntdll!LdrpInitializeProcess+0x1f33:               FALSE
+ntdll!RtlCloneUserProcess+0x71:                   FALSE
 ```
 
-Notably, there are many more instances of synchronizing on the entire load's completion rather than just the completion of some mapping and snapping work. For example, thread initialization (`LdrpInitializeThread`) synchronizes on the former (`LdrpLoadCompleteEvent`). The only functions that may synchronize on `LdrpWorkCompleteEvent` are `LdrpLoadDllInternal` (the public `LoadLibrary` function internally calls this), `LdrpInitializeProcess`, and `RtlExitUserProcess`.
+Notably, there are many more instances of synchronizing on the entire load's completion rather than just the completion of mapping and snapping work. For example, thread initialization (`LdrpInitializeThread`) synchronizes on the `LdrpLoadCompleteEvent` loader event. The only functions that may synchronize on `LdrpWorkCompleteEvent` are `LdrpLoadDllInternal` (the public `LoadLibrary` function internally calls this), `LdrpInitializeProcess`, and `RtlExitUserProcess`.
 
 Comparing the loader's number of calls to `LdrpDrainWorkQueue` in contrast to directly calling `LdrpProcessWork`, we see the former is considerably more prevalent:
 
@@ -1067,7 +1127,7 @@ Anyone who's learned about concurrency throughout their computer science program
 ```C
 // Variable names are my own
 
-// The caller decides whether it wants LdrpDrainWorkQueue to synchronize on an entire load completing (i.e. setting ntdll!LdrpWorkInProgress to 0 and decommissioning of the current thread as the load owner) or a piece of mapping and snapping work completing (i.e. processing a work item in the queue)
+// The caller decides whether it wants LdrpDrainWorkQueue to synchronize on an entire load completing (i.e. setting ntdll!LdrpWorkInProgress to 0 and decommissioning of the current thread as the load owner) or mapping and snapping work completing (i.e. processing all the work in the work queue)
 // Typically, this decision depends on the whether or not the current thread is already the load owner (see: ntdll!LdrpLoadDllInternal function)
 // For instance, if this is a recursive load then the current thread will already be the load owner
 // In that scenario, LdrpLoadDllInternal will synchronize LdrpDrainWorkQueue on an item from the work queue completing its mapping and snapping work
@@ -1111,7 +1171,7 @@ struct PTEB __fastcall LdrpDrainWorkQueue(BOOL SynchronizeOnWorkCompletion)
                 } else {
                     if (!LdrpDetourExistAtStart)
                         ++LdrpWorkInProgress;
-                    // LdrpUpdateStatistics is a very small function with one branch on whether we're a LoaderWorker thread
+                    // LdrpUpdateStatistics is a very small function with one branch on whether we're a loader worker thread
                     LdrpUpdateStatistics();
                 }
             }
@@ -1328,7 +1388,7 @@ Swap out `ntdll!NtSetEvent` for `ntdll!NtWaitForSingleObject` and change `echo` 
 
 Be aware that anti-malware software hooking on `ntdll!NtWaitForSingleObject` could cause the breakpoint command to run twice (I ran into this issue).
 
-View state of Win32 events WinDbg command: `!handle 0 8 Event`
+View state of Win32 events WinDbg command: `!handle 0 ff Event`
 
 ### Disable Loader Worker Threads
 

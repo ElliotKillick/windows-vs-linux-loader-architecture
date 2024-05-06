@@ -9,25 +9,24 @@ int main() {
     // Create an unsignalled auto-reset event
     HANDLE myEvent = CreateEvent(NULL, FALSE, FALSE, L"MyEvent");
 
-    if (myEvent == 0) {
+    if (myEvent == 0)
         return 1;
-    }
 
     // Set event
     SetEvent(myEvent);
     __debugbreak();
 
-    // Execution proceeds
     // Event: Set -> Waiting
+    // Execution proceeds
     WaitForSingleObject(myEvent, INFINITE);
 
     // Event is waiting, so execution waits
-    // WinDbg command: !handle MyEvent 8
+    // WinDbg command: !handle MyEvent ff
     // We expectedly hang here
     WaitForSingleObject(myEvent, INFINITE);
 
     // When an auto-reset event is set, execution only proceeds for a SINGLE waiting thread before the event waits.
     // This behavior means an auto-reset event performs mutual exclusion between threads, similar to a critical section.
     //
-    // Unlike critical sections, events don't support recursive acquisition on the same thread.
+    // Unlike a critical section, though, an auto-reset event doesn't support recursive acquisition on the same thread.
 }
