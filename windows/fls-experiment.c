@@ -135,19 +135,24 @@ int main() {
 // When running in an FLS callback, one must also be aware that previous FLS callbacks may have free'd or otherwise cleaned up the current thread's resources.
 // Surprisingly, FLS callbacks aren't run in the reverse order they were registered in (like, for example, DLL_PROCESS_DETACH notifications are at process exit) thus making a use-after-free scenario more likely.
 //
-// FLS callbacks are local state (i.e. they're only ever accessed by a single thread) by nature. Therefore, no thread synchronization mechanism is necessary to protect the per-thread data structures.
-// Each FLS allocation is run under TWO locks. The first is a per-allocation (FlsAlloc) SRW lock acquired in write/exclusive mode. The second is a a global ntdll!RtlpFlsContext SRW lock (at RtlpFlsContext+0x0) acquired in read/shared mode.
-// The first lock protects against an FLS allocation callback freeing itself (while its already being freed). Attempting to do this will cause a deadlock (better than undefined behavior).
-// The second lock protects against modification to the global FLS state.
+// Each FLS allocation is run under a per-allocation (FlsAlloc) SRW lock which RtlpFlsFree acquires in write/exclusive mode and RtlpFlsDataCleanup acquires in read/shared mode.
+// The difference in how the FLS callback handlers acquire this lock explains why reentering the current FLS callback with FlsFree deadlocks while RtlpFlsDataCleanup is able to reenter the same callback multiple times.
+//
+// There's also a global RtlpFlsContext SRW lock (at ntdll!RtlpFlsContext+0x0) which RtlpFlsFree acquires in read/shared mode and RtlpFlsDataCleanup acquires in write/exclusive mode.
+// This lock protects the global FLS state. However, a callback never runs under this lock (verified for both RtlpFlsFree and RtlpFlsDataCleanup functions).
 
-// More FLS information
+
+// More FLS Information
 //
 // At ntdll!RtlpFlsContext is a global data structure containing pertaining to FLS.
 // I haven't looked into it entirely, but it contains a binary array (RTL_BINARY_ARRAY), an SRW lock, and likely more.
+// The binary array likely keeps track of which FLS indexes (or slots) are occupied.
 //
 // FLS indexes are valid across fiber and thread boundaries, but not across process boundaries: https://learn.microsoft.com/en-us/windows/win32/api/fibersapi/nf-fibersapi-flsalloc#remarks
 // There's a process-wide maximum number of FLS indexes (before FlsAlloc returns an FLS_OUT_OF_INDEXES error): https://ntdoc.m417z.com/fls_maximum_available
 //
-// A thread's TEB stores a pointer to its own FLS data (TEB.FlsData).
+// A thread's TEB stores a pointer to its own FLS data: TEB.FlsData
+// If non-null TEB.FlsData, points into the heap. Looking into RtlFlsSetValue, I see each FLS data gets its own heap allocation (RtlAllocateHeap).
+// RtlFlsSetValue initializes TEB.FlsData by setting the new FLS allocation as the first entry in the linked list. After that, each FLS allocation just gets linked into the list.
 //
 // "Fibers are awful", but the callbacks are still useful: https://devblogs.microsoft.com/oldnewthing/20191011-00/?p=102989
