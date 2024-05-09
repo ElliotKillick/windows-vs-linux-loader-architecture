@@ -581,7 +581,7 @@ The Windows loader maintains `LDR_DATA_TABLE_ENTRY.ReferenceCount` and `LDR_DDAG
 
 Something interesting to note is that the GNU `dlsym` approach to supporting concurrency ensures a module isn't initializing/uninitializing midway through its search while Windows `GetProcAddress` provides no such guarantee. However, module initialization isn't a requirement for safely retrieving a symbol from a library. By splitting module mapping and snapping as well as the maintenance of module information data structures (not including `LDR_DDAG_NODE`) from module initialization/deinitialization, the Windows loader achieves greater concurrency.
 
-Keep in mind, that if your program frees libraries whose exports/symbols are still in use (*after* locating them with `GetProcAddress` or `dlsym`), then you can expect your application to crash due to your own negligence.
+Keep in mind, that if your program frees libraries whose exports/symbols are still in use (*after* locating them with `GetProcAddress` or `dlsym`), then you can expect your application to crash due to your own negligence. In other words, `GetProcAddress`/`dlsym` only protects from internal data races (within the loader). However, you the programmer are responsible for guarding against external data races. Said in another way again: The loader doesn't know what your program might do. So, the loader can only maintain consistency with itself.
 
 ## Lazy Linking Synchronization
 
