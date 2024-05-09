@@ -239,7 +239,7 @@ An atomic state value is modified using a single assembly instruction. On an [SM
 
 ## State
 
-A state value may either be shared state or local state (i.e. whether separate threads may access the state). Shared state has access to it protected by one of the aforementioned locks. Local state doesn't require protection. Only a few key pieces of Windows loader state I came across are listed here.
+A state value may either be shared state (also known as global state) or local state (i.e. whether separate threads may access the state). Shared state has access to it protected by one of the aforementioned locks. Local state doesn't require protection. Only a few key pieces of Windows loader state I came across are listed here.
 
 - `LDR_DDAG_NODE.State` (pointed to by `LDR_DATA_TABLE_ENTRY.DdagNode`)
   - Each module has a `LDR_DDAG_NODE` structure with a `State` member containing **15 possible states** -5 through 9

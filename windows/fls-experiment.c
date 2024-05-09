@@ -152,7 +152,8 @@ int main() {
 // There's a process-wide maximum number of FLS indexes (before FlsAlloc returns an FLS_OUT_OF_INDEXES error): https://ntdoc.m417z.com/fls_maximum_available
 //
 // A thread's TEB stores a pointer to its own FLS data: TEB.FlsData
-// If non-null TEB.FlsData, points into the heap. Looking into RtlFlsSetValue, I see each FLS data gets its own heap allocation (RtlAllocateHeap).
-// RtlFlsSetValue initializes TEB.FlsData by setting the new FLS allocation as the first entry in the linked list. After that, each FLS allocation just gets linked into the list.
+// TEB.FlsData, when non-null, points into the heap. Looking into RtlFlsSetValue, I see each FLS data gets its own heap allocation (RtlAllocateHeap).
+// On first use of TEB.FlsData, RtlFlsSetValue initializes FlsData by setting the new FLS allocation as the first entry in the linked list. The global RtlpFlsContext+0x0 SRW lock is write/exclusively acquired as the new TEB.FlsData gets added to the global/shared FLS state.
+// After that, each FLS allocation just gets linked into the TEB.FlsData list. The TEB.FlsData linked list data structure is local state (i.e. only a single thread may access it), so it doesn't require protection.
 //
 // "Fibers are awful", but the callbacks are still useful: https://devblogs.microsoft.com/oldnewthing/20191011-00/?p=102989
