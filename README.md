@@ -7,12 +7,12 @@ The loader is a vital part of any operating system. It's responsible for loading
 The intentions of this document are to:
 
 1. Compare the Windows, Linux, and sometimes MacOS loaders
-    - Provide perspective on architectural and ecosystem differences as well as how they coincide with the loader
-    - Including experiments on how flexible or rigid they are with what can safely be done during module initialization (with the loader's internal locks held)
+  - Provide perspective on architectural and ecosystem differences as well as how they coincide with the loader
+  - Including experiments on how flexible or rigid they are with what can safely be done during module initialization (with the loader's internal locks held)
 2. Formally document how a modern Windows loader supports concurrency
-    - Current open source Windows implementations, including Wine and ReactOS, perform locking similar to the legacy Windows loader (they currently don't support the "parallel loading" ability present in a modern Windows loader)
+  - Current open source Windows implementations, including Wine and ReactOS, perform locking similar to the legacy Windows loader (they presently don't support the "parallel loading" ability present in a modern Windows loader)
 3. Educate, satisfy curiosity, and help fellow reverse engineers
-    - If you're looking for information on anything in particular, just give this document a `CTRL+F`
+  - If you're looking for information on anything in particular, just give this document a `CTRL+F`
 
 All of the information contained here covers Windows 10 22H2 and glibc 2.38. Some sections of this document also touch on the MacOS loader.
 
@@ -156,7 +156,7 @@ However, Windows has more synchronization mechanisms that control the loader, in
     - The `LdrpInitialize` (`_LdrpInitialize`) function creates this event
       - This event is created before loader initialization begins (early at process creation)
   - `ntdll!LdrpLoadCompleteEvent`
-    - This event being set indicates an [entire load/unload](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#ldr_ddag_nodestate-analysis) has completed.
+    - This event being set indicates an [entire load/unload](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#ldr_ddag_nodestate-analysis) has completed or that any of the `DllMain` events have finished running (all `DllMain` events require owning this event)
       - This event is set (`NtSetEvent`) in the `LdrpDropLastInProgressCount` function before relinquishing control as the load owner (`LoadOwner` flag in `TEB.SameTebFlags`)
     - Thread startup waits on this
     - This event **is** an auto-reset event and is created in the nonsignaled (i.e. waiting) state
@@ -339,7 +339,7 @@ Indeed, the Windows loader is an intricate and monolithic state machine. Its com
 
 ## The Root of `DllMain` Problems
 
-The Windows loader, in contrast to the GNU loader (or Unix-like loaders in general), is more vulnerable to deadlock or crash scenarios for a variety of architectural reasons. "The Root of `DllMain` Problems" (or more casually, "`DllMain` Rules Rewritten") provides a fundamental understanding of `DllMain` hurdles and why they exist. It improves on Microsoft's ["DLL Best Practices"](https://learn.microsoft.com/en-us/windows/win32/dlls/dynamic-link-library-best-practices#general-best-practices), often referred to as the ["`DllMain` rules"](https://stackoverflow.com/a/4406638) informally. "DLL Best Practices" originally goes back to an ancient (in technology years) [2006 Microsoft document](windows/dll-best-practices) (the document has undergone minimal changes on Microsoft's documentation website since then). The architectural reasons for `DllMain` issues in Windows include:
+The Windows loader, in contrast to the GNU loader (or Unix-like loaders in general), is more vulnerable to deadlock or crash scenarios for a variety of architectural reasons. "The Root of `DllMain` Problems" (or more casually, "`DllMain` Rules Rewritten") provides a fundamental understanding of `DllMain` hurdles and why they exist. It improves on Microsoft's ["DLL Best Practices"](https://learn.microsoft.com/en-us/windows/win32/dlls/dynamic-link-library-best-practices#general-best-practices), often referred to as the ["`DllMain` rules"](https://stackoverflow.com/a/4406638) informally. "DLL Best Practices" originally goes back to an ancient (in technology years) [2006 Microsoft document](windows/dll-best-practices) (the document has undergone minimal changes on Microsoft's documentation website since then). The architectural reasons for `DllMain` issues on Windows include:
 
 - Windows is a monolith
   - The monolithic architecture of the Windows API may cause separate lock hierarchies to interleave between threads resulting in an [ABBA deadlock](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#abba-deadlock)
@@ -361,7 +361,7 @@ The Windows loader, in contrast to the GNU loader (or Unix-like loaders in gener
   - In contrast, Unix-like systems prioritize processes and the idea that [everything is a file](https://en.wikipedia.org/wiki/Everything_is_a_file)
     - GNU/Linux exposes all its core system functionality through a [single `libc` implementation library](https://en.wikipedia.org/wiki/Glibc#/media/File:Linux_kernel_System_Call_Interface_and_glibc.svg) (also including a separate `ld` loader library but [GNU is working on merging these into a *single library*](https://developers.redhat.com/articles/2021/12/17/why-glibc-234-removed-libpthread) similar to what musl has already done to improve performance)
 - Non-reentrant or thread-unsafe design
-  - Notable Windows components like CRT/DLL exit (`atexit`) and [FLS callbacks](windows/fls-experiment.c) either weren't designed with reentrancy or thread safety in mind and may also run under loader lock (**Note:** These aren't part of the loader but they may integrate with it so the point stands)
+  - Notable Windows components like [CRT/DLL exit (`atexit`)](atexit) and [FLS callbacks](windows/fls-experiment.c) either weren't designed with reentrancy or thread safety in mind and may also run under loader lock (**Note:** These aren't part of the loader but they may integrate with it so the point stands)
   - Delay loading is non-reentrant in some cases involving `DllMain`, potentially leading to deadlock
     - Microsoft likely does this on purpose to guard against a partially initialized library accidentally loading another library which then (perhaps indirectly) depends on the currently partially uninitialized library
 - Windows overrelies on dynamic initialization and dynamic operations in general
@@ -466,9 +466,11 @@ Each state represents a **stage of loader work**. This table comprehensively doc
 
 Loader work requires first incrementing the [`ntdll!LdrpWorkInProgress` reference counter](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#state). `ntdll!LdrpWorkInProgress` can only safely be decremented when the loader has completed all stages of loader work on the module(s) it's operating on. Only one thread, the caller of `LdrpDrainWorkQueue` (i.e. the future load owner), can do loader work at a time. For instance, a **typical load ranging from <code>LdrModulesPlaceHolder</code> to <code>LdrModulesReadyToRun</code>** (may also include `LdrModulesMerged`) or a **typical unload ranging from <code>LdrModulesUnloading</code> to <code>LdrModulesUnloaded</code>**.
 
+Running any `DllMain` event (including `DLL_PROCESS_ATTACH`, `DLL_PROCESS_DETACH`, `DLL_THREAD_ATTACH, and `DLL_THREAD_DETACH`) always requires the same full protection as a library load/unload. After all, if, for example, the `DLL_THREAD_DETACH` event were only run under loader lock, that would create a risk of ABBA deadlock (between the `LdrpLoadCompleteEvent` and `LdrpLoaderLock` synchronization mechanisms) if someone tried loading a library from the `DLL_THREAD_DETACH` handler.
+
 When loading a library, loader work begins with the requesting thread calling `LdrpDrainWorkQueue` to perform mapping and snapping (i.e. both together is "processing"). By calling `LdrpDrainWorkQueue`, the thread requesting a library load agrees to become the load owner (`LoadOwner` flag in `TEB.SameTebFlags`). `LdrpDrainWorkQueue` increments `ntdll!LdrpWorkInProgress` and does the necessary mapping and snapping work, offloading this work to the parallel loader worker threads (`LoaderWorker` flag in `TEB.SameTebFlags`) whenever possible. Every increment to the `ntdll!LdrpWorkInProgress` reference counter past the initial increment from `0` to `1` by `LdrpDrainWorkQueue` indicates another loader worker thread processing a work item in parallel. While `ntdll!LdrpWorkInProgress` equals `1`, the last thing `LdrpDrainWorkQueue` does before returning is set the current thread as the load owner. With mapping and snapping complete, it's the load owner's job to fulfill the remainder of the loading process. The loader only uses the `ntdll!LdrpWorkQueue` linked list data structure for enqueuing mapping and snapping work to the work queue. For all other operations, the loader primarily relies on the `Dependencies` and `IncomingDependencies` module information DAG data structures to navigate modules. From `LdrpDrainWorkQueue` to `LdrpDropLastInProgressCount` (where `ntdll!LdrpWorkInProgress` is finally set to `0` and the current thread is decommissioned as the load owner) ties the entire loading process together. For more information, see the **[full reverse engineering of the `LdrpDrainWorkQueue` function](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#ldrpdrainworkqueue)**.
 
- <table summary="All LDR_DDAG_NODE.LDR_DDAG_STATE states, the function(s) responsible for each state change, and more information">
+<table summary="All LDR_DDAG_NODE.LDR_DDAG_STATE states, the function(s) responsible for each state change, and more information">
   <tr>
     <th>LDR_DDAG_STATE States</th>
     <th>State Changing Function(s)</th>
