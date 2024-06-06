@@ -358,7 +358,7 @@ The Windows loader, in contrast to the GNU loader (or Unix-like loaders in gener
     - Problematic [`GetModuleHandle` then `GetProcAddress` from `DllMain`](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#case-study) assuming a DLL is already loaded when it may not be yet or has only partially loaded (also generally, because the dependency graph won't pick up on a dynamic operation such as `GetModuleHandle` or `LoadLibrary`)
       - Nor POSIX or GNU loader extensions define a function like `GetModuleHandle`, instead only having `dlopen` due to the former function's inherent weaknesses
     - Poses a greater risk of an application performing an action that assumes `DLL_PROCESS_ATTACH` and `DLL_PROCESS_DETACH` always run on the same thread [when they may not](https://devblogs.microsoft.com/oldnewthing/20040127-00/?p=40873) (this is true of the GNU loader too, but Windows has a higher risk due to its architecture)
-  - In contrast, Unix-like systems prioritize processes and the idea that [everything is a file](https://en.wikipedia.org/wiki/Everything_is_a_file)
+  - In contrast, Unix-like systems prioritize processes, the idea that [everything is a file](https://en.wikipedia.org/wiki/Everything_is_a_file), and signals
     - GNU/Linux exposes all its core system functionality through a [single `libc` implementation library](https://en.wikipedia.org/wiki/Glibc#/media/File:Linux_kernel_System_Call_Interface_and_glibc.svg) (also including a separate `ld` loader library but [GNU is working on merging these into a *single library*](https://developers.redhat.com/articles/2021/12/17/why-glibc-234-removed-libpthread) similar to what musl has already done to improve performance)
 - Non-reentrant or thread-unsafe design
   - Notable Windows components like [CRT/DLL exit (`atexit`)](atexit) and [FLS callbacks](windows/fls-experiment.c) either weren't designed with reentrancy or thread safety in mind and may also run under loader lock (**Note:** These aren't part of the loader but they may integrate with it so the point stands)
@@ -801,7 +801,9 @@ On Windows, `LoadLibrary` returns an officially opaque `HMODULE`, which is imple
 
 In POSIX, [`dlopen` returns a symbol table handle](https://pubs.opengroup.org/onlinepubs/9699919799/functions/dlopen.html#tag_16_95_04). On my GNU/Linux system, this [handle points to the object's own `link_map`](https://elixir.bootlin.com/glibc/glibc-2.38/source/elf/dl-sym.c#L152) structure located in the heap. This handle is opaque, meaning you must not access the contents behind it directly (they could change between versions, and it's **implementation dependent**); instead, only pass this handle to other `dl*` functions.
 
-How cool is that? That's like if Windows serviced your `LoadLibrary` request by handing you back the module's `LDR_DATA_TABLE_ENTRY`!
+How cool is that? That's like if Windows serviced your `LoadLibrary` request by handing you back a pointer to the module's `LDR_DATA_TABLE_ENTRY`!
+
+Microsoft's reasoning for `LoadLibrary`'s return type would appear to be that [`LoadLibrary` doesn't always load a library in the traditional sense](https://devblogs.microsoft.com/oldnewthing/20141120-00/?p=43573).
 
 ## Investigating COM Server Deadlock from `DllMain`
 
@@ -835,16 +837,16 @@ Here's the deadlocked call stack showing that <code>NtAlpcSend<strong>Wait</stro
 02 00000080`f96fcec0 00007ffd`26c517c0     RPCRT4!NdrpSendReceive+0x97
 03 00000080`f96fcef0 00007ffd`26c524bf     RPCRT4!NdrpClientCall2+0x5d0
 04 00000080`f96fd510 00007ffd`28491ce5     RPCRT4!NdrClientCall2+0x1f
-05 (Inline Function) --------`--------     combase!ServerAllocateOXIDAndOIDs+0x73 [onecore\com\combase\idl\internal\daytona\objfre\amd64\lclor_c.c @ 313] 
-06 00000080`f96fd540 00007ffd`28491acd     combase!CRpcResolver::ServerRegisterOXID+0xd5 [onecore\com\combase\dcomrem\resolver.cxx @ 1056] 
-07 00000080`f96fd600 00007ffd`28494531     combase!OXIDEntry::RegisterOXIDAndOIDs+0x71 [onecore\com\combase\dcomrem\ipidtbl.cxx @ 1642] 
-08 (Inline Function) --------`--------     combase!OXIDEntry::AllocOIDs+0xc2 [onecore\com\combase\dcomrem\ipidtbl.cxx @ 1696] 
-09 00000080`f96fd710 00007ffd`2849438f     combase!CComApartment::CallTheResolver+0x14d [onecore\com\combase\dcomrem\aprtmnt.cxx @ 693] 
-0a 00000080`f96fd8c0 00007ffd`284abc2f     combase!CComApartment::InitRemoting+0x25b [onecore\com\combase\dcomrem\aprtmnt.cxx @ 991] 
-0b (Inline Function) --------`--------     combase!CComApartment::StartServer+0x52 [onecore\com\combase\dcomrem\aprtmnt.cxx @ 1214] 
-0c 00000080`f96fd930 00007ffd`2849c285     combase!InitChannelIfNecessary+0xbf [onecore\com\combase\dcomrem\channelb.cxx @ 1028] 
-0d 00000080`f96fd960 00007ffd`2849a644     combase!CGIPTable::RegisterInterfaceInGlobalHlp+0x61 [onecore\com\combase\dcomrem\giptbl.cxx @ 815] 
-0e 00000080`f96fda10 00007ffd`21b86399     combase!CGIPTable::RegisterInterfaceInGlobal+0x14 [onecore\com\combase\dcomrem\giptbl.cxx @ 776] 
+05 (Inline Function) --------`--------     combase!ServerAllocateOXIDAndOIDs+0x73 [onecore\com\combase\idl\internal\daytona\objfre\amd64\lclor_c.c @ 313]
+06 00000080`f96fd540 00007ffd`28491acd     combase!CRpcResolver::ServerRegisterOXID+0xd5 [onecore\com\combase\dcomrem\resolver.cxx @ 1056]
+07 00000080`f96fd600 00007ffd`28494531     combase!OXIDEntry::RegisterOXIDAndOIDs+0x71 [onecore\com\combase\dcomrem\ipidtbl.cxx @ 1642]
+08 (Inline Function) --------`--------     combase!OXIDEntry::AllocOIDs+0xc2 [onecore\com\combase\dcomrem\ipidtbl.cxx @ 1696]
+09 00000080`f96fd710 00007ffd`2849438f     combase!CComApartment::CallTheResolver+0x14d [onecore\com\combase\dcomrem\aprtmnt.cxx @ 693]
+0a 00000080`f96fd8c0 00007ffd`284abc2f     combase!CComApartment::InitRemoting+0x25b [onecore\com\combase\dcomrem\aprtmnt.cxx @ 991]
+0b (Inline Function) --------`--------     combase!CComApartment::StartServer+0x52 [onecore\com\combase\dcomrem\aprtmnt.cxx @ 1214]
+0c 00000080`f96fd930 00007ffd`2849c285     combase!InitChannelIfNecessary+0xbf [onecore\com\combase\dcomrem\channelb.cxx @ 1028]
+0d 00000080`f96fd960 00007ffd`2849a644     combase!CGIPTable::RegisterInterfaceInGlobalHlp+0x61 [onecore\com\combase\dcomrem\giptbl.cxx @ 815]
+0e 00000080`f96fda10 00007ffd`21b86399     combase!CGIPTable::RegisterInterfaceInGlobal+0x14 [onecore\com\combase\dcomrem\giptbl.cxx @ 776]
 0f 00000080`f96fda50 00007ffd`21b5adb3     PROPSYS!CApartmentLocalObject::_RegisterInterfaceInGIT+0x81
 10 00000080`f96fda90 00007ffd`21b842e6     PROPSYS!CApartmentLocalObject::_SetApartmentObject+0x7b
 11 00000080`f96fdac0 00007ffd`21b5c1fc     PROPSYS!CApartmentLocalObject::TrySetApartmentObject+0x4e
@@ -859,9 +861,9 @@ Here's the deadlocked call stack showing that <code>NtAlpcSend<strong>Wait</stro
 1a 00000080`f96feaf0 00007ffd`2417709c     windows_storage!CShellLink::LoadFromPathHelper+0x97
 1b 00000080`f96feb40 00007ffd`24177039     windows_storage!CShellLink::_LoadFromFile+0x48
 1c 00000080`f96febd0 00007ffd`21aa10e2     windows_storage!CShellLink::Load+0x29
-1d (Inline Function) --------`--------     TestDLL!ResolveIt+0x8c [C:\Users\user\source\repos\TestDLL\TestDLL\dllmain.cpp @ 110] 
-1e 00000080`f96fec00 00007ffd`21aa143b     TestDLL!DllMain+0xd2 [C:\Users\user\source\repos\TestDLL\TestDLL\dllmain.cpp @ 170] 
-1f 00000080`f96ff4f0 00007ffd`28929a1d     TestDLL!dllmain_dispatch+0x8f [d:\a01\_work\20\s\src\vctools\crt\vcstartup\src\startup\dll_dllmain.cpp @ 281] 
+1d (Inline Function) --------`--------     TestDLL!ResolveIt+0x8c [C:\Users\user\source\repos\TestDLL\TestDLL\dllmain.cpp @ 110]
+1e 00000080`f96fec00 00007ffd`21aa143b     TestDLL!DllMain+0xd2 [C:\Users\user\source\repos\TestDLL\TestDLL\dllmain.cpp @ 170]
+1f 00000080`f96ff4f0 00007ffd`28929a1d     TestDLL!dllmain_dispatch+0x8f [d:\a01\_work\20\s\src\vctools\crt\vcstartup\src\startup\dll_dllmain.cpp @ 281]
 20 00000080`f96ff550 00007ffd`2897c2c7     ntdll!LdrpCallInitRoutine+0x61
 21 00000080`f96ff5c0 00007ffd`2897c05a     ntdll!LdrpInitializeNode+0x1d3
 22 00000080`f96ff710 00007ffd`2894d947     ntdll!LdrpInitializeGraphRecurse+0x42
@@ -870,9 +872,9 @@ Here's the deadlocked call stack showing that <code>NtAlpcSend<strong>Wait</stro
 25 00000080`f96ff810 00007ffd`28926af4     ntdll!LdrpLoadDll+0xa8
 26 00000080`f96ff9c0 00007ffd`260156b2     ntdll!LdrLoadDll+0xe4
 27 00000080`f96ffab0 00007ff7`8fda1022     KERNELBASE!LoadLibraryExW+0x162
-28 00000080`f96ffb20 00007ff7`8fda1260     EmptyProject!main+0x12 [C:\Users\user\source\repos\EmptyProject\EmptyProject\source.c @ 82] 
-29 (Inline Function) --------`--------     EmptyProject!invoke_main+0x22 [d:\a01\_work\20\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl @ 78] 
-2a 00000080`f96ffb50 00007ffd`26f37344     EmptyProject!__scrt_common_main_seh+0x10c [d:\a01\_work\20\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl @ 288] 
+28 00000080`f96ffb20 00007ff7`8fda1260     TestProject!main+0x12 [C:\Users\user\source\repos\TestProject\TestProject\source.c @ 82]
+29 (Inline Function) --------`--------     TestProject!invoke_main+0x22 [d:\a01\_work\20\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl @ 78]
+2a 00000080`f96ffb50 00007ffd`26f37344     TestProject!__scrt_common_main_seh+0x10c [d:\a01\_work\20\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl @ 288]
 2b 00000080`f96ffb90 00007ffd`289626b1     KERNEL32!BaseThreadInitThunk+0x14
 2c 00000080`f96ffbc0 00000000`00000000     ntdll!RtlUserThreadStart+0x21
 ```
