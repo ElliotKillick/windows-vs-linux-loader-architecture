@@ -1110,6 +1110,8 @@ Parallelism and concurrency are related but different. Parallelism stipulates a 
 
 The modern Windows loader employs "loader worker" threads to parallelize its ["mapping" and "snapping"](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#ldr_ddag_nodestate-analysis) work because mapping requires making lots of slow CPU-bound system calls ([each user-mode thread corresponds to a kernel-mode thread](https://en.wikipedia.org/wiki/Thread_(computing)#1:1_(kernel-level_threading))) and snapping is a purely CPU-bound operation (not requiring any I/O) where the loader resolves export names to function addresses in a DLL. The Windows loader spawns these "loader worker" threads together in a thread pool at process startup, then it's the kernel's job to delegate which core of a multicore processor to run each thread on.
 
+Requiring a strict order of operations, such as when the loader runs module initialization and deinitialization routines because each module's code within these routines may depend on each other, makes concurrent or parallelized processing infeasible.
+
 ## Dining Philosophers Problem
 
 The dining philosophers problem is a classic scenario originally devised by Dijkstra to illustrate synchronization issues that occur in concurrent algorithms and how to resolve them. Here's the [problem statement](https://en.wikipedia.org/wiki/Dining_philosophers_problem#Problem_statement).
