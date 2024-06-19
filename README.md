@@ -298,7 +298,7 @@ Indeed, the Windows loader is an intricate and monolithic state machine. Its com
 - Load libraries
   - We set hardware (write) watchpoints on the `_dl_load_lock` and `_dl_load_write_lock` data, then load two libraries to check how often and where in the code these locks are acquired
   - See the [GDB log](load-library/gdb-log.html)
-- Loading a library from a global constructor (recursive loading)
+- Loading a library from a global constructor (recursive loading, i.e. reentering the loader)
   - Windows: ✔️
   - Linux: ✔️
 - Lazy/delay loading of a library import from a global constructor
@@ -348,7 +348,7 @@ The Windows loader, in contrast to the GNU loader (or Unix-like loaders in gener
   - Contrast this with the [Unix philosophy](https://en.wikipedia.org/wiki/Unix_philosophy), which encourages modularity
 - Windows architecture prioritizes [libraries that provide functionality](https://github.com/wine-mirror/wine/tree/master/dlls), [processes housing multiple threads](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#case-study-on-abba-deadlock-between-the-loader-lock-and-gdi-lock), and [local/remote procedure calls (LPC/RPC)](https://github.com/reactos/reactos/blob/f10d40f9122b926bf01b5409a6d3c3d9d06806c3/dll/win32/kernel32/client/dllmain.c#L138) over separate processes
   - Splitting the Windows API, C runtime, and lots of core system functionality across many DLLs (there are 3000+ DLLs in `C:\Windows\System32`) leaves more opportunities for actions done during library loading/unloading or initialization/deinitialization to go wrong
-  - Library loader initialization reentrancy issues
+  - Library loader reentrancy issues during module initialization
     - Microsoft mostly built the legacy loader to be reentrant, however, how it performed module initialization was subject to crashes or correctness issues due to the loader's poor ability to enforce the correct [order of operations when initializing modules](https://devblogs.microsoft.com/oldnewthing/20071213-00/?p=24183) or [even initializing modules at all](https://learn.microsoft.com/en-us/archive/blogs/mgrier/the-nt-dll-loader-dll_process_attach-reentrancy-step-2-getprocaddress) upon being reentered (**this issue was at the heart of the previous "`DllMain` Best Practices"**)
     - Microsoft introducing the (dynamic) dependency graph [starting with Windows 8](https://www.geoffchappell.com/studies/windows/km/ntoskrnl/inc/api/ntldr/ldr_ddag_node.htm) [*significantly* helps solve the module initialization problems](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#windows-loader-initialization-locking-requirements) such as when loading a library from `DllMain`, but there could potentially still be issues due to circular dependencies (["dependency loops"](https://learn.microsoft.com/en-us/windows/win32/dlls/dllmain#remarks))
    - The legacy loader effectively had a ["dependency graph"](https://learn.microsoft.com/en-us/archive/blogs/mgrier/the-nt-dll-loader-dll_process_attach-reentrancy-step-1-loadlibrary) (immediately collapsed into a linked list), however it was [only formed by walking the import address tables (IATs)](https://github.com/reactos/reactos/blob/513f3d179cff234821c359db034409e94a278320/dll/ntdll/ldr/ldrpe.c#L369) at the start of a load and [wasn't able to readjust dynamically](https://github.com/reactos/reactos/blob/513f3d179cff234821c359db034409e94a278320/dll/ntdll/ldr/ldrinit.c#L694) to the reentrant case of someone calling `LoadLibrary` from `DllMain`
@@ -644,7 +644,7 @@ In the legacy loader, when `GetProcAddress` internally resolves an exported proc
 
 In the ReactOS code for `LdrpGetProcedureAddress`, we see this happen:
 
-```C
+```c
     /* Acquire lock unless we are initing */
     /* MY COMMENT: This refers to the loader initing; ignore this for now */
     if (!LdrpInLdrInit) RtlEnterCriticalSection(&LdrpLoaderLock);
@@ -687,7 +687,7 @@ In the ReactOS code for `LdrpGetProcedureAddress`, we see this happen:
 
 Now, let's see how the modern Windows loader handles performing module initialization. In `LdrGetProcedureAddressForCaller`, there's an instance where module initialization may occur without `LdrGetProcedureAddressForCaller` itself acquiring loader lock (what follows is a marked-up IDA decompilation):
 
-```C
+```c
 ...
         ReturnValue = LdrpResolveProcedureAddress(
                         (unsigned int)v24,
@@ -732,7 +732,7 @@ On Windows, loader initialization includes initialization of the process, as wel
 
 Reading the ReactOS `LdrGetProcedureAddressForCaller` code, we see this line of code:
 
-```C
+```c
 /* Acquire lock unless we are initing */
 /* MY COMMENT: This refers to the loader initing */
 if (!LdrpInLdrInit) RtlEnterCriticalSection(&LdrpLoaderLock);
@@ -946,7 +946,7 @@ A work item refers to one `LDRP_LOAD_CONTEXT` entry (undocumented structure) in 
 
 When the loader sets the `LdrpLoadCompleteEvent` event, it's signalling that the loader is reemerging from completing all mapping and snapping work for the **entire** work queue. When this occurs, it directly correlates with `LdrpWorkInProgress` equalling zero and the decommissioning of the current thread as the load owner (`LoadOwner` flag in `TEB.SameTebFlags`). Here's a minimal reverse engineering of the `ntdll!LdrpDropLastInProgressCount` function showing this:
 
-```C
+```c
 NTSTATUS LdrpDropLastInProgressCount()
 {
     // Remove thread's load owner flag
@@ -965,7 +965,7 @@ NTSTATUS LdrpDropLastInProgressCount()
 
 When the loader sets the `LdrpWorkCompleteEvent` event, it's signalling that the loader has completed the mapping and snapping work on the entire work queue including across all of the currently processing loader worker (`LoaderWorker` flag in `TEB.SameTebFlags`) threads. Here's a minimal reverse engineering of where the `ntdll!LdrpProcessWork` function returns showing this:
 
-```C
+```c
    // Second argument of LdrpProcessWork: isCurrentThreadLoadOwner
    // If the current thread is a loader worker (i.e. not a load owner)
    if (!isCurrentThreadLoadOwner)
@@ -1129,14 +1129,14 @@ Anyone who's learned about concurrency throughout their computer science program
 `LdrpDrainWorkQueue` is the high-level mapping and snapping function. It's frequently called all throughout the loader, so I made reversing it my priority. See the [LdrpDrainWorkQueue and LdrpProcessWork](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#ldrpdrainworkqueue-and-ldrpprocesswork) and [`LdrpLoadCompleteEvent` and `LdrpWorkCompleteEvent`](#ldrploadcompleteevent-and-ldrpworkcompleteevent) sections for more information on this function. For context on how the `LdrpDrainWorkQueue` function fits in with the rest of the loader, see the [`LDR_DDAG_NODE.State` Analysis](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#ldr_ddag_nodestate-analysis) section.
 
 
-```C
+```c
 // Variable names are my own
 
 // The caller decides whether it wants LdrpDrainWorkQueue to synchronize on an entire load completing (i.e. setting ntdll!LdrpWorkInProgress to 0 and decommissioning of the current thread as the load owner) or mapping and snapping work completing (i.e. processing all the work in the work queue)
 // Typically, this decision depends on the whether or not the current thread is already the load owner (see: ntdll!LdrpLoadDllInternal function)
 // For instance, if this is a recursive load then the current thread will already be the load owner
 // In that scenario, LdrpLoadDllInternal will synchronize LdrpDrainWorkQueue on an item from the work queue completing its mapping and snapping work
-struct PTEB __fastcall LdrpDrainWorkQueue(BOOL SynchronizeOnWorkCompletion)
+struct PTEB LdrpDrainWorkQueue(BOOL isRecursiveLoad)
 {
     HANDLE EventHandle;
     BOOL CompleteRetryOrReturn;
@@ -1147,11 +1147,9 @@ struct PTEB __fastcall LdrpDrainWorkQueue(BOOL SynchronizeOnWorkCompletion)
     PLIST_ENTRY LdrpRetryQueueEntry;
     PLIST_ENTRY LdrpRetryQueueBlink;
 
-    EventHandle = (HANDLE)LdrpWorkCompleteEvent;
     CompleteRetryOrReturn = FALSE
 
-    if ( !SynchronizeOnWorkCompletion )
-        EventHandle = LdrpLoadCompleteEvent;
+    EventHandle = (!isRecursiveLoad) ? LdrpLoadCompleteEvent : LdrpWorkCompleteEvent;
 
     while ( TRUE )
     {
@@ -1160,7 +1158,7 @@ struct PTEB __fastcall LdrpDrainWorkQueue(BOOL SynchronizeOnWorkCompletion)
             RtlEnterCriticalSection(&LdrpWorkQueueLock);
             // LdrpDetourExists relates to LdrpCriticalLoaderFunctions; see this document's section on that
             LdrpDetourExistAtStart = LdrpDetourExist;
-            if ( !LdrpDetourExist || SynchronizeOnWorkCompletion == TRUE )
+            if ( !LdrpDetourExist || isRecursiveLoad == TRUE )
             {
                 LdrpWorkQueueEntry = &LdrpWorkQueue;
                 // Corruption check on LdrpWorkQueue list: https://www.alex-ionescu.com/new-security-assertions-in-windows-8/
@@ -1168,13 +1166,13 @@ struct PTEB __fastcall LdrpDrainWorkQueue(BOOL SynchronizeOnWorkCompletion)
                 // Get LdrpWorkQueue list head blink to get the last entry in the circular list
                 LdrpWorkQueueEntry = LdrpWorkQueue.Blink;
 
-                if (&LdrpWorkQueue == LdrpWorkQueueEntry) {
-                    if (LdrpWorkInProgress == SynchronizeOnWorkCompletion) {
+                if ( &LdrpWorkQueue == LdrpWorkQueueEntry ) {
+                    if ( LdrpWorkInProgress == isRecursiveLoad ) {
                         LdrpWorkInProgress = 1;
                         CompleteRetryOrReturn = 1;
                     }
                 } else {
-                    if (!LdrpDetourExistAtStart)
+                    if ( !LdrpDetourExistAtStart )
                         ++LdrpWorkInProgress;
                     // LdrpUpdateStatistics is a very small function with one branch on whether we're a loader worker thread
                     LdrpUpdateStatistics();
@@ -1182,7 +1180,7 @@ struct PTEB __fastcall LdrpDrainWorkQueue(BOOL SynchronizeOnWorkCompletion)
             }
             else
             {
-                if ( LdrpWorkInProgress == SynchronizeOnWorkCompletion ) {
+                if ( LdrpWorkInProgress == isRecursiveLoad ) {
                     LdrpWorkInProgress = 1;
                     CompleteRetryOrReturn = TRUE;
                 }
@@ -1207,14 +1205,14 @@ struct PTEB __fastcall LdrpDrainWorkQueue(BOOL SynchronizeOnWorkCompletion)
             }
         }
 
-        // Test if not SynchronizeOnWorkCompletion OR LdrpRetryQueue is empty
+        // Test if not isRecursiveLoad OR LdrpRetryQueue is empty
         //
         // WinDbg disassembly (IDA disassembly with "cs:" and decompilation is poor here):
         // lea     rbx, [ntdll!LdrpRetryQueue (7ffb5bebc3a0)]
         // cmp     qword ptr [ntdll!LdrpRetryQueue (7ffb5bebc3a0)], rbx
         // je      ntdll!LdrpDrainWorkQueue+0xb1 (7ffb5bdaea85)
         // https://stackoverflow.com/a/68702967
-        if ( !SynchronizeOnWorkCompletion || &LdrpRetryQueue == LdrpRetryQueue.Flink )
+        if ( !isRecursiveLoad || &LdrpRetryQueue == LdrpRetryQueue.Flink )
             break;
 
         RtlEnterCriticalSection(&LdrpWorkQueueLock);
@@ -1265,7 +1263,7 @@ struct PTEB __fastcall LdrpDrainWorkQueue(BOOL SynchronizeOnWorkCompletion)
 
 Reversing `LdrpDecrementModuleLoadCountEx` was necessary for my investigation on [how `GetProcAddress` handles concurrent library unload](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#how-does-getprocaddressdlsym-handle-concurrent-library-unload).
 
-```C
+```c
 NTSTATUS LdrpDecrementModuleLoadCountEx(LDR_DATA_TABLE_ENTRY Entry, BOOL DontCompleteUnload)
 {
     LDR_DDAG_NODE Node;
