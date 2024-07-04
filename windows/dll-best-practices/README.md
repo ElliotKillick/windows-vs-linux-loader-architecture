@@ -6,4 +6,4 @@ The "DLL Best Practices" document was created by the [product manager (PM)](http
 
 **Note:** This old document states the following about loader lock: "Any function that must read or modify the per-process library-loader data structures must acquire this lock before performing such an operation" (in addition to protecting module initialization/deinitialization). This fact was only true of the legacy Windows loader (e.g. see ReactOS code based on the reverse engineered Windows Server 2003 loader). The modern Windows loader protects library-loader data structures using the `LdrpModuleDatatableLock` lock.
 
-[Current official Microsoft download.](https://download.microsoft.com/download/a/f/7/af7777e5-7dcd-4800-8a0a-b18336565f5b/DLL_bestprac.doc). [Legacy download page archived.](https://web.archive.org/web/20101029013644/http://www.microsoft.com/whdc/driver/kernel/DLL_bestprac.mspx)
+[Current official Microsoft download.](https://download.microsoft.com/download/a/f/7/af7777e5-7dcd-4800-8a0a-b18336565f5b/DLL_bestprac.doc) [Legacy download page archived.](https://web.archive.org/web/20101029013644/http://www.microsoft.com/whdc/driver/kernel/DLL_bestprac.mspx)
