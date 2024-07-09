@@ -7,12 +7,12 @@ The loader is a vital part of any operating system. It's responsible for loading
 The intentions of this document are to:
 
 1. Compare the Windows, Linux, and sometimes MacOS loaders
-  - Provide perspective on architectural and ecosystem differences as well as how they coincide with the loader
-  - Including experiments on how flexible or rigid they are with what can safely be done during module initialization and deinitialization (with the loader's internal locks held)
+    - Provide perspective on architectural and ecosystem differences as well as how they coincide with the loader
+    - Including experiments on how flexible or rigid they are with what can safely be done during module initialization and deinitialization (with the loader's internal locks held)
 2. Formally document how the modern Windows loader supports [concurrency](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#what-is-concurrency-and-parallelism)
-  - Current open source Windows implementations, including Wine and ReactOS, perform locking similar to the legacy Windows loader (they presently don't support the "parallel loading" ability present in a modern Windows loader)
+    - Current open source Windows implementations, including Wine and ReactOS, perform locking similar to the legacy Windows loader (they presently don't support the "parallel loading" ability present in a modern Windows loader)
 3. Educate, satisfy curiosity, and help fellow reverse engineers
-  - If you're looking for information on anything in particular, just give this document a `CTRL+F`
+    - If you're looking for information on anything in particular, just give this document a `CTRL+F`
 
 All of the information contained here covers Windows 10 22H2 and glibc 2.38. Some sections of this document also touch on the MacOS loader.
 
