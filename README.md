@@ -133,15 +133,15 @@ Linux (GNU loader) `_dl_load_lock`
   - Since `_dl_load_lock` protects the entire library loading/unloading process from beginning to end, the closest modern Windows loader equivalent synchronization mechanism would be the `LdrpLoadCompleteEvent` loader event (this is when the soon-to-be load owner thread [increments ntdll!LdrpWorkInProgress from 0 to 1](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#ldr_ddag_nodestate-analysis)) combined with holding the `ntdll!LdrpLoaderLock` lock
 
 Linux (GNU loader) [`_ns_unique_sym_table.lock`](https://elixir.bootlin.com/glibc/glibc-2.38/source/elf/rtld.c#L337)
-  - This is a per-namespace lock for protecting that namespace's **unique** (`GNU_STB_UNIQUE`) symbol hash table
-  - `GNU_STB_UNIQUE` symbols are a type of symbol that a module can expose; they are considered a misfeature of the GNU loader
-  - As standardized by the ELF executable format, the GNU loader uses a per-module statically allocated (at compile time) symbol table for locating symbols within a module (`.so` shared object file); however, the `_ns_unique_sym_table.lock` lock protects a separate dynamically allocated hash table specially for `GNU_STB_UNIQUE` symbols
+  - This is a per-namespace lock for protecting that namespace's **unique** (`STB_GNU_UNIQUE`) symbol hash table
+  - `STB_GNU_UNIQUE` symbols are a type of symbol that a module can expose; they are considered a misfeature of the GNU loader
+  - As standardized by the ELF executable format, the GNU loader uses a per-module statically allocated (at compile time) symbol table for locating symbols within a module (`.so` shared object file); however, the `_ns_unique_sym_table.lock` lock protects a separate dynamically allocated hash table specially for `STB_GNU_UNIQUE` symbols
     - See the [Procedure/Symbol Lookup Comparison (Windows `GetProcAddress` vs POSIX `dlsym` GNU Implementation)](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#proceduresymbol-lookup-comparison-windows-getprocaddress-vs-posix-dlsym-gnu-implementation) section for more info on how the GNU loader typically locates symbols
     - In Windows terminology, the closest approximation to a symbol would be a DLL's function exports (there's no mention of the word "export" in the `objdump` manual)
   - You can use `objdump -t` to dump all the symbols, including unique symbols, of an ELF file
     - `objdump -t` displays unique global symbols (as the manual references them) with the `u` flag character
-  - Internally, the call chain for looking up a `GNU_STB_UNIQUE` symbol starting with `dlsym` goes `dlsym` ➜ `dl_lookup_symbol_x` ➜ `do_lookup_x` ➜ `do_lookup_unique` where finally, `_ns_unique_sym_table.lock` is acquired
-  - For more info on `GNU_STB_UNIQUE` symbols, see the [`GNU_STB_UNIQUE` section](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#elf-flat-symbol-namespace-gnu-namespaces-and-stb_gnu_unique)
+  - Internally, the call chain for looking up a `STB_GNU_UNIQUE` symbol starting with `dlsym` goes `dlsym` ➜ `dl_lookup_symbol_x` ➜ `do_lookup_x` ➜ `do_lookup_unique` where finally, `_ns_unique_sym_table.lock` is acquired
+  - For more info on `STB_GNU_UNIQUE` symbols, see the [`STB_GNU_UNIQUE` section](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#elf-flat-symbol-namespace-gnu-namespaces-and-stb_gnu_unique)
 
 This is where the [loader's locks](https://elixir.bootlin.com/glibc/glibc-2.38/source/elf/dl-support.c#L215) end for the GNU loader on Linux. Other than that, there's only a lock specific to thread-local storage (TLS) if your module uses that, as well as [global scope (GSCOPE) locking](https://github.com/ElliotKillick/windows-vs-linux-loader-architecture#lazy-linking-synchronization).
 
