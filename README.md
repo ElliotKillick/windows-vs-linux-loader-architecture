@@ -2,7 +2,7 @@
 
 This repo was released in conjunction with an article on ["What is Loader Lock?"](https://elliotonsecurity.com/what-is-loader-lock).
 
-The loader is a vital part of any operating system. It's responsible for loading programs and libraries into a process' address space and is the first component to run code when a process starts. Starting a process includes tasks like initializing critical data structures, loading dependencies, and running the program.
+The loader is a vital part of any operating system. It's responsible for loading executable modules into a process' address space and is the first component to run code when a process starts. Starting a process includes tasks like initializing critical data structures, loading dependencies, and running the program.
 
 The intentions of this document are to:
 
