@@ -12,7 +12,7 @@ The intentions of this document are to:
 2. Formally document how the modern Windows loader supports [concurrency](#what-is-concurrency-and-parallelism)
     - Current open source Windows implementations, including Wine and ReactOS, perform locking similar to the legacy Windows loader (they presently don't support the "parallel loading" ability present in a modern Windows loader)
 3. Educate, satisfy curiosity, and help fellow reverse engineers
-    - If you're looking for information on anything in particular, just give this document a `CTRL+F`
+    - If you're looking for information on anything in particular, just give this document a <kbd>Ctrl</kbd> + <kbd>F</kbd> or <kbd>⌘</kbd> + <kbd>F</kbd>
 
 All of the information contained here covers Windows 10 22H2 and glibc 2.38. Some sections of this document also touch on the MacOS loader.
 
