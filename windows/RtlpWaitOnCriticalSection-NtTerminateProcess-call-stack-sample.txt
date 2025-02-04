@@ -1,0 +1,22 @@
+Abandoned critical section: KERNELBASE!wil::details::g_featureStateManager+b0
+
+0:000> k
+ # Child-SP          RetAddr               Call Site
+00 0000001c`5f0ff468 00007ff9`db3b3671     ntdll!NtTerminateProcess+0x14
+01 0000001c`5f0ff470 00007ff9`db37fcb4     ntdll!RtlpWaitOnCriticalSection+0x221
+02 0000001c`5f0ff550 00007ff9`db37fae2     ntdll!RtlpEnterCriticalSectionContended+0x1c4
+03 0000001c`5f0ff5b0 00007ff9`d8ddbec8     ntdll!RtlEnterCriticalSection+0x42
+04 0000001c`5f0ff5e0 00007ff9`d8ddc1dc     KERNELBASE!wil::details_abi::SubscriptionList::Unsubscribe+0x1c
+05 0000001c`5f0ff630 00007ff9`d8ddc889     KERNELBASE!wil::details::WilApiImpl_UnsubscribeFeatureStateChangeNotification+0x4c
+06 0000001c`5f0ff660 00007ff9`d8d570f2     KERNELBASE!wil_UninitializeFeatureStagingUsageReporting+0x15
+07 0000001c`5f0ff690 00007ff9`d8d56879     KERNELBASE!WilInitialize+0x102
+08 0000001c`5f0ff6c0 00007ff9`db369a1d     KERNELBASE!KernelBaseDllInitialize+0xc9
+09 0000001c`5f0ff6f0 00007ff9`db3adcda     ntdll!LdrpCallInitRoutine+0x61
+0a 0000001c`5f0ff760 00007ff9`db3ada8d     ntdll!LdrShutdownProcess+0x22a
+0b 0000001c`5f0ff870 00007ff9`daabe3bb     ntdll!RtlExitUserProcess+0xad
+0c 0000001c`5f0ff8a0 00007ff9`d8c605bc     KERNEL32!ExitProcessImplementation+0xb
+0d 0000001c`5f0ff8d0 00007ff9`d8c6045f     ucrtbase!exit_or_terminate_process+0x44
+0e 0000001c`5f0ff900 00007ff6`ed6d12a7     ucrtbase!common_exit+0x6f
+0f 0000001c`5f0ff950 00007ff9`daab7344     ConsoleApplication2!__scrt_common_main_seh+0x173 [d:\a01\_work\20\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl @ 295] 
+10 0000001c`5f0ff990 00007ff9`db3a26b1     KERNEL32!BaseThreadInitThunk+0x14
+11 0000001c`5f0ff9c0 00000000`00000000     ntdll!RtlUserThreadStart+0x21

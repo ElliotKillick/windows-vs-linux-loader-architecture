@@ -4,7 +4,7 @@
 
 void* thread()
 {
-    puts("Thread started from library constructor!\n");
+    puts("Thread started from library constructor!");
 
     // Load lib2 from thread spawned by lib1 constructor
     dlopen("lib2.so", RTLD_LAZY);
@@ -14,7 +14,7 @@ void* thread()
 
 __attribute__((constructor))
 void func() {
-    puts("Library 1 loaded successfully!\n");
+    puts("Library 1 loaded successfully!");
 
     pthread_t thread1;
     pthread_create(&thread1, NULL, &thread, NULL);

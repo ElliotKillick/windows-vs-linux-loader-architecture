@@ -2,5 +2,5 @@
 
 __attribute__((constructor))
 void func() {
-    puts("Library 2 loaded successfully!\n");
+    puts("Library 2 loaded successfully!");
 }

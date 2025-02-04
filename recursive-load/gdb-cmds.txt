@@ -7,7 +7,7 @@ break rtld_lock_default_unlock_recursive
 continue
 print _rtld_global._dl_load_lock
 print _rtld_global._dl_load_lock.mutex.__data.__count
-# ^ This count increases/decreases with every loader lock/unlock
+# ^ This count increments/decrements with every loader lock/unlock
 x/5i rtld_lock_default_lock_recursive
 print lock
 # ^ "lock" is a local variable to this function

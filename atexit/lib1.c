@@ -3,12 +3,12 @@
 #include <dlfcn.h>
 
 void func1() {
-    puts("Running atexit handler of library 1!\n");
+    puts("Running atexit handler of library 1!");
     asm("int3");
 }
 
 __attribute__((constructor))
 void init() {
-    puts("Library 1 loaded successfully!\n");
+    puts("Library 1 loaded successfully!");
     atexit(func1);
 }

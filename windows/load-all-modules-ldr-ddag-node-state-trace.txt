@@ -1,6 +1,6 @@
 This log is taken from opening a fresh Chrome instance, and then doing Ctrl+P (open print dialog) to load many more libraries.
-It's from a physical system because I was experiencing a WinDbg bug on my VM where Chrome wouldn't start under WinDbg. Although, I tested again and can no longer reproduce the issue.
-As a result, you will see some DLLs from FireEye (umppcXXXXX.dll), BeyondTrust (PGHook.dll), and more injecting into the process through APC or spawning a thread. I figure it only makes the trace more complete.
+It's from a physical system, my work laptop, because I was experiencing a WinDbg bug on my VM where Chrome wouldn't start under WinDbg. Although, I tested again and can no longer reproduce the issue.
+As a result, you will see DLLs from FireEye (umppcXXXXX.dll) and BeyondTrust (PGHook.dll) injecting into the process through APC. The Pharos Systems Print Scout profiler (AppProfiler.x64.dll), which found its way into the process by the vendor's kernel-mode driver spawning a thread into arbitrary user-mode processes to load its DLL (this injected thread does COM and a whole bunch of stuff without regard to process lifetime). I figure it only makes the trace more complete.
 
 Microsoft (R) Windows Debugger Version 10.0.25921.1001 AMD64
 Copyright (c) Microsoft Corporation. All rights reserved.

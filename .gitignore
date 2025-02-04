@@ -1,3 +1,11 @@
 main
+*.out
 *.so
+*.exe
+*.dll
+*.obj
+*.ilk
+*.lib
+*.exp
+*.pdb
 *.sw*

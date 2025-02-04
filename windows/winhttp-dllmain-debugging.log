@@ -1,0 +1,254 @@
+// Sending a WinHTTP requiest fails with error ERROR_INVALID_STATE during WinHttpSendRequest
+// The WebIO DLL uses a module two-phase initialization (sometimes also known as late or lazy initialization) hack (happens outside of DllMain) and it checks loader lock to verify its not in some other DLL's DllMain before proceeding
+// Two-phase initialization initialization call chain: WINHTTP!WINHTTP_DLL::GetWebIOApiHandle -> webio!WebInitialize -> webio!WapInitialize -> webio!WaIncrementDllInitializationCount -> webio!WapInitializeDll
+// As we can see, safely using the WebIO DLL requires getting an API handle to it (before calling any of its other DLL exports), then the DLL reference counts its own API handles and checks for initialization, initializing if required (on top of the reference counting and initializtion already done by the native loader on the same DLL, so double reference counting).
+//
+// The webio!WapInitialize function calls webio!WapIsLoaderLockHeld (see the trace). If loader lock is not held, then DLL initialization proceeds with webio!WapInitialize calling webio!WaIncrementDllInitializationCount -> webio!WapInitializeDll.
+//
+// Investigating webio!WapInitializeDll reveals these actions:
+// 1. Acquires external locks (e.g. when webio!WapInitializeDll calls webio!WaInitializeConnections -> ws2_32!WSAStartup)
+//   - I've confirmed by looking at the decompilation of WSAStartup in ws2_32.dll that this function broadly acquires a critical section lock in the .data section of ws2_32.dll (so, this lock is external to the loader/NTDLL)
+//   - This trace in particular demonstrates the loader being forced to the bottom of a lock hierachy because the WINHTTP!WINHTTP_GLOBALS::GetWebIOApiHandle function acquires a lock (ntdll!RtlEnterCriticalSection), delay loads webio.dll (see "ModLoad" message), then that function releases the lock after the library is done loading
+// 2. Sets up and possibly uses a thread pool (e.g. when webio!WapInitializeDll calls webio!WaInitializeUtil -> webio!WaInitializeThreadPoolModule -> KERNEL32!CreateThreadpoolCleanupGroup OR when webio!WapInitializeDll calls webio!WaInitializeUtil -> WapInitializeTwTimerModule -> webio!WaCreateTimer -> KERNEL32!CreateThreadpoolTimer OR when webio!WapInitializeDll calls webio!WaInitializeUtil -> webio!WapInitializeNetworkChange -> webio!WxRegisterForNetworkChangeNotification -> webio!StartGlobalNetworkChangeMonitor -> webio!NetworkChangeMonitor::Startup -> webio!NetworkChangeMonitor::OnDemandNotificationHandler -> webio!NetworkChangeMonitor::OnChangeNotification -> webio!QueueRefCountWorkItem -> KERNEL32!QueueUserWorkItem)
+//  - NOTE: The WebIO DLL uses the legacy QueueUserWorkItem function to add work items to *the* process-wide shared Windows thread pool instead of creating its own thread pool with CreateThreadpool: https://learn.microsoft.com/en-us/windows/win32/api/threadpoollegacyapiset/nf-threadpoollegacyapiset-queueuserworkitem
+//  - If this DLL is indeed "a DLL that creates worker threads as part of its initialization" then thread cleanup difficulty on the other side from DLL_PROCESS_DETACH could come into play: https://learn.microsoft.com/en-us/windows/win32/dlls/dynamic-link-library-best-practices#best-practices-for-synchronization
+//    - Although, this issue is somewhat solved now (albeit with added performance overhead from thread reference counting, thread startup and exit, library load and free thrashing, load/loader lock due to DLL thread rountines, as well as assuming you're willing to program directly for the Windows API instead of in cross-platform C/C++) because newer Windows versions (starting with Windows XP) include the FreeLibraryAndExitThread function. FreeLibraryAndExitThread is run from the worker thread and works by synchronizing thread exit and library unload with the requesting thread's wait on the thread object (likely after efficently doing some other work in the interim), at which point requested work is returned. This is the the preferred pattern for thread cleanup instead of your DLL trying to wait for threads to exit in DLL_PROCESS_DETACH: https://devblogs.microsoft.com/oldnewthing/20131105-00/?p=2733
+//      - I say somewhat solved because this solution still means a DLL cannot cleanup its own threads, which is pretty sad
+//      - Two-phase initialization is broken because this solution does not scale at the module scope; if every subsystem did two-phase initialization then which, out of the countless subsystems, does the application initialize first and who is at the top of the lock hierarchy (there can only be one)? Module initializers and deinitializers exist for a reason, of course.
+//        - Two-phase initialization is also against the C++ Core Guidelines: https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#nr5-dont-use-two-phase-initialization
+//      - Windows seems to almost never follow the FreeLibraryAndExitThread pattern internally because it opts to keep threads alive for performance reasons, at least until a given timer runs out, at which point they typically spin themselves down (without regard to process lifecycle)
+//        - Except for one case I found when breaking on KERNELBASE!FreeLibraryExitThread while attached to explorer.exe; however, in that case I noticed the library being freed is not actually being unloaded but rather just having its reference counte decremented since it is already required by a module in the process (so, there is no library load/unload thrashing in this case)
+// 3. May load a library (e.g. when webio!WapInitializeDll calls webio!WaInitializeHttpLibrary -> P2pInitializeInternal -> P2P_PEER_DIST_API::LoadPeerDist -> KERNEL32!LoadLibraryExW)
+//
+// Therefore, the root architectural causes for this initialization hack is a combination of tightly coupled Windows DLLs, delay loading causing library loading to occur at any point in execution thereby allowing DLL_PROCESS_ATTACH to disrupt lock hierarchies, and DLL_THREAD_ATTACH integrating the threading implementation with the loader. Also, perhaps an overreliance on dynamic initalization by Windows.
+//
+// Code: https://learn.microsoft.com/en-us/windows/win32/winhttp/winhttp-sessions-overview#downloading-resources-from-the-web
+
+0:000> wt -i ntdll -oR
+   10     0 [  0] TestDLL!DllMain
+   38     0 [  1]   WINHTTP!WinHttpSendRequest
+   16     0 [  2]     WINHTTP!HANDLE_OBJECT::IsValid rax = 0
+  134    16 [  1]   WINHTTP!WinHttpSendRequest
+   16     0 [  2]     ntdll!EtwEventActivityIdControl rax = 0
+  151    32 [  1]   WINHTTP!WinHttpSendRequest
+   14     0 [  2]     ntdll!EtwEventActivityIdControl rax = 0
+  164    46 [  1]   WINHTTP!WinHttpSendRequest
+   16     0 [  2]     WINHTTP!HANDLE_OBJECT::IsValid rax = 0
+  206    62 [  1]   WINHTTP!WinHttpSendRequest
+   16     0 [  2]     WINHTTP!HANDLE_OBJECT::IsValid rax = 0
+  239    78 [  1]   WINHTTP!WinHttpSendRequest
+   13     0 [  2]     WINHTTP!HANDLE_OBJECT::IsValid
+    1     0 [  3]       WINHTTP!guard_dispatch_icall_nop
+    2     0 [  3]       WINHTTP!HTTP_REQUEST_HANDLE_OBJECT::GetHandleType rax = 71655248
+   21     3 [  2]     WINHTTP!HANDLE_OBJECT::IsValid rax = 0
+  253   102 [  1]   WINHTTP!WinHttpSendRequest
+   50     0 [  2]     WINHTTP!HTTP_REQUEST_HANDLE_OBJECT::InitBeginSendRequest
+   10     0 [  3]       ntdll!RtlEnterCriticalSection rax = 0
+   60    10 [  2]     WINHTTP!HTTP_REQUEST_HANDLE_OBJECT::InitBeginSendRequest
+   19     0 [  3]       ntdll!RtlLeaveCriticalSection rax = 0
+   75    29 [  2]     WINHTTP!HTTP_REQUEST_HANDLE_OBJECT::InitBeginSendRequest
+   17     0 [  3]       WINHTTP!CWebIORequestHeadersShim::SetHeader
+   10     0 [  4]         ntdll!RtlEnterCriticalSection rax = 0
+   20    10 [  3]       WINHTTP!CWebIORequestHeadersShim::SetHeader
+   11     0 [  4]         ntdll!RtlEnterCriticalSection rax = 0
+   43    21 [  3]       WINHTTP!CWebIORequestHeadersShim::SetHeader
+    1     0 [  4]         WINHTTP!memset
+   14     0 [  4]         ucrtbase!memset rax = 0
+   47    36 [  3]       WINHTTP!CWebIORequestHeadersShim::SetHeader
+   13     0 [  4]         ntdll!RtlLeaveCriticalSection rax = 0
+   54    49 [  3]       WINHTTP!CWebIORequestHeadersShim::SetHeader
+    1     0 [  4]         WINHTTP!operator new[]
+    4     0 [  4]         WINHTTP!operator new
+   22     0 [  4]         ntdll!RtlAllocateHeap
+   95     0 [  4]         ntdll!RtlpAllocateHeapInternal rax = 000002e0`e9814220
+   65   171 [  3]       WINHTTP!CWebIORequestHeadersShim::SetHeader
+    1     0 [  4]         WINHTTP!memcpy
+   14     0 [  4]         ucrtbase!memcpy rax = 000002e0`e9814220
+   71   186 [  3]       WINHTTP!CWebIORequestHeadersShim::SetHeader
+    1     0 [  4]         WINHTTP!memcpy
+   12     0 [  4]         ucrtbase!memcpy rax = 000002e0`e981422b
+   78   199 [  3]       WINHTTP!CWebIORequestHeadersShim::SetHeader
+   16     0 [  4]         WINHTTP!CWebIORequestHeadersShim::_ExpandHeaderBuffer
+   18     0 [  5]           WINHTTP!CArray<_WEB_HTTP_HEADER,unsigned long>::SetSize
+    1     0 [  6]             WINHTTP!operator new[]
+    4     0 [  6]             WINHTTP!operator new
+   22     0 [  6]             ntdll!RtlAllocateHeap
+   95     0 [  6]             ntdll!RtlpAllocateHeapInternal rax = 000002e0`e98205f0
+   29   122 [  5]           WINHTTP!CArray<_WEB_HTTP_HEADER,unsigned long>::SetSize
+    1     0 [  6]             WINHTTP!memcpy
+   10     0 [  6]             ucrtbase!memcpy rax = 000002e0`e98205f0
+   39   133 [  5]           WINHTTP!CArray<_WEB_HTTP_HEADER,unsigned long>::SetSize
+    1     0 [  6]             WINHTTP!memset
+   12     0 [  6]             ucrtbase!memset
+  263     0 [  6]             ucrtbase!memset_repmovs rax = 000002e0`e98205f0
+   50   409 [  5]           WINHTTP!CArray<_WEB_HTTP_HEADER,unsigned long>::SetSize rax = 0
+   30   459 [  4]         WINHTTP!CWebIORequestHeadersShim::_ExpandHeaderBuffer
+    1     0 [  5]           WINHTTP!memset
+   12     0 [  5]           ucrtbase!memset
+  263     0 [  5]           ucrtbase!memset_repmovs rax = 000002e0`e98205f0
+   38   735 [  4]         WINHTTP!CWebIORequestHeadersShim::_ExpandHeaderBuffer rax = 0
+   93   972 [  3]       WINHTTP!CWebIORequestHeadersShim::SetHeader
+   19     0 [  4]         ntdll!RtlLeaveCriticalSection rax = 0
+  106   991 [  3]       WINHTTP!CWebIORequestHeadersShim::SetHeader rax = 0
+   92  1126 [  2]     WINHTTP!HTTP_REQUEST_HANDLE_OBJECT::InitBeginSendRequest
+   10     0 [  3]       ntdll!RtlEnterCriticalSection rax = 0
+  148  1136 [  2]     WINHTTP!HTTP_REQUEST_HANDLE_OBJECT::InitBeginSendRequest
+   19     0 [  3]       ntdll!RtlLeaveCriticalSection rax = 0
+  234  1155 [  2]     WINHTTP!HTTP_REQUEST_HANDLE_OBJECT::InitBeginSendRequest
+   32     0 [  3]       WINHTTP!HTTP_REQUEST_HANDLE_OBJECT::QueryInfo
+   10     0 [  4]         ntdll!RtlEnterCriticalSection rax = 0
+   41    10 [  3]       WINHTTP!HTTP_REQUEST_HANDLE_OBJECT::QueryInfo
+    1     0 [  4]         WINHTTP!guard_dispatch_icall_nop
+    7     0 [  4]         WINHTTP!HTTP_BASE_OBJECT::Reference rax = 000002e0`e9824d80
+   43    18 [  3]       WINHTTP!HTTP_REQUEST_HANDLE_OBJECT::QueryInfo
+   19     0 [  4]         ntdll!RtlLeaveCriticalSection rax = 0
+   68    37 [  3]       WINHTTP!HTTP_REQUEST_HANDLE_OBJECT::QueryInfo
+   10     0 [  4]         ntdll!RtlEnterCriticalSection rax = 0
+  124    47 [  3]       WINHTTP!HTTP_REQUEST_HANDLE_OBJECT::QueryInfo
+   19     0 [  4]         ntdll!RtlLeaveCriticalSection rax = 0
+  131    66 [  3]       WINHTTP!HTTP_REQUEST_HANDLE_OBJECT::QueryInfo
+    1     0 [  4]         WINHTTP!guard_dispatch_icall_nop
+   10     0 [  4]         WINHTTP!HTTP_BASE_OBJECT::Dereference rax = 1
+  135    77 [  3]       WINHTTP!HTTP_REQUEST_HANDLE_OBJECT::QueryInfo
+    6     0 [  4]         WINHTTP!_security_check_cookie rax = 2f76
+  145    83 [  3]       WINHTTP!HTTP_REQUEST_HANDLE_OBJECT::QueryInfo rax = 2f76
+  265  1383 [  2]     WINHTTP!HTTP_REQUEST_HANDLE_OBJECT::InitBeginSendRequest
+    6     0 [  3]       WINHTTP!_security_check_cookie rax = 0
+  269  1389 [  2]     WINHTTP!HTTP_REQUEST_HANDLE_OBJECT::InitBeginSendRequest rax = 0
+  260  1760 [  1]   WINHTTP!WinHttpSendRequest
+   10     0 [  2]     ntdll!RtlEnterCriticalSection rax = 0
+  269  1770 [  1]   WINHTTP!WinHttpSendRequest
+    1     0 [  2]     WINHTTP!guard_dispatch_icall_nop
+    7     0 [  2]     WINHTTP!HTTP_BASE_OBJECT::Reference rax = 000002e0`e9824d80
+  271  1778 [  1]   WINHTTP!WinHttpSendRequest
+   19     0 [  2]     ntdll!RtlLeaveCriticalSection rax = 0
+  280  1797 [  1]   WINHTTP!WinHttpSendRequest
+   16     0 [  2]     WINHTTP!HANDLE_OBJECT::IsValid rax = 0
+  307  1813 [  1]   WINHTTP!WinHttpSendRequest
+    1     0 [  2]     WINHTTP!guard_dispatch_icall_nop
+    2     0 [  2]     WINHTTP!INTERNET_CONNECT_HANDLE_OBJECT::GetHandleType rax = 6e6f4348
+  315  1816 [  1]   WINHTTP!WinHttpSendRequest
+    9     0 [  2]     WINHTTP!WINHTTP_GLOBALS::GetWebIOApiHandle
+   10     0 [  3]       ntdll!RtlEnterCriticalSection rax = 0
+   17    10 [  2]     WINHTTP!WINHTTP_GLOBALS::GetWebIOApiHandle
+   14     0 [  3]       WINHTTP!WINHTTP_DLL::GetWebIOApiHandle
+    2     0 [  4]         WINHTTP!_imp_load_WebInitialize
+   12     0 [  4]         WINHTTP!_tailMerge_webio_dll
+    9     0 [  5]           WINHTTP!_delayLoadHelper2
+    1     0 [  6]             KERNELBASE!ResolveDelayLoadedAPI
+ModLoad: 00007ff8`c9a50000 00007ff8`c9ae8000   C:\Windows\SYSTEM32\webio.dll
+   66     0 [  6]             ntdll!LdrResolveDelayLoadedAPI rax = 00007ff8`c9a56d00
+   12    67 [  5]           WINHTTP!_delayLoadHelper2 rax = 00007ff8`c9a56d00
+   23    79 [  4]         WINHTTP!_tailMerge_webio_dll
+    3     0 [  4]         webio!WebInitialize
+   17     0 [  5]           webio!WapInitialize
+    4     0 [  6]             webio!WapIsLoaderLockHeld
+    6     0 [  7]               ntdll!RtlIsCriticalSectionLockedByThread rax = 1
+    9     6 [  6]             webio!WapIsLoaderLockHeld rax = 1
+   24    15 [  5]           webio!WapInitialize
+    6     0 [  6]             webio!_security_check_cookie rax = 139f
+   29    21 [  5]           webio!WapInitialize rax = 139f
+    7    50 [  4]         webio!WebInitialize rax = 139f
+   23   161 [  3]       WINHTTP!WINHTTP_DLL::GetWebIOApiHandle rax = 139f
+   22   194 [  2]     WINHTTP!WINHTTP_GLOBALS::GetWebIOApiHandle
+   19     0 [  3]       ntdll!RtlLeaveCriticalSection rax = 0
+   30   213 [  2]     WINHTTP!WINHTTP_GLOBALS::GetWebIOApiHandle rax = 139f
+  325  2059 [  1]   WINHTTP!WinHttpSendRequest
+    1     0 [  2]     WINHTTP!guard_dispatch_icall_nop
+   10     0 [  2]     WINHTTP!HTTP_BASE_OBJECT::Dereference rax = 1
+  345  2070 [  1]   WINHTTP!WinHttpSendRequest
+   14     0 [  2]     ntdll!EtwEventActivityIdControl rax = 0
+  351  2084 [  1]   WINHTTP!WinHttpSendRequest
+   23     0 [  2]     ntdll!RtlSetLastWin32Error rax = 139f
+  356  2107 [  1]   WINHTTP!WinHttpSendRequest
+    6     0 [  2]     WINHTTP!_security_check_cookie rax = 0
+  366  2113 [  1]   WINHTTP!WinHttpSendRequest rax = 0
+   13  2479 [  0] TestDLL!DllMain
+    1     0 [  1]   KERNEL32!GetLastErrorStub
+    3     0 [  1]   KERNELBASE!GetLastError rax = 139f
+0:000> !error 139f 0
+Error code: (Win32) 0x139f (5023) - The group or resource is not in the correct state to perform the requested operation.
+
+
+
+// SIDE NOTE
+
+// In DLL_THERAD_ATTACH, calling WinHttpOpen with the WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY access type flag instead of the WINHTTP_ACCESS_TYPE_DEFAULT_PROXY flag causes the following deadlock earlier on:
+
+0:000> k
+ # Child-SP          RetAddr               Call Site
+00 000000ef`3ccfea58 00007ff8`d1b2920e     ntdll!NtWaitForSingleObject+0x14
+01 000000ef`3ccfea60 00007ff8`cc8216ef     KERNELBASE!WaitForSingleObjectEx+0x8e
+02 000000ef`3ccfeb00 00007ff8`cc8214f0     WINNSI!NsiRpcRegisterChangeNotificationEx+0x1ef
+03 000000ef`3ccfec70 00007ff8`d0c42553     WINNSI!NsiRpcRegisterChangeNotification+0x60
+04 000000ef`3ccfecf0 00007ff8`d0c42470     IPHLPAPI!InternalRegisterChangeNotification+0xa3
+05 000000ef`3ccfed50 00007ff8`cc323d72     IPHLPAPI!NotifyIpInterfaceChange+0xa0
+06 000000ef`3ccfed80 00007ff8`cc32449b     WINHTTP!NetworkChangeMonitor::Startup+0x7e
+07 000000ef`3ccfedf0 00007ff8`cc323c5e     WINHTTP!StartGlobalNetworkChangeMonitor+0x113
+08 000000ef`3ccfee30 00007ff8`cc32c915     WINHTTP!WxRegisterForNetworkChangeNotification+0x3e
+09 000000ef`3ccfee70 00007ff8`cc32d8e4     WINHTTP!InitializeNetworkChangeMonitor+0x179
+0a 000000ef`3ccfeee0 00007ff8`cc33e0a8     WINHTTP!INTERNET_SESSION_HANDLE_OBJECT::LoadAutomaticProxyResolvers+0xb4
+0b 000000ef`3ccff010 00007ff8`cc34514b     WINHTTP!INTERNET_SESSION_HANDLE_OBJECT::SetProxySettings+0x88
+0c 000000ef`3ccff040 00007ff8`cc34227c     WINHTTP!WinHttpSetOptionInternal+0xc8b
+0d 000000ef`3ccff140 00007ff8`c77f10c2     WINHTTP!WinHttpOpen+0x41c
+0e (Inline Function) --------`--------     TestDLL!myWinHTTP+0x20 [C:\Users\user\source\repos\TestDLL\TestDLL\dllmain.cpp @ 144] 
+0f 000000ef`3ccff4a0 00007ff8`c77f144b     TestDLL!DllMain+0x42 [C:\Users\user\source\repos\TestDLL\TestDLL\dllmain.cpp @ 272] 
+10 000000ef`3ccff4f0 00007ff8`d4209a1d     TestDLL!dllmain_dispatch+0x8f [d:\a01\_work\20\s\src\vctools\crt\vcstartup\src\startup\dll_dllmain.cpp @ 281] 
+11 000000ef`3ccff550 00007ff8`d425d307     ntdll!LdrpCallInitRoutine+0x61
+12 000000ef`3ccff5c0 00007ff8`d425d09a     ntdll!LdrpInitializeNode+0x1d3
+13 000000ef`3ccff710 00007ff8`d422d947     ntdll!LdrpInitializeGraphRecurse+0x42
+14 000000ef`3ccff750 00007ff8`d420fbae     ntdll!LdrpPrepareModuleForExecution+0xbf
+15 000000ef`3ccff790 00007ff8`d42073e4     ntdll!LdrpLoadDllInternal+0x19a
+16 000000ef`3ccff810 00007ff8`d4206af4     ntdll!LdrpLoadDll+0xa8
+17 000000ef`3ccff9c0 00007ff8`d1b32612     ntdll!LdrLoadDll+0xe4
+18 000000ef`3ccffab0 00007ff6`a67c1012     KERNELBASE!LoadLibraryExW+0x162
+19 000000ef`3ccffb20 00007ff6`a67c1240     TestProject!main+0x12 [C:\Users\user\source\repos\TestProject\TestProject\source.c @ 174] 
+1a (Inline Function) --------`--------     TestProject!invoke_main+0x22 [d:\a01\_work\20\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl @ 78] 
+1b 000000ef`3ccffb50 00007ff8`d2ab7374     TestProject!__scrt_common_main_seh+0x10c [d:\a01\_work\20\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl @ 288] 
+1c 000000ef`3ccffb90 00007ff8`d423cc91     KERNEL32!BaseThreadInitThunk+0x14
+1d 000000ef`3ccffbc0 00000000`00000000     ntdll!RtlUserThreadStart+0x21
+0:000> r @$argreg
+$argreg=0000000000000140
+0:000> !handle 140 ff
+Handle 140
+  Type         	Event
+  Attributes   	0
+  GrantedAccess	0x1f0003:
+         Delete,ReadControl,WriteDac,WriteOwner,Synch
+         QueryState,ModifyState
+  HandleCount  	2
+  PointerCount 	65537
+  Name         	<none>
+  Object Specific Information
+    Event Type Auto Reset
+    Event is Waiting
+
+urther diagnosing with a trace shows that this event is created by an earlier call to WINNSI!NsiRpcRegisterChangeNotificationEx:
+
+   67   852 [ 11]                       WINNSI!NsiRpcRegisterChangeNotificationEx
+   29     0 [ 12]                         KERNELBASE!CreateEventW
+    6     0 [ 13]                           ntdll!NtCreateEvent rax = 0
+>> More than one level popped 12 -> 12
+   36     6 [ 12]                         KERNELBASE!CreateEventW
+   17     0 [ 13]                           ntdll!RtlSetLastWin32Error rax = 000000e3`97edc000
+   47    23 [ 12]                         KERNELBASE!CreateEventW rax = 140
+
+WINNSI!NsiRpcRegisterChangeNotificationEx does RPC that creates a thread pool:
+
+  119  1432 [ 27]                                                       RPCRT4!LRPC_CASSOCIATION::Connect
+   11     0 [ 28]                                                         RPCRT4!LRPC_CASSOCIATION::EnableAsync
+   10     0 [ 29]                                                           ntdll!RtlEnterCriticalSection rax = 0
+   22    10 [ 28]                                                         RPCRT4!LRPC_CASSOCIATION::EnableAsync
+   11     0 [ 29]                                                           RPCRT4!RPC_THREAD_POOL::CreateAlpc
+   23     0 [ 30]                                                             RPCRT4!RPC_THREAD_POOL::InitializeCallbackEnvironmentIfNecessary
+   11     0 [ 31]                                                               RPCRT4!AllocWrapper
+   22     0 [ 32]                                                                 ntdll!RtlAllocateHeap
+   95     0 [ 32]                                                                 ntdll!RtlpAllocateHeapInternal rax = 00000208`730f4dc0
+   21   117 [ 31]                                                               RPCRT4!AllocWrapper rax = 00000208`730f4dc0
+   38   138 [ 30]                                                             RPCRT4!RPC_THREAD_POOL::InitializeCallbackEnvironmentIfNecessary
+    4     0 [ 31]                                                               KERNELBASE!CreateThreadpool
+   12     0 [ 32]                                                                 ntdll!TpAllocPool
+  300     0 [ 32]                                                                 ntdll!TpAllocPoolInternal rax = 0
+   10   312 [ 31]                                                               KERNELBASE!CreateThreadpool rax = 00000208`731065b0
+
+I can confirm there are two ntdll!TppWorkerThread threads spawned into the process and they're not loader workers. When WINNSI!NsiRpcRegisterChangeNotificationEx is later called again, the Windows API internally expects for any prior calls to be done already. However, that call remains incomplete because DLL_THREAD_ATTACH causes the spawned threads to be unable to proceed while our spawning thread is already in DllMain. In conclusion, this is a convoluted deadlock due to waiting on a thread from DllMain (which as we know, doesn't work on Windows).

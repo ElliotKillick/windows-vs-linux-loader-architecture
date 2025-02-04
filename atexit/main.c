@@ -5,7 +5,7 @@
 void* handle2;
 
 void programFunc() {
-    puts("Running atexit handler of program!\n");
+    puts("Running atexit handler of program!");
     asm("int3");
     dlclose(handle2);
 }

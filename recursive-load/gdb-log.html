@@ -54,7 +54,7 @@ $1 = {
 }
 <font color="#89E234"><b>gef➤  </b></font>print _rtld_global._dl_load_lock.mutex.__data.__count
 $2 = 0x1
-<font color="#89E234"><b>gef➤  </b></font># ^ This count increases/decreases with every loader lock/unlock
+<font color="#89E234"><b>gef➤  </b></font># ^ This count increments/decrements with every loader lock/unlock
 <font color="#89E234"><b>gef➤  </b></font>x/5i rtld_lock_default_lock_recursive
 =&gt; <font color="#3464A3">0x7ffff7fd30e0</font> &lt;<font color="#C3A000">rtld_lock_default_lock_recursive</font>&gt;:	add    DWORD PTR [rdi+0x4],0x1
    <font color="#3464A3">0x7ffff7fd30e4</font> &lt;<font color="#C3A000">rtld_lock_default_lock_recursive</font>+4&gt;:	ret    

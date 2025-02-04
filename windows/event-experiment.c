@@ -6,7 +6,7 @@
 // https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-resetevent#remarks
 
 int main() {
-    // Create an unsignalled auto-reset event
+    // Create an unsignaled auto-reset event
     HANDLE myEvent = CreateEvent(NULL, FALSE, FALSE, L"MyEvent");
 
     if (myEvent == 0)
@@ -29,4 +29,7 @@ int main() {
     // This behavior means an auto-reset event performs mutual exclusion between threads, similar to a critical section.
     //
     // Unlike a critical section, though, an auto-reset event doesn't support recursive acquisition on the same thread.
+    //
+    // Generally, another difference between an event object and a critical section is that the former has no owning thread, which means one thread can lock an event and another thread can unlock it.
+    // Lastly, an event object is inter-process while a critical section is intra-process.
 }
