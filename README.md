@@ -1945,7 +1945,7 @@ I've provided Microsoft lots of constructive criticism and ways to fix their sys
     - WS-\* is all highly complex, slow, poorly interoperable, and over-engineered technology
     - Microsoft played the primary role in creating these standards then Windows completely bought into all the WS-\* technologies
     - WCF is layered bloat on top of .NET, which is just agonizing
-  - SOAP, made by Microsoft for web APIs and later WS-*, is bloat on top of XML-RPC (also by Microsoft), which itself is bloat on top of XML
+  - SOAP, made by Microsoft for web APIs and later WS-\*, is bloat on top of XML-RPC (also by Microsoft), which itself is bloat on top of XML
     - Microsoft also helped the W3C standardize XML itself in 1998, so I'm not dedicating a separate complaint to this
   - Of course, [WCF solved a problem at the time](https://download.microsoft.com/download/c/2/5/c2549372-d37d-4f55-939a-74f1790d4963/introducing_wcf_in_net_framework_4.pdf), but as I've emphasized prior, that doesn't make it the best solution or even a good one. Even at the time, [people knew](https://www.reddit.com/r/programming/comments/exodm/soap_the_s_stands_for_simple_well_not_really_funny/) that [WS-* was poor quality tech](https://web.archive.org/web/20150314044423/http://wanderingbarque.com/nonintersecting/2006/11/15/the-s-stands-for-simple/) (luckily for us, this common sense didn't require 20/20 hindsight)
   - Microsoft eventually came to their senses on this matter and now [recommends Google's gRPC as a WCF alternative](https://learn.microsoft.com/en-us/dotnet/framework/wcf/whats-wcf#grpc-as-an-alternative-to-wcf)
