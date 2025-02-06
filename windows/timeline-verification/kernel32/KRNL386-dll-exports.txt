@@ -1,0 +1,258 @@
+
+Microsoft (R) EXE File Header Utility  Version 3.20
+Copyright (C) Microsoft Corp 1985-1993.  All rights reserved.
+
+Library:                  KERNEL
+Description:              Microsoft Windows Kernel Interface Version 3.10
+Data:                     SHARED
+Initialization:           Global
+Initial CS:IP:            seg   1 offset ffffaa1b
+Initial SS:SP:            seg   0 offset 0000
+DGROUP:                   seg   4
+Heap allocation:          0200 bytes
+Runs in protected mode only
+
+no. type address  file  mem   flags
+  1 CODE 00001620 0c571 0c571 PRELOAD
+  2 CODE 0000dbc0 02ab8 02ab8 PRELOAD, (movable), (discardable)
+  3 CODE 000106a0 00c52 00c54 PRELOAD, (movable), (discardable)
+  4 DATA 00011310 013d2 013d2 SHARED, PRELOAD
+
+
+Exports:
+ord seg offset name
+342   1  a820  __GP exported, shared data
+173 254  f000  __ROMBIOS exported
+ 19   1  02cb  GLOBALUNLOCK exported
+184   1  139a  GLOBALDOSALLOC exported
+127   1  06d7  GETPRIVATEPROFILEINT exported, shared data
+166   2  028f  WINEXEC exported
+122   1  81ff  ISTASKLOCKED exported
+ 99   1  0bc5  GETLPERRMODE exported
+ 88   1  836f  LSTRCPY exported
+ 81   1  046e  _LCLOSE exported
+335   1  4b83  ISBADWRITEPTR exported
+171   1  00e4  ALLOCDSTOCSALIAS exported
+170   1  00d0  ALLOCCSTODSALIAS exported
+137   1  0211  FATALAPPEXIT exported
+183 254  0000  __0000H exported
+ 18   1  0278  GLOBALLOCK exported
+161   2  29c9  LOCALCOUNTFREE exported
+193 254  0040  __0040H exported
+ 42   1  9c8f  DISABLEDOS exported
+198   1  039f  GLOBALUNFIX exported
+120   1  72d4  UNDEFDYNLINK exported
+159   1  0ec5  GLOBALHANDLENORIP exported
+ 85   1  0443  _LOPEN exported
+141   1  8014  INITTASK1 exported
+164   1  0324  GLOBALLRUNEWEST exported
+130   3  0888  FILECDR exported
+ 55   3  08ee  CATCH exported
+ 26   1  0e39  GLOBALFREEALL exported
+128   1  0709  GETPRIVATEPROFILESTRING exported, shared data
+339   1  a70e  DIAGQUERY exported
+ 77   1  83cd  RESERVED1 exported
+ 78   1  83ca  RESERVED2 exported
+101   1  1d92  NOHOOKDOSCALL exported
+ 79   1  83c4  RESERVED3 exported
+ 83   1  048d  _LCREAT exported
+110   1  7bac  PATCHCODEHANDLE exported
+ 80   1  83c7  RESERVED4 exported
+ 87   1  838e  RESERVED5 exported
+ 53   1  4927  CALLPROCINSTANCE exported
+341   3  084c  TOOLHELPHOOK exported
+320   1  7e50  ISTASK exported
+318   1  9ecf  FATALEXITHOOK exported
+126   1  2ea7  MEMORYFREED exported
+165   1  9e0c  A20PROC exported
+ 51   3  00a8  MAKEPROCINSTANCE exported
+107   3  0132  SETERRORMODE exported
+343   2  0689  REGISTERWINOLDAPHOOK exported
+204   3  014e  SWAPRECORDING exported
+158   1  7e3e  ISWINOLDAPTASK exported
+ 84   1  04b8  _LLSEEK exported
+ 33   1  81e5  LOCKCURRENTTASK exported
+319   1  52fc  FLUSHCACHEDFILEHANDLE exported
+316   1  127e  GETFREEMEMINFO exported
+ 93   1  48fa  GETCODEHANDLE exported
+ 52   3  00c5  FREEPROCINSTANCE exported
+152   3  08e2  GETNUMTASKS exported
+  7   1  055f  LOCALFREE exported
+ 10   1  05a9  LOCALSIZE exported
+192   1  0377  GLOBALPAGEUNLOCK exported
+346   1  4ba5  ISBADHUGEREADPTR exported
+163   1  0338  GLOBALLRUOLDEST exported
+ 25   1  1105  GLOBALCOMPACT exported
+ 65   1  019f  SIZEOFRESOURCE exported
+  8   1  0573  LOCALLOCK exported
+121   1  8db0  LOCALSHRINK exported
+105   3  07d9  GETEXEVERSION exported
+124   1  9c90  ENABLEKERNEL exported
+ 13   1  8d85  LOCALCOMPACT exported
+  2   1  9d6f  EXITKERNEL exported
+311   1  9eaf  GETSETKERNELDOSPROC exported
+162   2  2a01  LOCALHEAPSIZE exported
+ 76   3  04b6  DELETEPATHNAME exported
+  4   2  28b7  LOCALINIT exported
+131   3  08ce  GETDOSENVIRONMENT exported
+ 30   1  7ca8  WAITEVENT exported
+117   1  7d3e  OLDYIELD exported
+100   2  2ab7  VALIDATECODESEGMENTS exported
+ 36   1  842c  GETCURRENTTASK exported
+134   3  0054  GETWINDOWSDIRECTORY exported
+129   1  0795  WRITEPRIVATEPROFILESTRING exported, shared data
+328   1  94ce  _DEBUGOUTPUT exported
+177   1  010c  PRESTOCHANGOSELECTOR exported
+104   1  03db  GETCODEINFO exported
+ 95   2  022d  LOADLIBRARY exported
+197   1  038b  GLOBALFIX exported
+191   1  0363  GLOBALPAGELOCK exported
+403   1  29f1  K403 exported
+ 20   1  02b7  GLOBALSIZE exported
+404   1  29ae  K404 exported
+ 98   1  5c17  GETLASTDISKCHANGE exported
+340   1  a71d  DIAGOUTPUT exported
+  9   1  05bd  LOCALUNLOCK exported
+ 23   1  03b3  LOCKSEGMENT exported
+200   1  3e4e  VALIDATEFREESPACES exported
+ 35   1  7d9d  GETTASKQUEUE exported
+338   1  4c72  HASGPHANDLER exported
+ 22   1  02e8  GLOBALFLAGS exported
+169   1  0404  GETFREESPACE exported
+ 59   1  0763  WRITEPROFILESTRING exported, shared data
+188   1  2755  GETSELECTORLIMIT exported
+327   1  949b  K327 exported
+111   1  02fc  GLOBALWIRE exported
+102   1  1d98  DOS3CALL exported
+ 37   3  024e  GETCURRENTPDB exported
+348   1  4d5c  HMEMCPY exported
+180   1  26b9  LONGPTRADD exported
+329   1  94c5  K329 exported
+ 74   1  05e5  OPENFILE exported
+ 32   1  7df0  SETPRIORITY exported
+202   3  081d  REGISTERPTRACE exported
+151   3  07e6  WINOLDAPCALL exported
+112   1  0310  GLOBALUNWIRE exported
+353   1  831f  LSTRCPYN exported
+ 56   3  0928  THROW exported
+ 96   2  018a  FREELIBRARY exported
+ 68   3  041a  INITATOMTABLE exported
+ 34   1  7de3  SETTASKQUEUE exported
+138   2  1e4d  GETHEAPSPACES exported
+ 47   2  01bb  GETMODULEHANDLE exported
+ 92   3  0508  GETTEMPDRIVE exported
+354   1  9eeb  GETAPPCOMPATFLAGS exported
+150   1  7cff  DIRECTEDYIELD exported
+345   1  4d39  ISSHAREDSELECTOR exported
+189   1  276d  SETSELECTORLIMIT exported
+199   1  0647  SETHANDLECOUNT exported
+114 254  0008  __AHINCR exported
+ 72   1  01cd  GETATOMNAME exported
+139   1  612c  DOSIGNAL exported
+115   1  999b  OUTPUTDEBUGSTRING exported
+ 28   1  1190  GLOBALMASTERHANDLE exported
+347   1  4be5  ISBADHUGEWRITEPTR exported
+310   2  2a0c  LOCALHANDLEDELTA exported
+113 254  0003  __AHSHIFT exported
+344   2  06f3  GETWINOLDAPHOOKS exported
+167   1  4f02  GETEXPWINVER exported
+ 58   1  0689  GETPROFILESTRING exported, shared data
+ 38   1  7dc5  SETTASKSIGNALPROC exported
+326   2  1ea0  ISROMFILE exported
+201   1  9ada  REPLACEINST exported
+ 64   1  0140  ACCESSRESOURCE exported
+156   1  4632  LIMITEMSPAGES exported
+ 50   2  019e  GETPROCADDRESS exported
+350   1  4df1  _HWRITE exported
+174 254  a000  __A000H exported
+ 90   1  82f6  LSTRLEN exported
+168   1  84b8  DIRECTRESALLOC exported
+135   3  007e  GETSYSTEMDIRECTORY exported
+351   1  5e92  BUNNY_351 exported
+ 97   3  00dc  GETTEMPFILENAME exported
+132   3  07ab  GETWINFLAGS exported
+181 254  b000  __B000H exported
+ 45   2  0244  LOADMODULE exported
+185   1  13d4  GLOBALDOSFREE exported
+203   1  946e  DEBUGBREAK exported
+337   1  4c4e  ISBADSTRINGPTR exported
+  6   1  0587  LOCALREALLOC exported
+ 11   1  8d6a  LOCALHANDLE exported
+ 89   1  837f  LSTRCAT exported
+ 21   1  0264  GLOBALHANDLE exported
+195 254  c000  __C000H exported
+182 254  b800  __B800H exported
+ 86   1  0516  _LWRITE exported
+  5   1  0543  LOCALALLOC exported
+205   1  97e0  CVWBREAK exported
+  3   3  07c6  GETVERSION exported
+123   1  4638  KBDRST exported
+109   1  123c  SWITCHSTACKBACK exported
+155   1  119f  GETTASKDS exported
+179 254  d000  __D000H exported
+ 54   2  0219  GETINSTANCEDATA exported
+ 73   1  01fd  GETATOMHANDLE exported
+ 71   1  01b9  DELETEATOM exported
+125   1  9c91  DISABLEKERNEL exported
+190 254  e000  __E000H exported
+ 67   3  002e  SETRESOURCEHANDLER exported
+ 61   1  0126  LOADRESOURCE exported
+355   1  9f2a  GETWINDEBUGINFO exported, shared data
+325   1  94f2  LOGPARAMERROR exported, shared data
+175   1  1d9e  ALLOCSELECTOR exported
+ 91   2  268d  INITTASK exported
+140   3  068c  SETSIGHANDLER exported
+136   3  0675  GETDRIVETYPE exported
+194 254  f000  __F000H exported
+ 57   1  0663  GETPROFILEINT exported, shared data
+ 46   2  0176  FREEMODULE exported
+ 69   1  4942  FINDATOM exported
+106   1  2ede  SETSWAPAREASIZE exported
+ 14   2  0278  LOCALNOTIFY exported
+332   4  0218  THHOOK exported
+315   1  708b  WRITEOUTPROFILES exported, shared data
+196   1  279b  SELECTORACCESSRIGHTS exported
+133   1  4e78  GETEXEPTR exported
+334   1  4b62  ISBADREADPTR exported
+324   1  94cf  LOGERROR exported, shared data
+157   1  4639  GETCURPID exported
+ 62   1  018b  LOCKRESOURCE exported
+ 31   1  7d92  POSTEVENT exported
+ 16   1  028c  GLOBALREALLOC exported
+356   1  9f36  SETWINDEBUGINFO exported, shared data
+323   2  1e9b  ISROMMODULE exported
+ 17   1  0247  GLOBALFREE exported
+186   1  2252  GETSELECTORBASE exported
+ 41   1  9c8e  ENABLEDOS exported
+  1   1  93ce  FATALEXIT exported, shared data
+103   1  9e19  NETBIOSCALL exported
+116   2  2797  INITLIB exported
+ 75   3  04be  OPENPATHNAME exported
+ 49   2  01e6  GETMODULEFILENAME exported
+ 63   1  0177  FREERESOURCE exported
+207   1  8425  ISDBCSLEADBYTE exported
+ 12   1  05d1  LOCALFLAGS exported
+314   1  9835  DEBUGDEFINESEGMENT exported
+160   1  a940  EMSCOPY exported
+ 70   1  493f  ADDATOM exported
+ 66   1  015d  ALLOCRESOURCE exported
+336   1  4c28  ISBADCODEPTR exported
+154   1  034c  GLOBALNOTIFY exported
+349   1  4dec  _HREAD exported
+176   1  00f8  FREESELECTOR exported
+172   1  21fb  ALLOCALIAS exported
+187   1  2725  SETSELECTORBASE exported
+ 24   1  03c7  UNLOCKSEGMENT exported
+206   1  1df5  ALLOCSELECTORARRAY exported
+178 254  0001  __WINFLAGS exported
+108   1  11c6  SWITCHSTACKTO exported
+ 15   1  022b  GLOBALALLOC exported
+ 29   1  7d21  YIELD exported
+ 48   2  01d2  GETMODULEUSAGE exported
+118   1  7da7  GETTASKQUEUEDS exported
+ 94   3  03ce  DEFINEHANDLETABLE exported
+ 82   1  04e6  _LREAD exported
+119   1  7db5  GETTASKQUEUEES exported
+ 60   3  0008  FINDRESOURCE exported
+
+

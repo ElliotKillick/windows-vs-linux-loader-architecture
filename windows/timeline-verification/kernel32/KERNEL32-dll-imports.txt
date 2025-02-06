@@ -1,0 +1,257 @@
+Microsoft (R) COFF/PE Dumper Version 14.30.30706.0
+Copyright (C) Microsoft Corporation.  All rights reserved.
+
+
+Dump of file KERNEL32.DLL
+
+File Type: DLL
+
+  Section contains the following imports:
+
+    ntdll.dll
+              778C23C0 Import Address Table
+              778C2028 Import Name Table
+              2C4F15D7 time date stamp Thu Jul 22 18:33:59 1993
+              FFFFFFFF Index of first forwarder reference
+
+      771A3E90      0 CsrAllocateCaptureBuffer
+      771A3F60      2 CsrAllocateMessagePointer
+      771A3FE0      3 CsrCaptureMessageBuffer
+      771A4020      4 CsrCaptureMessageString
+      771A3CF0      6 CsrClientCallServer
+      771A3090      7 CsrClientConnectToServer
+      771A3F40      C CsrFreeCaptureBuffer
+      771A36F0      D CsrIdentifyAlertableThread
+      771A36E0      E CsrNewThread
+      771A3730     11 CsrSetPriorityClass
+      771A3770     12 CsrStartProfile
+      771A3800     13 CsrStopDumpProfile
+      771ACCA0     16 DbgBreakPoint
+      771ACCC0     17 DbgPrint
+      771A4780     1B DbgUiConnectToDbg
+      771A48F0     1C DbgUiContinue
+      771A4860     1D DbgUiWaitStateChange
+      771ACE90     21 LdrAccessResource
+      771AD010     23 LdrFindResourceDirectory_U
+      771ACFF0     24 LdrFindResource_U
+      771A7F30     25 LdrGetDllHandle
+      771A8550     26 LdrGetProcedureAddress
+      771A7AF0     28 LdrLoadDll
+      771A57C0     2A LdrQueryImageFileExecutionOptions
+      771A8830     2B LdrQueryProcessModuleInformation
+      771A5470     2C LdrShutdownProcess
+      771A5570     2D LdrShutdownThread
+      771A8140     2E LdrUnloadDll
+      771AC1D0     35 NtAdjustPrivilegesToken
+      771AC210     39 NtAllocateVirtualMemory
+      771AC240     3C NtClose
+      771AC280     40 NtContinue
+      771AC290     41 NtCreateDirectoryObject
+      771AC2A0     42 NtCreateEvent
+      771AC2C0     44 NtCreateFile
+      771AC2D0     45 NtCreateKey
+      771AC2E0     46 NtCreateMailslotFile
+      771AC2F0     47 NtCreateMutant
+      771AC300     48 NtCreateNamedPipeFile
+      771AC330     4B NtCreateProcess
+      771AC350     4D NtCreateSection
+      771AC360     4E NtCreateSemaphore
+      771AC380     50 NtCreateThread
+      771AC3B0     54 NtDelayExecution
+      771AC3D0     56 NtDeleteValueKey
+      771AC3E0     57 NtDeviceIoControlFile
+      771AC400     59 NtDuplicateObject
+      771AC420     5B NtEnumerateKey
+      771AC430     5C NtEnumerateValueKey
+      771AC450     5E NtFlushBuffersFile
+      771AC460     5F NtFlushInstructionCache
+      771AC470     60 NtFlushKey
+      771AC480     61 NtFlushVirtualMemory
+      771AC49C     63 NtFreeVirtualMemory
+      771AC4AC     64 NtFsControlFile
+      771AC4BC     65 NtGetContextThread
+      771AC4CC     66 NtGetTickCount
+      771AC540     6E NtLockFile
+      771AC550     6F NtLockVirtualMemory
+      771AC570     71 NtMapViewOfSection
+      771AC580     72 NtNotifyChangeDirectoryFile
+      771AC5A0     74 NtOpenDirectoryObject
+      771AC5B0     75 NtOpenEvent
+      771AC5D0     77 NtOpenFile
+      771AC5E0     78 NtOpenKey
+      771AC5F0     79 NtOpenMutant
+      771AC610     7B NtOpenProcess
+      771AC620     7C NtOpenProcessToken
+      771AC630     7D NtOpenSection
+      771AC640     7E NtOpenSemaphore
+      771AC650     7F NtOpenSymbolicLinkObject
+      771AC660     80 NtOpenThread
+      771AC670     81 NtOpenThreadToken
+      771AC6C0     86 NtProtectVirtualMemory
+      771AC6D0     87 NtPulseEvent
+      771AC6E0     88 NtQueryDefaultLocale
+      771AC6F0     89 NtQueryDirectoryFile
+      771AC700     8A NtQueryDirectoryObject
+      771AC710     8B NtQueryEaFile
+      771AC720     8C NtQueryEvent
+      771AC730     8D NtQueryInformationFile
+      771AC750     8F NtQueryInformationProcess
+      771AC760     90 NtQueryInformationThread
+      771AC7C0     96 NtQueryPerformanceCounter
+      771AC7D0     97 NtQuerySection
+      771AC7E0     98 NtQuerySecurityObject
+      771AC800     9A NtQuerySymbolicLinkObject
+      771AC820     9C NtQuerySystemInformation
+      771AC830     9D NtQuerySystemTime
+      771AC850     9F NtQueryValueKey
+      771AC860     A0 NtQueryVirtualMemory
+      771AC870     A1 NtQueryVolumeInformationFile
+      771AC890     A3 NtRaiseHardError
+      771AC8A0     A4 NtReadFile
+      771AC8C0     A6 NtReadVirtualMemory
+      771AC8E0     A8 NtReleaseMutant
+      771AC8F0     A9 NtReleaseProcessMutant
+      771AC8FC     AA NtReleaseSemaphore
+      771AC97C     B2 NtResetEvent
+      771AC99C     B4 NtResumeThread
+      771AC9BC     B6 NtSetContextThread
+      771AC9EC     B9 NtSetEaFile
+      771AC9FC     BA NtSetEvent
+      771ACA30     BE NtSetInformationFile
+      771ACA50     C0 NtSetInformationProcess
+      771ACA60     C1 NtSetInformationThread
+      771ACAC4     C8 NtSetSecurityObject
+      771ACAE4     CA NtSetSystemTime
+      771ACB04     CC NtSetValueKey
+      771ACB14     CD NtSetVolumeInformationFile
+      771ACB54     D1 NtSuspendThread
+      771ACB74     D3 NtTerminateProcess
+      771ACB84     D4 NtTerminateThread
+      771ACBC0     D8 NtUnlockFile
+      771ACBD0     D9 NtUnlockVirtualMemory
+      771ACBE0     DA NtUnmapViewOfSection
+      771ACC0C     DD NtWaitForMultipleObjects
+      771ACC2C     DE NtWaitForProcessMutant
+      771ACC1C     DF NtWaitForSingleObject
+      771ACC58     E2 NtWriteFile
+      771ACC78     E4 NtWriteVirtualMemory
+      771B23F0     EC RtlAcquirePebLock
+      771B2850     EF RtlAddAccessAllowedAce
+      771B5700     F7 RtlAllocateHeap
+      771A9520     F8 RtlAnalyzeProfile
+      771B7D80     F9 RtlAnsiCharToUnicodeChar
+      771B8670     FA RtlAnsiStringToUnicodeSize
+      771B7CB0     FB RtlAnsiStringToUnicodeString
+      771B8FF0     FC RtlAppendAsciizToString
+      771B9060     FD RtlAppendStringToString
+      771B8A90     FE RtlAppendUnicodeStringToString
+      771B8A00     FF RtlAppendUnicodeToString
+      771BA170    105 RtlAreBitsSet
+      771BA4A0    108 RtlCharToInteger
+      771B98A0    10B RtlClearBits
+      771B70F0    10C RtlCompactHeap
+      771C8260    10D RtlCompareMemory
+      771C8240    113 RtlConvertLongToLargeInteger
+      771B8990    11E RtlCopyUnicodeString
+      771B2430    11F RtlCreateAcl
+      771B4900    122 RtlCreateHeap
+      771BC610    123 RtlCreateProcessParameters
+      771B3430    125 RtlCreateSecurityDescriptor
+      771AA3A0    12F RtlDeleteCriticalSection
+      771B4DE0    135 RtlDestroyHeap
+      771BC990    136 RtlDestroyProcessParameters
+      771A15B0    137 RtlDetermineDosPathNameType_U
+      771A2D90    138 RtlDoesFileExists_U
+      771A2820    139 RtlDosPathNameToNtPathName_U
+      771C8014    13C RtlEnlargedIntegerMultiply
+      771C8020    13E RtlEnlargedUnsignedMultiply
+      771AC0D0    13F RtlEnterCriticalSection
+      771B8810    148 RtlEqualUnicodeString
+      771BB300    14A RtlExpandEnvironmentStrings
+      771BB460    14B RtlExpandEnvironmentStrings_U
+      771C804C    14D RtlExtendedLargeIntegerDivide
+      771B9840    152 RtlFindClearBitsAndSet
+      771BDE60    155 RtlFindMessage
+      771BDF50    159 RtlFormatMessage
+      771B85D0    15A RtlFreeAnsiString
+      771B6B40    15B RtlFreeHeap
+      771B85F0    15C RtlFreeOemString
+      771B85B0    15E RtlFreeUnicodeString
+      771A11A0    163 RtlGetCurrentDirectory_U
+      771B3810    164 RtlGetDaclSecurityDescriptor
+      771A27E0    166 RtlGetFullPathName_U
+      771B6EF0    168 RtlGetHandleValueHeap
+      771BB520    16A RtlGetNtGlobalFlags
+      771AD8D0    16F RtlImageDirectoryEntryToData
+      771AD840    170 RtlImageNtHeader
+      771B8C30    172 RtlInitAnsiString
+      771B8BF0    175 RtlInitString
+      771B8C70    176 RtlInitUnicodeString
+      771AA230    179 RtlInitializeCriticalSection
+      771A8970    17B RtlInitializeProfile
+      771B3020    17E RtlInitializeSid
+      771BA330    181 RtlIntegerToChar
+      771BA810    182 RtlIntegerToUnicodeString
+      771A1950    183 RtlIsDosDeviceName_U
+      771C8000    185 RtlLargeIntegerAdd
+      771C8218    188 RtlLargeIntegerNegate
+      771C822C    18B RtlLargeIntegerSubtract
+      771AC130    18D RtlLeaveCriticalSection
+      771B2F20    18E RtlLengthRequiredSid
+      771B35B0    18F RtlLengthSecurityDescriptor
+      771BFE10    191 RtlLocalTimeToSystemTime
+      771B4D80    192 RtlLockHeap
+      771C00D0    195 RtlLookupSymbolByAddress
+      771C02E0    1A0 RtlNtStatusToDosError
+      771B86A0    1A4 RtlOemStringToUnicodeSize
+      771B7F50    1A5 RtlOemStringToUnicodeString
+      771BB610    1A7 RtlOpenCurrentUser
+      771B8E50    1A9 RtlPrefixString
+      771B8F10    1AA RtlPrefixUnicodeString
+      771BBCE0    1AB RtlQueryEnvironmentVariable
+      771BC4D0    1AC RtlQueryEnvironmentVariable_U
+      771BEE00    1AF RtlQueryProcessBackTraceInformation
+      771B7230    1B0 RtlQueryProcessHeapInformation
+      771AA680    1B1 RtlQueryProcessLockInformation
+      771BAEF0    1B2 RtlQueryRegistryValues
+      771BB770    1B4 RtlQueryTimeZoneInformation
+      771C0750    1B5 RtlRaiseException
+      771C0800    1B6 RtlRaiseStatus
+      771B6500    1B8 RtlReAllocateHeap
+      771B2410    1BB RtlReleasePebLock
+      771A12A0    1C6 RtlSetCurrentDirectory_U
+      771B3790    1C8 RtlSetDaclSecurityDescriptor
+      771BBE80    1C9 RtlSetEnvironmentVariable
+      771B6E20    1CB RtlSetHandleValueHeap
+      771BB8C0    1D1 RtlSetTimeZoneInformation
+      771B6FC0    1D2 RtlSizeHeap
+      771B7320    1D3 RtlSnapShotHeap
+      771A9350    1D5 RtlStartProfile
+      771A9490    1D7 RtlStopProfile
+      771B30A0    1D9 RtlSubAuthoritySid
+      771BFDD0    1DC RtlSystemTimeToLocalTime
+      771BFA00    1DD RtlTimeFieldsToTime
+      771BF670    1E1 RtlTimeToTimeFields
+      771B8610    1E2 RtlUnicodeStringToAnsiSize
+      771B7DD0    1E3 RtlUnicodeStringToAnsiString
+      771BA630    1E5 RtlUnicodeStringToInteger
+      771B8640    1E6 RtlUnicodeStringToOemSize
+      771B8020    1E7 RtlUnicodeStringToOemString
+      771AF080    1E9 RtlUnicodeToMultiByteN
+      771B4DB0    1ED RtlUnlockHeap
+      771BDCC0    1EE RtlUnwind
+      771B8540    1EF RtlUpcaseUnicodeChar
+      771AA5D0    206 RtlpUnWaitCriticalSection
+      771AA4E0    207 RtlpWaitForCriticalSection
+
+  Summary
+
+        2000 .bss
+        3000 .data
+        4000 .edata
+        2000 .idata
+        1000 .rdata
+        4000 .reloc
+        F000 .rsrc
+       38000 .text
+
