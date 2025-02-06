@@ -1,0 +1,21 @@
+Microsoft (R) COFF/PE Dumper Version 14.30.30706.0
+Copyright (C) Microsoft Corporation.  All rights reserved.
+
+
+Dump of file NTDLL.DLL
+
+File Type: DLL
+
+  Summary
+
+        2000 .bss
+        2000 .data
+        6000 .edata
+        1000 .rdata
+        3000 .reloc
+        F000 .rsrc
+       22000 .text
+        5000 ECODE
+        1000 EDATA
+        1000 _TEXT
+
