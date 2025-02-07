@@ -2738,8 +2738,8 @@ Example Output:
 0x7ffff7fc7371 "linux-vdso.so.1"
 0x7ffff7fc1080 "/lib64/libc.so.6"
 0x400318 "/lib64/ld-linux-x86-64.so.2"
-0x4052a0 "/home/user/Documents/windows-vs-linux-loader-architecture/load-library/lib1.so"
-0x406610 "/home/user/Documents/windows-vs-linux-loader-architecture/load-library/lib2.so"
+0x4052a0 "/home/user/Documents/operating-system-design-review/load-library/lib1.so"
+0x406610 "/home/user/Documents/operating-system-design-review/load-library/lib2.so"
 ```
 
 ### Get TCB and Set GSCOPE Watchpoint (GNU Loader)
