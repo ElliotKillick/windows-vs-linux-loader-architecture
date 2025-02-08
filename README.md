@@ -1,6 +1,6 @@
 # Operating System Design Review
 
-Operating System Design Review is a modern exploration of operating system architecture focusing primarily on user-mode, starting at its origin: [the loader](#defining-loader-linking-dynamic-linking-static-linking-dynamic-loading-static-loading), and investigating other subsystems from there.
+Operating System Design Review is a modern exploration of operating system architecture focusing primarily on user-mode, starting at its origin: [the loader](#defining-loader-linking-dynamic-linking-static-linking-dynamic-loading-and-static-loading), and investigating other subsystems from there.
 
 The intentions of this write-up are to:
 
@@ -34,7 +34,7 @@ All of the information contained here covers Windows 10 22H2 and glibc 2.38 on L
   - [ELF Flat Symbol Namespace (GNU Namespaces and `STB_GNU_UNIQUE`)](#elf-flat-symbol-namespace-gnu-namespaces-and-stb_gnu_unique)
   - [How Does `GetProcAddress`/`dlsym` Handle Concurrent Library Unload?](#how-does-getprocaddressdlsym-handle-concurrent-library-unload)
   - [Lazy Linking Synchronization](#lazy-linking-synchronization)
-  - [Lazy Loading and Lazy Linking OS Comparison](#lazy-loading-and-lazy-linking-os-comparison)
+  - [Library Lazy Loading and Lazy Linking Overview](#library-lazy-loading-and-lazy-linking-overview)
   - [GNU Loader Lock Hierarchy and Synchronization Strategy](#gnu-loader-lock-hierarchy-and-synchronization-strategy)
   - [A Concurrency Bug in the Windows Loader!](#a-concurrency-bug-in-the-windows-loader)
   - [`GetProcAddress` Can Perform Module Initialization](#getprocaddress-can-perform-module-initialization)
@@ -92,7 +92,7 @@ All of the information contained here covers Windows 10 22H2 and glibc 2.38 on L
     - [Virtual Address Spaces](#virtual-address-spaces)
     - [POSIX](#posix)
   - [Microsoft Windows Complaints](#microsoft-windows-complaints)
-  - [Defining Loader, Linking, Dynamic Linking, Static Linking, Dynamic Loading, Static Loading](#defining-loader-linking-dynamic-linking-static-linking-dynamic-loading-static-loading)
+  - [Defining Loader, Linking, Dynamic Linking, Static Linking, Dynamic Loading, and Static Loading](#defining-loader-linking-dynamic-linking-static-linking-dynamic-loading-and-static-loading)
   - [What is Concurrency and Parallelism?](#what-is-concurrency-and-parallelism)
   - [ABBA Deadlock](#abba-deadlock)
   - [ABA Problem](#aba-problem)
@@ -108,6 +108,7 @@ All of the information contained here covers Windows 10 22H2 and glibc 2.38 on L
     - [Trace `TEB.SameTebFlags`](#trace-tebsametebflags)
     - [Searching Assembly for Structure Offsets](#searching-assembly-for-structure-offsets)
     - [Monitor a Critical Section Lock](#monitor-a-critical-section-lock)
+    - [Debug Critical Section Locks](#debug-critical-section-locks)
     - [Application Relaunch Testing](#application-relaunch-testing)
     - [Track Loader Events](#track-loader-events)
     - [Disable Loader Worker Threads](#disable-loader-worker-threads)
@@ -235,7 +236,7 @@ However, Windows has more synchronization mechanisms that control the loader, in
 - `LDR_DATA_TABLE_ENTRY.Lock`
   - Starting with Windows 10, each `LDR_DATA_TABLE_ENTRY` has a [`PVOID` `Lock` member](https://www.geoffchappell.com/studies/windows/km/ntoskrnl/inc/api/ntldr/ldr_data_table_entry.htm) (it replaced a `Spare` slot)
   - The `LdrpWriteBackProtectedDelayLoad` function uses this per-node lock to implement some level of protection during delay loading
-    - This function calls `NtProtectVirtualMemory`, so it's likely something to do with the setting memory protection on a module's Import Address Table (IAT) during, for instance, the lazy linking part of Windows delay loading
+    - This function calls `NtProtectVirtualMemory`, so it likely protects the process of setting and resetting memory protection on a module's Import Address Table (IAT) during the lazy linking part of Windows delay loading
 - `PEB.TppWorkerpListLock`
   - This SRW lock (typically acquired exclusively) exists in the PEB to control access to the member immediately below it, which is the `TppWorkerpList` doubly linked list
   - This list keeps track of all the threads belonging to any thread pool in the process
@@ -245,8 +246,8 @@ However, Windows has more synchronization mechanisms that control the loader, in
     - The threads in this list include threads belonging to the loader worker thread pool (`LoaderWorker` in `TEB.SameTebFlags`)
   - This is a bit out of scope since it relates to thread pool internals, not loader internals (however, the loader relies on thread pool internals to implement parallelism for loader workers)
 - Searching symbols reveals more of the loader's locks: `x ntdll!Ldr*Lock`
-  - `LdrpDllDirectoryLock`, `LdrpTlsLock` (this is an SRW lock typically acquired in the shared mode), `LdrpEnclaveListLock`, `LdrpPathLock`, `LdrpInvertedFunctionTableSRWLock`, `LdrpVehLock`, `LdrpForkActiveLock`, `LdrpCODScenarioLock`, `LdrpMrdataLock`, and `LdrpVchLock`
-  - A lot of these locks seem to be for controlling access to list data structures
+  - `LdrpDllDirectoryLock` (SRW lock, sometimes acquired in shared mode), `LdrpTlsLock` (SRW lock, sometimes acquired in shared mode), `LdrpEnclaveListLock` (critical section lock), `LdrpPathLock` (SRW lock, only acquired exclusive mode), `LdrpInvertedFunctionTableSRWLock` (SRW lock, sometimes acquired in shared mode, high contention, locking and unlocking functions are inlined), `LdrpVehLock` (SRW lock, only acquired exclusive mode), `LdrpForkActiveLock` (SRW lock, sometimes acquired in shared mode), `LdrpCODScenarioLock` (SRW lock, only acquired exclusive mode, COD stands for component on demand and it is an application compatibility mechanism that integrates with the Program Compatibility Assistant service), `LdrpMrdataLock` (SRW lock, only acquired exclusive mode), and `LdrpVchLock` (SRW lock, only acquired exclusive mode)
+- The Windows loader may also dynamically create and destroy temporary synchronization objects in some cases (e.g. see the Windows loader's calls to `ntdll!ZwCreateEvent`)
 
 ## Atomic State
 
@@ -346,9 +347,10 @@ The Windows loader, in contrast to Unix-like loaders, is more vulnerable to corr
   - As a result, the threat of [ABBA deadlock](#abba-deadlock) makes it unsafe to acquire any external lock (not used by NTDLL) from inside the loader without knowing how that lock is implemented
 - Windows is the ultimate monolith
   - The [broadness of the Windows API](https://en.wikipedia.org/wiki/Criticism_of_Microsoft#Vendor_lock-in) (thousands of DLLs in `C:\Windows\System32`, including everything from file creation to WinHTTP) in combination with its [lack of a clear separation between components](#the-problem-with-how-windows-uses-dlls) leads to [operating-system-wide dependency breakdown](#dependency-breakdown)
+    - Despite Windows prioritzing libraries and shared processes over programs and small processes at the operating-system-level, its library dependency infrastructure is significantly less robust and more tightly coupled than its Unix counterpart
   - The Windows [threading implementation](https://en.wikipedia.org/wiki/Thread_(computing)#1:1_(kernel-level_threading)) meshes with the loader at thread startup and exit (`DLL_THREAD_ATTACH` and `DLL_THREAD_DETACH`)
-    - This addition to Windows broke the [library subsystem lifetime](#the-process-lifetime), which led to [Microsoft condoning thread termination](https://devblogs.microsoft.com/oldnewthing/20150814-00/?p=91811) as a synchronization model and [`NtTerminateProcess` breaking module destructors](#process-meltdown)
-    - These thread deadlocks (that can [manifest in convoluted ways](windows/winhttp-dllmain-debugging.log)) arise especially often due to Windows architecture and the practices of the Windows API prioritizing multithreading over multiprocessing at the operating-system-level
+    - The synchronization requirement this added to threads broke the [library subsystem lifetime](#the-process-lifetime), which led to [Microsoft condoning thread termination](https://devblogs.microsoft.com/oldnewthing/20150814-00/?p=91811) as a synchronization model and [Windows leaving the process in an inconsistent state at process exit thus breaking module destructors](#process-meltdown)
+    - Despite Windows prioritzing multithreading over multiprocessing at the operating-system-level, its threading implementation is significantly less robust and more prone to deadlocks than its Unix counterpart
   - The monolithic architecture of the Windows API may cause the loader's lock hierarchy to become nested within the lock hierarchy of a separate subsystem; if this nesting interleaves with another thread nesting in the opposite order, ABBA deadlock is the result
     - The [COM and loader subsystems exhibit tight coupling](#on-making-com-from-dllmain-safe) whereby Microsoft's implementation of COM may interact with the loader while holding the COM lock, an issue that becomes increasingly problematic due to the Windows API's extensive use of COM behind the scenes (including much of the Windows [User API](https://learn.microsoft.com/en-us/windows/win32/api/winuser/), [Windows Shell](https://learn.microsoft.com/en-us/windows/win32/api/_shell/), and [WinHTTP AutoProxy](https://learn.microsoft.com/en-us/windows/win32/winhttp/autoproxy-issues-in-winhttp#security-risk-mitigation) to name a few)
   - The heavy use of [thread-local data](#case-study-on-abba-deadlock-between-the-loader-lock-and-gdi-lock) throughout the Windows API can lock users to a single thread indefinitely
@@ -360,13 +362,13 @@ The Windows loader, in contrast to Unix-like loaders, is more vulnerable to corr
   - Windows commonly requires dynamic initialization even for core system functionality, such as [initializing a critical section](https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-initializecriticalsection)
   - In contrast, POSIX data structures commonly provide a [static initialization option](#constructors-and-destructors-overview)
 - Unexpected library loading
-  - Inherently, delay loading may unexpectedly cause library loading when a programmer didn't intend, thus leading to [an array of potential issues that could deadlock or crash a process](#lazy-loading-and-lazy-linking-os-comparison)
+  - Inherently, delay loading may unexpectedly cause library loading when a programmer didn't intend, thus leading to [an array of potential issues that could deadlock or crash a process](#library-lazy-loading-and-lazy-linking-overview)
     - MacOS previously supported lazy loading until Apple removed it, likely due to scenarios where it becomes an anti-feature and any performance gains not being worth the trade-off
   - The Windows API does dynamic library loading in situations that are inappropriate in the context of an operating system
     - Windows institutes that [creating a process can load libraries into the existing process](#comparing-os-library-loading-locations)
     - The modern Universal C Runtime (UCRT) in Windows [loads libraries at process exit](windows/dll-process-detach-test-harness.c)
-- Non-reentrant design or poor [thread-safe](https://en.wikipedia.org/wiki/Thread_safety) implementations that restrict concurrency
-  - Notable Windows components like [CRT/DLL exit (`atexit`)](atexit) and [FLS callbacks](windows/fls-experiment.c) either weren't designed with reentrancy or deadlock-free thread safety in mind (while these components are not directly part of the loader, their implementations may integrate with it)
+- Windows runtime libraries commonly implement a poor [thread-safe](https://en.wikipedia.org/wiki/Thread_safety) implementations that restrict concurrency
+  - Notable runtime components in Windows such as [`atexit` registration and its callbacks](atexit) were not designed with deadlock-free thread safety in mind (while runtime components are not directly part of the loader, their implementations may use or integrate with it)
 - Historical library loader issues
   - Poor reentrancy during module initialization
     - The Windows API being built from many closely knit DLLs that can load at virtually any time requires a loader with robust reentrancy capabilities
@@ -379,7 +381,7 @@ The Windows loader, in contrast to Unix-like loaders, is more vulnerable to corr
 - Backward and forward compatibility
   - The loader runs `DllMain` code under that DLL's activation context (`LDR_DATA_TABLE_ENTRY.EntryPointActivationContext`) for application compatibility, if it has one, which [could cause unforseen issues](https://devblogs.microsoft.com/oldnewthing/20080910-00/?p=20933) due to conflicting requirements laid out by another activation context
 
-The outcomes of these architectural facts and faults are far-reaching. Additionally, they often tie into each other, thus complicating matters. The tight coupling of Windows DLLs makes module initializers an especially ideal place to perform initialization tasks while also being the leading factor in rendering constructors unable to construct. Likewise, destructors are unable to deinitialize and clean up safely, if at all, due to inconsistent process state being the greater cause for concern in this case. It is unfortunate that while a DLL is the executable unit Windows is architected around, `DllMain` exists as one of the most fragile parts of Windows.
+The result of these architectural facts and faults, among other consequences, is that subsystems are often unable to construct and destruct safely. Outcomes of this simple fact are far-reaching with impact that can be seen throughout all facets of the operating system. Subsystems are often left employing delicate hacks (including, if you are Microsoft, moving code into the kernel leading to tighter coupling), introducing anti-patterns, and falling back on design decisions that are deficient in performance to work around what is a fundamental failing of the operating system. Alternatively, a subsystem could unknowingly perform an unsafe action in its module routines that works until a rare but possible race condition is met, a single point of failure that constantly challenges the soundness and robustness of Windows with every additional module. On an ad-hoc basis, Microsoft, at a cost to Windows flexibility, adds blockers to ensure common actions that can fail or may be risky from a module routine, cannot proceed. However, the checks necessary to implement these blockers are only possible due to the tight coupling that is prevalent in Windows, can add up to have a negative effect on performance when done at run-time, and can never create a fully correct system as long as root issues persist. It is unfortunate that while a DLL is the executable unit Windows is architected around, `DllMain` exists as one of the most fragile parts of Windows.
 
 With a newfound understanding of `DllMain` woes and the greater perspective gained from admiring how Unix-like operating systems get it right, you can reason about the safety of performing a given action from `DllMain`, module initializers and finalizers, or other constructors and destructors running in the module scope of a library.
 
@@ -630,7 +632,7 @@ The [Procedure/Symbol Lookup Comparison (Windows `GetProcAddress` vs POSIX `dlsy
 
 On the GNU loader, `dlsym` internally calls into the same internals as lazy linking. However, the GNU loader's approach to supporting the additional functionality POSIX specifies `dlsym` to support creates some notable differences that you can read about in the aforementioned sections.
 
-Windows lazy linking, which is merely a part of Window delay loading, is a different beast that I've only barely researched and there's not much public information on. See [Lazy Loading and Lazy Linking OS Comparison](#lazy-loading-and-lazy-linking-os-comparison) for some context on Windows delay loading.
+Windows lazy linking, which is merely a part of Window delay loading, is a different beast that I've only barely researched and there's not much public information on. See [Library Lazy Loading and Lazy Linking Overview](#library-lazy-loading-and-lazy-linking-overview) for some context on Windows delay loading.
 
 [Stepping into a lazy linked function](lazy-bind/dynamic-link/lib1.c) on the GNU loader reveals that it eventually calls the familiar `_dl_lookup_symbol_x` function to locate a symbol. During dynamic linking, `_dl_lookup_symbol_x` can resolve global symbols. The GNU loader uses GSCOPE, the global scope system, to ensure consistent access to `STB_GLOBAL` symbols (as it's known in the ELF standard; this maps to the [`RTLD_GLOBAL` flag of POSIX `dlopen`](https://pubs.opengroup.org/onlinepubs/009696799/functions/dlopen.html#tag_03_111_03)). [The global scope is the `searchlist` in the main link map.](https://elixir.bootlin.com/glibc/glibc-2.38/source/elf/dl-open.c#L106) The main link map refers to the program's link map structure (not one of the libraries). In the [TCB](https://en.wikipedia.org/wiki/Thread_control_block) (this is the generic term for the Windows TEB) of each thread is a piece of atomic state flag (this is *not* a reference count), which can hold [one of three states](https://elixir.bootlin.com/glibc/glibc-2.38/source/sysdeps/x86_64/nptl/tls.h#L211) known as the [`gscope_flag`](https://elixir.bootlin.com/glibc/glibc-2.38/source/sysdeps/x86_64/nptl/tls.h#L49) that keeps track of which threads are currently depending on the global scope for their operations. A thread uses the [`THREAD_GSCOPE_SET_FLAG` macro](https://elixir.bootlin.com/glibc/glibc-2.38/source/sysdeps/x86_64/nptl/tls.h#L225) (internally calls [`THREAD_SETMEM`](https://elixir.bootlin.com/glibc/glibc-2.38/source/sysdeps/x86_64/nptl/tcb-access.h#L92)) to atomically set this flag and the [`THREAD_GSCOPE_RESET_FLAG`](https://elixir.bootlin.com/glibc/glibc-2.38/source/sysdeps/x86_64/nptl/tls.h#L214) macro to atomically unset this flag. When the GNU loader requires synchronization of the global scope, it uses the [`THREAD_GSCOPE_WAIT` macro](https://elixir.bootlin.com/glibc/glibc-2.38/source/sysdeps/generic/ldsodefs.h#L1410) to call [`__thread_gscope_wait`](https://elixir.bootlin.com/glibc/glibc-2.38/source/sysdeps/nptl/dl-thread_gscope_wait.c#L26). Note there are two implementations of `__thread_gscope_wait`, one for the [Native POSIX Threads Library (NPTL)](https://en.wikipedia.org/wiki/Native_POSIX_Thread_Library) used on Linux systems and the other for the [Hurd Threads Library (HTL)](https://elixir.bootlin.com/glibc/glibc-2.38/source/htl/libc_pthread_init.c#L1) which was previously used on [GNU Hurd](https://en.wikipedia.org/wiki/GNU_Hurd) systems (with the [GNU Mach](https://www.gnu.org/software/hurd/microkernel/mach/gnumach.html) microkernel). GNU Hurd has [since](https://www.gnu.org/software/hurd/doc/hurd_4.html#SEC18) [switched to using NPTL](https://www.gnu.org/software/hurd/hurd/libthreads.html). For our purposes, only NPTL is relevant. The `__thread_gscope_wait` function [iterates through the `gscope_flag` of all (user and system) threads](https://elixir.bootlin.com/glibc/glibc-2.38/source/sysdeps/nptl/dl-thread_gscope_wait.c#L57), [signalling to them that it's waiting (`THREAD_GSCOPE_FLAG_WAIT`) to synchronize](https://elixir.bootlin.com/glibc/glibc-2.38/source/sysdeps/nptl/dl-thread_gscope_wait.c#L65). GSCOPE is a custom approach to locking that works by the GNU loader creating its own synchronization mechanisms based on [low-level locking primitives](https://elixir.bootlin.com/glibc/glibc-2.38/source/sysdeps/x86_64/nptl/tls.h#L222). Creating your own synchronization mechanisms can similarly be done on Windows using the [`WaitOnAddress` and `WakeByAddressSingle`/`WakeByAddressAll` functions](https://devblogs.microsoft.com/oldnewthing/20160823-00/?p=94145). Note that the [`THREAD_SETMEM`](https://elixir.bootlin.com/glibc/glibc-2.38/source/sysdeps/x86_64/nptl/tcb-access.h#L92) and [`THREAD_GSCOPE_RESET_FLAG`](https://elixir.bootlin.com/glibc/glibc-2.38/source/sysdeps/x86_64/nptl/tls.h#L217) macros don't prepend a `lock` prefix to the assembly instruction when atomically modifying a thread's `gscope_flag`. These modifications are still atomic because [`xchg` is atomic by default on x86](https://stackoverflow.com/a/3144453), and a [single aligned load or store (e.g. `mov`) operation is also atomic by default on x86 up to 64 bits](https://stackoverflow.com/a/36685056). If `gscope_flag` were a reference count, the assembly instruction would require a `lock` prefix (e.g. `lock inc`) because incrementing internally requires two memory operations, one load and one store. The GNU loader must still use a locking assembly instruction/prefix on architectures where memory consistency doesn't automatically guarantee this (e.g. AArch64/ARM64). Also, note that all assembly in the glibc source code is in AT&T syntax, not Intel syntax.
 
@@ -640,13 +642,15 @@ The Windows loader resolves lazy linkage by calling `LdrResolveDelayLoadedAPI` (
 
 The above paragraph is only an informal glance; I or someone else must thoroughly look into how delay loading is implemented since its integration into the modern Windows loader itself.
 
-## Lazy Loading and Lazy Linking OS Comparison
+## Library Lazy Loading and Lazy Linking Overview
+
+Lazy Loading and Lazy Linking OS Comparison
 
 **NOTE:** This section contains incomplete work and is subject to change.
 
 **Update:** Pending rewrite.
 
-In a [loader or dynamic linker](#defining-loader-linking-dynamic-linking-static-linking-dynamic-loading-static-loading), loading refers to the entire process of setting up a module from mapping it into memory, to linking, to initialization. Linking (sometimes referred to as binding or snapping) is the part of the libary loading process that resolves symbols names to addresses in memory. Doing either of these operations lazily means that it's done on an as-needed basis instead of all at process startup or library load-time.
+In a [loader or dynamic linker](#defining-loader-linking-dynamic-linking-static-linking-dynamic-loading-and-static-loading), loading refers to the entire process of setting up a module from mapping it into memory, to linking, to initialization. Linking (sometimes referred to as binding or snapping) is the part of the libary loading process that resolves symbols names to addresses in memory. Doing either of these operations lazily means that it's done on an as-needed basis instead of all at process startup or library load-time.
 
 Windows collectively refers to lazy loading and lazy linking as "delay loading". However, we tend towards the distinguished terms throughout this section.
 
@@ -1012,7 +1016,7 @@ This warning concerns the risk of nesting the native loader ("loader lock") and 
 
 Given how monolithic Windows tends to be, the second and likely third solutions for ABBA deadlock would be challenging; however, concurrency is hardly ever easy, and Microsoft engineers have taken on more difficult problems. It's possible to make it work. The monolithic architecture of Windows is often what unexpectedly causes problems between these separate lock hierarchies to arise in the first place (e.g. due to a Windows API function internally doing COM without the programmer's explicit knowledge).
 
-**Note (from the future):** Solutions that aim to keep loader lock above the COM lock in the lock hierarchy must account for Windows [delay loading](#lazy-loading-and-lazy-linking-os-comparison). Delay loading can cause library loading any time one DLL calls an import of another DLL. As a result, COM must be highly cautious not to call any delay loaded imports while holding the COM lock. Recursively resolving delay loads of `combase.dll` (possibly also `ole32.dll`) to load immediately would likely be infeasible due to delay loading being the hack that holds Windows together. While Windows architecture makes this goal challenging, it should be possible to achieve with lots of dependency chain micromanaging (on the import level, not DLL level).
+**Note (from the future):** Solutions that aim to keep loader lock above the COM lock in the lock hierarchy must account for Windows [delay loading](#library-lazy-loading-and-lazy-linking-overview). Delay loading can cause library loading any time one DLL calls an import of another DLL. As a result, COM must be highly cautious not to call any delay loaded imports while holding the COM lock. Recursively resolving delay loads of `combase.dll` (possibly also `ole32.dll`) to load immediately would likely be infeasible due to delay loading being the hack that holds Windows together. While Windows architecture makes this goal challenging, it should be possible to achieve with lots of dependency chain micromanaging (on the import level, not DLL level).
 
 ### Other Deadlock Possibilities
 
@@ -1136,7 +1140,7 @@ A DLL or library is [modular](https://learn.microsoft.com/en-us/troubleshoot/win
 
 How the Windows operating system scatters functionality across multiple libraries leads to the uncontrolled creation of dependencies. In particular, DLLs on Windows lack a clear separation of components causing nearly *everything to depend on everything else* (if not directly, then by proxy through a dependent DLL). It's this lack of organization between Windows libraries that dooms what a library is supposed to be and transforms the Windows API into a monolithic beast.
 
-As a hack to workaround this root issue, Microsoft (ab)uses the "delay loading" Windows feature to stop dependency loops. However, [delay loading or library lazy loading, is an inherently broken feature at the operating system level](#lazy-loading-and-lazy-linking-os-comparison). Thus, delay loading only moves the issue to being an equally as bad but manageable problem. This delay loading hack is pervasive throughout virtually all parts of the Windows API. We will now give a quick walkthrough of common DLLs, core to Windows' functioning, which exhibit the described hack:
+As a hack to workaround this root issue, Microsoft (ab)uses the "delay loading" Windows feature to stop dependency loops. However, [delay loading or library lazy loading, is an inherently broken feature at the operating system level](#library-lazy-loading-and-lazy-linking-overview). Thus, delay loading only moves the issue to being an equally as bad but manageable problem. This delay loading hack is pervasive throughout virtually all parts of the Windows API. We will now give a quick walkthrough of common DLLs, core to Windows' functioning, which exhibit the described hack:
 
 ```
 > dumpbin /imports C:\Windows\System32\kernel32.dll
@@ -1203,7 +1207,7 @@ advapi32.dll Delay Loads:
 
 Practically every DLL you look at in the Windows API is swamped with these delay loading hacks. Specifically, there are ~3000 DLLs (`.dll` files) in `C:\Windows\System32` (not including subdirectories). Of those approximately 3000 DLLs, some are ["resource-only DLLs"](https://learn.microsoft.com/en-us/cpp/build/creating-a-resource-only-dll) (e.g. `imageres.dll`), which can be excluded (I have not bothered though, since the figure is already staggering). By my measurement, this means **over half** of Windows DLL (1663 exactly, within `C:\Windows\System32` not including subdirectories) exhibit a delay loading hack. Note that this figure only includes DLLs that directly include a delay load, not DLLs that immediately depends on another DLL that includes a delay load. For a comprehensive list of affected DLLs, see the [final output](windows/dll-deps-research/delay-loads.txt) of the [`dumpbin-delay-loads.ps1` script](windows/dll-deps-research/dumpbin-delay-loads.ps1).
 
-The vast quantity of circular dependencies all through out the DLLs that make up the Windows API breaks the vital and commonly ascribed modularity benefit of the DLL. This tight coupling leads to a variety of poor outcomes for the operating system and software running on it. For obvious reasons, it would be undesirable to load so many libraries for even the simplest "Hello, World!" class of applications. As such, Microsoft needed a remedy and decided to move the problem, instead of fixing it, with [delay loading](#lazy-loading-and-lazy-linking-os-comparison).
+The vast quantity of circular dependencies all through out the DLLs that make up the Windows API breaks the vital and commonly ascribed modularity benefit of the DLL. This tight coupling leads to a variety of poor outcomes for the operating system and software running on it. For obvious reasons, it would be undesirable to load so many libraries for even the simplest "Hello, World!" class of applications. As such, Microsoft needed a remedy and decided to move the problem, instead of fixing it, with [delay loading](#library-lazy-loading-and-lazy-linking-overview).
 
 **NOTE:** Work on the [Dependency Breakdown](#dependency-breakdown) section is pending to separate the definition of lazy library loading from arguments against it in this document. The work here is INCOMPLETE, ALPHA QUALITY, and I still have my strongest arguments to add.
 
@@ -1727,7 +1731,7 @@ These experiments test how the Windows or GNU (on Linux) loaders react to variou
     - [Microsoft documentation](https://learn.microsoft.com/en-us/cpp/build/reference/linker-support-for-delay-loaded-dlls): "A DLL project that delays the loading of one or more DLLs itself shouldn't call a delay-loaded entry point in `DllMain`."
   - Linux: ✔️
     - Both dynamic loading (`dlopen`) and dynamic linking (at load time) tests were done in the most equivalent way
-    - As mentioned in the [Lazy Loading and Lazy Linking OS Comparison](#lazy-loading-and-lazy-linking-os-comparison) section, Linux doesn't natively support lazy loading
+    - As mentioned in the [Lazy Loading and Lazy Linking OS Comparison](#library-lazy-loading-and-lazy-linking-overview) section, Linux doesn't natively support lazy loading
       - However, effectively accomplishing lazy loading through various techniques comes down to recursive loading, which is already known to work
       - What I tested in this experiment is that [lazy linking](lazy-bind) works under `dl_load_lock`
       - Regardless, the GNU loader is immune to lazy loading deadlocks, so it gets a pass
@@ -1967,7 +1971,7 @@ I've provided Microsoft lots of constructive criticism and ways to fix their sys
 
 These are far from all my critiques about Microsoft and Windows. Other critiques are mentioned in meaningful contexts throughout the document. I'm also holding onto many more good candidates for making this list, but here is a start.
 
-## Defining Loader, Linking, Dynamic Linking, Static Linking, Dynamic Loading, Static Loading
+## Defining Loader, Linking, Dynamic Linking, Static Linking, Dynamic Loading, and Static Loading
 
 A loader and linker are two components essential for program execution or building.
 
@@ -1993,7 +1997,7 @@ At its most fundamental level, the loader is a [state machine](https://en.wikipe
 
 Parallelism and concurrency are related but different. Parallelism stipulates a processor with multiple cores running tasks at the same time. Meanwhile, concurrency could be a single-core processor [multitasking](https://en.wikipedia.org/wiki/Computer_multitasking) by continually starting and stopping different tasks. Parallelism is what's needed for heavily CPU-bound workloads because making a single-core processor multitask to complete the same work would be slower than that same processor executing the work item to completion in series due to the additional overhead.
 
-The modern Windows loader employs "loader worker" threads to parallelize its [mapping and "snapping"](#ldr_ddag_nodestate-analysis) work (the latter referring to [dynamic linking](#defining-loader-linking-dynamic-linking-static-linking-dynamic-loading-static-loading)) because mapping requires making lots of slow CPU-bound system calls ([each user-mode thread corresponds to a kernel-mode thread](https://en.wikipedia.org/wiki/Thread_(computing)#1:1_(kernel-level_threading))) and snapping is a purely CPU-bound operation (not requiring any I/O) where the loader resolves proceedure import names depended on by a module to function addresses in the dependent DLL. The Windows loader spawns these loader worker threads together in a thread pool at process startup, then it's the kernel's job to delegate which core of a multicore processor to run each thread on.
+The modern Windows loader employs "loader worker" threads to parallelize its [mapping and "snapping"](#ldr_ddag_nodestate-analysis) work (the latter referring to [dynamic linking](#defining-loader-linking-dynamic-linking-static-linking-dynamic-loading-and-static-loading)) because mapping requires making lots of slow CPU-bound system calls ([each user-mode thread corresponds to a kernel-mode thread](https://en.wikipedia.org/wiki/Thread_(computing)#1:1_(kernel-level_threading))) and snapping is a purely CPU-bound operation (not requiring any I/O) where the loader resolves proceedure import names depended on by a module to function addresses in the dependent DLL. The Windows loader spawns these loader worker threads together in a thread pool at process startup, then it's the kernel's job to delegate which core of a multicore processor to run each thread on.
 
 Requiring a strict order of operations, such as when the loader runs module initialization or finalization routines because each module's code within these routines may depend on each other, makes concurrent or parallelized processing infeasible.
 
@@ -2483,7 +2487,13 @@ Watch for reads/writes to a critical section's locking status.
 ba r4 @@C++(&((ntdll!_RTL_CRITICAL_SECTION *)@@(ntdll!LdrpDllNotificationLock))->LockCount)
 ```
 
-I tested placing a watchpoint on loader lock (`ntdll!LdrpLoaderLock`). Doing this won't tell you much about a modern Windows loader because, as previously mentioned, it's mostly the state, such as the `LDR_DDAG_NODE.State` or `LoadOwner`/`LoaderWorker` in `TEB.SameTebFlags` that the loader internally tests to make decisions (the loader itself never directly tests loader lock). However, outside of the loader, [some Windows API operations](windows/winhttp-dllmain-debugging.log) may directly check the status of loader lock using the `ntdll!RtlIsCriticalSectionLocked` or `ntdll!RtlIsCriticalSectionLockedByThread` functions to branch on the state of loader lock itself.
+I tested placing a watchpoint on loader lock (`ntdll!LdrpLoaderLock`). Doing this won't tell you much about a modern Windows loader because, as mentioned elsewhere, it is mostly the state, such as the `LDR_DDAG_NODE.State` or `LoadOwner`/`LoaderWorker` in `TEB.SameTebFlags` that the loader internally tests to make decisions (the loader itself never directly tests loader lock). However, outside of the loader, [some Windows API operations](windows/winhttp-dllmain-debugging.log) may directly check the status of loader lock using the `ntdll!RtlIsCriticalSectionLocked` or `ntdll!RtlIsCriticalSectionLockedByThread` functions to branch on the state of loader lock itself.
+
+### Debug Critical Section Locks
+
+To enable critical section debugging, run this command at process startup: `ew ntdll!RtlpForceCSDebugInfoCreation 1`
+
+Then, use the `!ntsdexts.locks -v` or `!cs` command to display all critical section locks. Alternatively, use `!ntsdexts.locks` or `!cs -l` to display only the currently locked critical section locks.
 
 ### Application Relaunch Testing
 

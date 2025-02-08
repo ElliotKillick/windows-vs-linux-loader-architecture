@@ -9,14 +9,15 @@ MSVC creates a stub which internally branches to calling either the process-wide
 ## Atexit/Exit Lock
 
 glibc uses a modular lock made specifically for protecting shared `atexit` data called: `__exit_funcs_lock`
-  - glibc unlocks this lock before calling into an `atexit` handler the relocks it after: https://elixir.bootlin.com/glibc/glibc-2.38/source/stdlib/exit.c#L87
+  - glibc unlocks this lock before calling into an `atexit` handler then relocks it after: https://elixir.bootlin.com/glibc/glibc-2.38/source/stdlib/exit.c#L87-L90
+  - Info about this lock: https://elixir.bootlin.com/glibc/glibc-2.38/source/stdlib/exit.h#L70-L77
 
-UCRT: Lock (critical section) for CRT exit (`ucrtbase!common_exit` function), EXE `atexit` (registration and handler) and DLL `atexit` (registration and handler): `ucrtbase!environ_table+0x70`
+Windows UCRT: Lock (critical section) for CRT exit (`ucrtbase!common_exit` function), EXE `atexit` (registration and handler), and DLL `atexit` (registration and handler): `ucrtbase!environ_table+0x70`
   - Set a watchpoint on it: `ba r4 @@C++(&((ntdll!_RTL_CRITICAL_SECTION *)@@(ucrtbase!environ_table+0x70))->LockCount)`
   - Source code (Microsoft makes this source available): https://github.com/huangqinjin/ucrt/blob/master/startup/exit.cpp#L195
   - About `ucrtbase!__crt_seh_guarded_call`: https://github.com/Chuyu-Team/VC-LTL/blob/master/src/14.20.27508/vcruntime/internal_shared.h#L173
 
-MSVCRT: Lock (critical section) for CRT exit (`msvcrt!doexit` function) EXE `atexit` (registration and handler), and DLL `atexit` (registration and handler): `msvcrt!CrtLock_Exit`
+Windows MSVCRT: Lock (critical section) for CRT exit (`msvcrt!doexit` function) EXE `atexit` (registration and handler), and DLL `atexit` (registration and handler): `msvcrt!CrtLock_Exit`
 
 The CRT exit lock doesn't unlock before calling into an `atexit` handler.
 
