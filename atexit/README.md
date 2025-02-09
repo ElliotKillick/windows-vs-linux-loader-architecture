@@ -10,7 +10,8 @@ MSVC creates a stub which internally branches to calling either the process-wide
 
 glibc uses a modular lock made specifically for protecting shared `atexit` data called: `__exit_funcs_lock`
   - glibc unlocks this lock before calling into an `atexit` handler then relocks it after: https://elixir.bootlin.com/glibc/glibc-2.38/source/stdlib/exit.c#L87-L90
-  - Info about this lock: https://elixir.bootlin.com/glibc/glibc-2.38/source/stdlib/exit.h#L70-L77
+  - Information about this lock: https://elixir.bootlin.com/glibc/glibc-2.38/source/stdlib/exit.h#L70-L77
+  - This lock adheres to the [single-responsibility principle](https://en.wikipedia.org/wiki/Single-responsibility_principle) to create a flexible and performant concurrent design for exit routines
 
 Windows UCRT: Lock (critical section) for CRT exit (`ucrtbase!common_exit` function), EXE `atexit` (registration and handler), and DLL `atexit` (registration and handler): `ucrtbase!environ_table+0x70`
   - Set a watchpoint on it: `ba r4 @@C++(&((ntdll!_RTL_CRITICAL_SECTION *)@@(ucrtbase!environ_table+0x70))->LockCount)`
