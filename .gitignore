@@ -1,4 +1,5 @@
 main
+target
 *.out
 *.so
 *.exe
@@ -8,4 +9,5 @@ main
 *.lib
 *.exp
 *.pdb
+*.lock
 *.sw*

@@ -1,5 +1,5 @@
 // Sending a WinHTTP requiest fails with error ERROR_INVALID_STATE during WinHttpSendRequest
-// The WebIO DLL uses a module two-phase initialization (sometimes also known as late or lazy initialization) hack (happens outside of DllMain) and it checks loader lock to verify its not in some other DLL's DllMain before proceeding
+// The WebIO DLL uses a module two-phase initialization (sometimes also known as late or less accurately as lazy initialization) hack (happens outside of DllMain) and it checks loader lock to verify its not in some other DLL's DllMain before proceeding
 // Two-phase initialization initialization call chain: WINHTTP!WINHTTP_DLL::GetWebIOApiHandle -> webio!WebInitialize -> webio!WapInitialize -> webio!WaIncrementDllInitializationCount -> webio!WapInitializeDll
 // As we can see, safely using the WebIO DLL requires getting an API handle to it (before calling any of its other DLL exports), then the DLL reference counts its own API handles and checks for initialization, initializing if required (on top of the reference counting and initializtion already done by the native loader on the same DLL, so double reference counting).
 //
