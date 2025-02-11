@@ -3,8 +3,8 @@
 rem These options replicate Visual Studio
 rem /MD: Use UCRT instead of statically linking CRT into modules
 rem /INCREMENTAL:NO: Remove "ILT" from symbol names
-cl dll-test.cpp /DUNICODE /D_UNICODE /MD /LD /link /INCREMENTAL:NO
-cl exe-test.c dll-test.lib /DUNICODE /D_UNICODE /MD /link /INCREMENTAL:NO
+cl dll-test.cpp /DUNICODE /D_UNICODE /MD /LD /Zi /DEBUG /link /INCREMENTAL:NO
+cl exe-test.c dll-test.lib /DUNICODE /D_UNICODE /MD /Zi /DEBUG /link /INCREMENTAL:NO
 
 rem Helper: If compilation fails because cl command doesn't exist then re-run in the correct environment
 if %ERRORLEVEL% equ 9009 (

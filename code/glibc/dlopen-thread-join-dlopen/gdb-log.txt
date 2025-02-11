@@ -1,8 +1,8 @@
 This log is taken when the deadlock occurs (^C at program hang). It's from a Fedora 38 machine with GNU ld 2.39 (according to ld --version command).
 
-============================================================
-Thread 1 waiting for thread 2 to terminate with pthread_join
-============================================================
+=======================================================
+Thread 1 waiting for thread 2 to exit with pthread_join
+=======================================================
 
 Library 1 loaded successfully!
 [New Thread 0x7ffff7dcc6c0 (LWP 4788)]

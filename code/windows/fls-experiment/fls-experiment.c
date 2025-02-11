@@ -1,5 +1,5 @@
+#include <windows.h>
 #include <stdio.h>
-#include <Windows.h>
 
 // An FLS callback may be run manually:
 // The public FlsFree function (leads to RtlFlsFree in NTDLL) itself only runs a single FLS callback

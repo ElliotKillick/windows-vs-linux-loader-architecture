@@ -1,8 +1,9 @@
 @echo off
 
 rem These options replicate Visual Studio
-cl lib1.c /LD /DUNICODE /D_UNICODE /MD /Zi /DEBUG /link advapi32.lib /INCREMENTAL:NO
-cl main.c /DUNICODE /D_UNICODE /MD /Zi /DEBUG /link /INCREMENTAL:NO
+rem /MD: Use UCRT instead of statically linking CRT into modules
+rem /INCREMENTAL:NO: Remove "ILT" from symbol names
+cl event-experiment.c /DUNICODE /D_UNICODE /MD /Zi /DEBUG /link /INCREMENTAL:NO
 
 rem Helper: If compilation fails because cl command doesn't exist then re-run in the correct environment
 if %ERRORLEVEL% equ 9009 (

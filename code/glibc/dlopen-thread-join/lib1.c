@@ -6,9 +6,6 @@ void* thread()
 {
     puts("Thread started from library constructor!");
 
-    // Load lib2 from thread spawned by lib1 constructor
-    dlopen("lib2.so", RTLD_LAZY);
-
     return NULL;
 }
 
@@ -21,6 +18,6 @@ void func() {
 
     //asm("int3");
 
-    // Wait for thread to terminate
+    // Wait for thread to exit
     pthread_join(thread1, NULL);
 }

@@ -2,6 +2,9 @@
 
 int main(int argc, char *argv[]) {
     // Initialize GDK
+    // GDK has to work across all platforms so two-phase initialization is needed
+    // Note that in GDK 4 (this is GDK 3), gdk_init was removed as part of a restructuring
+    // GTK still has gtk_init but it now takes no arguments
     gdk_init(&argc, &argv);
 
     // Create a new window using GdkWindowAttr
