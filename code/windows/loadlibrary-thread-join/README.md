@@ -1,6 +1,6 @@
 # `LoadLibrary` Thread Join Experiment
 
-Spawning a thread and waiting for its creation then exit from a module initializer.
+Spawning a thread and waiting for its creation then exit from a module initializer or finalizer (the latter being the module subsystem lifetime).
 
 This experiment deadlocks on the `ntdll!LdrpInitCompleteEvent` event object in the `LdrpInitialize` function during process startup. During process run-time the deadlock will occur a bit later on the `ntdll!LdrpLoadCompleteEvent` event object in the `LdrpInitializeThread` ➜ `LdrpDrainWorkQueue` function (due to running `DLL_THREAD_ATTACH`). If it was possible to still continue then thread creation or exit would further block when acquiring the `ntdll!LdrpLoaderLock` lock in the `LdrpInitializeThread` function also due to running `DLL_THREAD_ATTACH` routines at thread startup or `DLL_THREAD_DETACH` routines at thread exit.
 

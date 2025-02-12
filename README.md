@@ -46,7 +46,6 @@ All of the information contained here covers Windows 10 22H2 and glibc 2.38 on L
     - [Other Deadlock Possibilities](#other-deadlock-possibilities)
     - [Conclusion](#conclusion)
   - [Investigating the Idea of MT-Safe Library Initialization](#investigating-the-idea-of-mt-safe-library-initialization)
-  - [Case Study on ABBA Deadlock Between the Loader Lock and GDI+ Lock](#case-study-on-abba-deadlock-between-the-loader-lock-and-gdi-lock)
   - [The Problem with How Windows Uses DLLs](#the-problem-with-how-windows-uses-dlls)
     - [Problem Solved?](#problem-solved)
       - [Solution #1: API Sets Extension](#solution-1-api-sets-extension)
@@ -72,6 +71,9 @@ All of the information contained here covers Windows 10 22H2 and glibc 2.38 on L
     - [Securable Threads](#securable-threads)
     - [Expensive Threads](#expensive-threads)
     - [Multithreading is Insecure](#multithreading-is-insecure)
+  - [DLL Thread Routines Anti-Feature](#dll-thread-routines-anti-feature)
+    - [Synchronization Requirements](#synchronization-requirements)
+  - [Flimsy Thread-Local Data](#flimsy-thread-local-data)
   - [Component Model Technology Overview](#component-model-technology-overview)
     - [Microsoft Component Object Model (COM)](#microsoft-component-object-model-com)
     - [Common Object Request Broker Architecture (CORBA)](#common-object-request-broker-architecture-corba)
@@ -97,38 +99,19 @@ All of the information contained here covers Windows 10 22H2 and glibc 2.38 on L
   - [Reverse Engineered Windows Loader Functions](#reverse-engineered-windows-loader-functions)
     - [`LdrpDrainWorkQueue`](#ldrpdrainworkqueue)
     - [`LdrpDecrementModuleLoadCountEx`](#ldrpdecrementmoduleloadcountex)
-  - [Analysis Commands](#analysis-commands)
-    - [`LDR_DATA_TABLE_ENTRY` Analysis](#ldr_data_table_entry-analysis)
-    - [`LDR_DDAG_NODE` Analysis](#ldr_ddag_node-analysis)
-    - [List All Dynamically Loaded DLLs](#list-all-dynamically-loaded-dlls)
-    - [List All Calls to Delay Loaded Imports](#list-all-calls-to-delay-loaded-imports)
-    - [Trace `TEB.SameTebFlags`](#trace-tebsametebflags)
-    - [Searching Assembly for Structure Offsets](#searching-assembly-for-structure-offsets)
-    - [Monitor a Critical Section Lock](#monitor-a-critical-section-lock)
-    - [Debug Critical Section Locks](#debug-critical-section-locks)
-    - [Application Relaunch Testing](#application-relaunch-testing)
-    - [Track Loader Events](#track-loader-events)
-    - [Disable Loader Worker Threads](#disable-loader-worker-threads)
-    - [Thread and Worker Logging](#thread-and-worker-logging)
-    - [List All `LdrpCriticalLoaderFunctions`](#list-all-ldrpcriticalloaderfunctions)
-    - [Find Root Cause of System Error Code or User-Mode Deadlocks](#find-root-cause-of-system-error-code-or-user-mode-deadlocks)
-    - [Loader Debug Logging](#loader-debug-logging)
-    - [Trace COM Initializations and Objects](#trace-com-initializations-and-objects)
-    - [`link_map` Analysis (GNU Loader)](#link_map-analysis-gnu-loader)
-    - [Get TCB and Set GSCOPE Watchpoint (GNU Loader)](#get-tcb-and-set-gscope-watchpoint-gnu-loader)
-  - [Big thanks to Microsoft for successfully nerd sniping me!](#big-thanks-to-microsoft-for-successfully-nerd-sniping-me)
+  - [License](#license)
 
 ## Module Information Data Structures
 
-A Windows module list is a circular doubly linked list of type [`LDR_DATA_TABLE_ENTRY`](https://www.geoffchappell.com/studies/windows/km/ntoskrnl/inc/api/ntldr/ldr_data_table_entry.htm). The loader maintains multiple `LDR_DATA_TABLE_ENTRY` lists containing the same entries but in different link orders. These lists include `InLoadOrderModuleList`, `InMemoryOrderModuleList`, and `InInitializationOrderModuleList`. These list heads are stored in `ntdll!PEB_LDR_DATA`. Each `LDR_DATA_TABLE_ENTRY` structure houses a `LIST_ENTRY` structure (containing both `Flink` and `Blink` pointers) for each module list.
+A Windows module list is a circular doubly linked list of type [`LDR_DATA_TABLE_ENTRY`](https://www.geoffchappell.com/studies/windows/km/ntoskrnl/inc/api/ntldr/ldr_data_table_entry.htm). The loader maintains multiple `LDR_DATA_TABLE_ENTRY` lists containing the same entries but in different link orders. These lists include `InLoadOrderModuleList`, `InMemoryOrderModuleList`, and `InInitializationOrderModuleList`, which are the list heads that can be found in `ntdll!PEB_LDR_DATA`. Each `LDR_DATA_TABLE_ENTRY` structure houses `InLoadOrderLinks`, `InMemoryOrderLinks`, and `InInitializationOrderLinks`, which are `LIST_ENTRY` structures (containing both `Flink` and `Blink` pointers), thus building the module lists between `LDR_DATA_TABLE_ENTRY` nodes.
 
-The Linux (glibc) module list is a linear (i.e. non-circular) doubly linked list of type [`link_map`](https://elixir.bootlin.com/glibc/glibc-2.38/source/include/link.h#L86). `link_map` contains both the `next` and `prev` pointers used to link the module information structures together into a list.
+The glibc (on Linux) module list is a linear (i.e. non-circular) doubly linked list of type [`link_map`](https://elixir.bootlin.com/glibc/glibc-2.38/source/include/link.h#L86). `link_map` contains both the `next` and `prev` pointers used to link the module information structures together into a list. glibc makes the list of loaded modules accessible for debugging purposes through the [`r_debug->r_map`](analysis-commands.md#link_map-analysis) symbol it exposes, which is a list head for the list of `link_map` structures.
 
-This section is not comprehensive, only providing the most common and basic module information data structure in each loader.
+This section only covers the central module information data structure to each loader.
 
 ## Locks
 
-Operating-system-level synchronization mechanisms of all kinds, including thread synchronization locks (i.e. Windows critical section or POSIX mutex), [exclusive/write and shared/read locks](https://en.wikipedia.org/wiki/Readers%E2%80%93writer_lock) (i.e. [Windows slim reader/writer locks](https://learn.microsoft.com/en-us/windows/win32/sync/slim-reader-writer--srw--locks) or [POSIX rwlock locks](https://pubs.opengroup.org/onlinepubs/9699919799/functions/pthread_rwlock_unlock.html)), and [inter-process synchronization locks](https://learn.microsoft.com/en-us/windows/win32/sync/interprocess-synchronization). Operating-system-level, meaning these locks may make a system call (a `syscall` instruction on x86-64) to perform a non-busy wait if the synchronization mechanism is owned/contended/waiting.
+Operating-system-level synchronization mechanisms of all kinds, including thread synchronization locks (i.e. Windows critical section or POSIX mutex), [readers-writer locks](https://en.wikipedia.org/wiki/Readers%E2%80%93writer_lock) (i.e. [Windows slim reader/writer locks](https://learn.microsoft.com/en-us/windows/win32/sync/slim-reader-writer--srw--locks) or [POSIX rwlock locks](https://pubs.opengroup.org/onlinepubs/9699919799/functions/pthread_rwlock_unlock.html), which can be acquired in exclusive/write or shared/read mode), and [inter-process synchronization locks](https://learn.microsoft.com/en-us/windows/win32/sync/interprocess-synchronization). Operating-system-level, meaning these locks may make a system call (a `syscall` instruction on x86-64) to perform a non-busy wait if the synchronization mechanism is owned/contended/waiting.
 
 An intra-process OS lock uses an atomic flag as its locking primitive when there's no contention (e.g. implemented with the `lock cmpxchg` instruction on x86). Inter-process locks such as Win32 event synchronization objects must rely entirely on system calls to provide synchronization (e.g. the Windows event object `NtSetEvent` and `NtResetEvent` functions are just stubs containing a `syscall` instruction).
 
@@ -321,7 +304,6 @@ A state value may either be shared state (also known as global state) or local s
     - On thread creation, `LdrpInitialize` checks if the thread is a loader worker and, if so, handles it specially
     - This flag can be set on a new thread using [`NtCreateThreadEx`](https://ntdoc.m417z.com/ntcreatethreadex)
   - `SkipLoaderInit` (flag mask `0x4000`) tells the spawning thread to skip all loader initialization
-    - As per the *Windows Internals* book and confirmed by myself
       - In `LdrpInitialize` IDA decompilation, you can see `SameTebFlags` being tested for `0x4000`, and if present, loader initialization is completely skipped (`_LdrpInitialize` is never called)
     - This could be useful for creating new threads without being blocked by loader events
     - This flag can be set on a new thread using [`NtCreateThreadEx`](https://ntdoc.m417z.com/ntcreatethreadex)
@@ -342,14 +324,13 @@ The Windows loader, in contrast to Unix-like loaders, is more vulnerable to corr
   - As a result, the threat of [ABBA deadlock](#abba-deadlock) makes it unsafe to acquire any external lock (not used by NTDLL) from inside the loader without knowing how that lock is implemented
 - Windows is the ultimate monolith
   - The [broadness of the Windows API](https://en.wikipedia.org/wiki/Criticism_of_Microsoft#Vendor_lock-in) (thousands of DLLs in `C:\Windows\System32`, including everything from file creation to WinHTTP) in combination with its [lack of a clear separation between components](#the-problem-with-how-windows-uses-dlls) leads to [operating-system-wide dependency breakdown](#dependency-breakdown)
-    - Despite Windows prioritzing libraries and shared processes over programs and small processes at the operating-system-level, its library dependency infrastructure is significantly less robust and more tightly coupled than its Unix counterpart
-  - The Windows [threading implementation](https://en.wikipedia.org/wiki/Thread_(computing)#1:1_(kernel-level_threading)) meshes with the loader at thread startup and exit (`DLL_THREAD_ATTACH` and `DLL_THREAD_DETACH`)
-    - The synchronization requirement this added to threads broke the [library subsystem lifetime](#the-process-lifetime), which led to [Microsoft condoning thread termination](https://devblogs.microsoft.com/oldnewthing/20150814-00/?p=91811) as a synchronization model and [Windows leaving the process in an inconsistent state at process exit thus breaking module destructors](#process-meltdown)
-    - Despite Windows prioritzing multithreading over multiprocessing at the operating-system-level, its threading implementation is significantly less robust and more prone to deadlocks than its Unix counterpart
+    - Despite Windows prioritizing libraries and shared processes over programs and small processes at the operating-system-level, its library dependency infrastructure is significantly less robust and more tightly coupled than its Unix counterpart
+  - The Windows threading implementation [meshes with the loader at thread startup and exit](#dll-thread-routines-anti-feature) (`DLL_THREAD_ATTACH` and `DLL_THREAD_DETACH`)
+    - The synchronization requirement this added to threads broke the library subsystem lifetime, which led to [Microsoft condoning thread termination](https://devblogs.microsoft.com/oldnewthing/20150814-00/?p=91811) as a synchronization model and [Windows leaving the process in an inconsistent state at process exit thus breaking module destructors](#process-meltdown)
+    - Despite Windows prioritizing multithreading over multiprocessing at the operating-system-level, its threading implementation is significantly less robust and more prone to deadlocks than its Unix counterpart
   - The monolithic architecture of the Windows API may cause the loader's lock hierarchy to become nested within the lock hierarchy of a separate subsystem; if this nesting interleaves with another thread nesting in the opposite order, ABBA deadlock is the result
     - The [COM and loader subsystems exhibit tight coupling](#on-making-com-from-dllmain-safe) whereby Microsoft's implementation of COM may interact with the loader while holding the COM lock, an issue that becomes increasingly problematic due to the Windows API's extensive use of COM behind the scenes (including much of the Windows [User API](https://learn.microsoft.com/en-us/windows/win32/api/winuser/), [Windows Shell](https://learn.microsoft.com/en-us/windows/win32/api/_shell/), and [WinHTTP AutoProxy](https://learn.microsoft.com/en-us/windows/win32/winhttp/autoproxy-issues-in-winhttp#security-risk-mitigation) to name a few)
-  - The heavy use of [thread-local data](#case-study-on-abba-deadlock-between-the-loader-lock-and-gdi-lock) throughout the Windows API can lock users to a single thread indefinitely
-    - Among other issues, this untoward threading assumption at the operating-system-level becomes problematic if `DLL_PROCESS_ATTACH` and `DLL_PROCESS_DETACH` code assumes they run on the same thread, when they may not (it is possible for this issue to arise on a Unix-like loader too, but Windows has a higher risk due to its architecture)
+  - The heavy use of [thread-local data](#flimsy-thread-local-data) throughout the Windows API can lock its users to the unspecified thread that loaded the library
   - Windows kernel mode and user mode closely integrate (NT and NTDLL), whereas [Unix began with modularity as a core value](https://en.wikipedia.org/wiki/Unix_philosophy)
     - This value carried through to the formalization of Unix in the POSIX and C standards, and the System V ABI specification
 - Windows overrelies on dynamic initialization and dynamic operations in general
@@ -376,7 +357,7 @@ The Windows loader, in contrast to Unix-like loaders, is more vulnerable to corr
 - Backward and forward compatibility
   - The loader runs `DllMain` code under that DLL's activation context (`LDR_DATA_TABLE_ENTRY.EntryPointActivationContext`) for application compatibility, if it has one, which [could cause unforseen issues](https://devblogs.microsoft.com/oldnewthing/20080910-00/?p=20933) due to conflicting requirements laid out by another activation context
 
-The result of these architectural facts and faults, among other consequences, is that subsystems are often unable to construct and destruct safely. Outcomes of this simple fact are far-reaching with impact that can be seen throughout all facets of the operating system. Subsystems are often left employing delicate hacks (including, if you are Microsoft, making subsystems more reliant on the kernel and broader system leading to tighter coupling), introducing anti-patterns, and falling back on design decisions that are deficient in performance to work around what is a fundamental failing of the operating system. Alternatively, a subsystem could unknowingly perform an unsafe action in its module routines that works until a rare but possible race condition is met, a single point of failure that constantly challenges the soundness and robustness of Windows with every additional module. On an ad-hoc basis, Microsoft, at a cost to Windows flexibility, adds blockers to ensure common actions that can fail or may be risky from a module routine, cannot proceed. However, the checks necessary to implement these blockers are only possible due to the tight coupling that is prevalent in Windows, can add up to have a negative effect on performance when done at run-time, and can never create a fully correct system as long as root issues persist. It is unfortunate that while a DLL is the executable unit Windows is architected around, `DllMain` exists as one of the most fragile parts of Windows.
+The result of these architectural facts and faults, among other consequences, is that subsystems are often unable to construct and destruct safely. Outcomes of this simple fact are far-reaching with impact that can be seen throughout all facets of the operating system. Subsystems are often left employing delicate hacks (including, if you are Microsoft, making subsystems more reliant on the kernel and broader system leading to tighter coupling), introducing anti-patterns, and falling back on design decisions that are deficient in performance to work around what is a fundamental failing of the operating system. Alternatively, a subsystem could unknowingly perform an unsafe action in its module routines, which may work until a rare but possible race condition is met, a single point of failure that constantly challenges the soundness and robustness of Windows with every additional module. On an ad-hoc basis, Microsoft, adds blockers to ensure common actions that can fail or may be risky from a Windows module routine, cannot proceed. However, the checks necessary to implement these blockers are only possible due to the tight coupling that is prevalent in Windows, can add up to have a negative effect on performance when done at run-time, and can never create a fully correct system as long as root issues persist. It is unfortunate that while a DLL is the executable unit Windows is architected around, `DllMain` exists as one of the most fragile parts of Windows.
 
 With a newfound understanding of `DllMain` woes and the greater perspective gained from admiring how Unix-like operating systems get it right, you can reason about the safety of performing a given action from `DllMain`, module initializers and finalizers, or other constructors and destructors running in the module scope of a library.
 
@@ -387,7 +368,7 @@ With a newfound understanding of `DllMain` woes and the greater perspective gain
 In user-mode, code runs in the lifetime of a process. Within a process there are three kinds of lifetimes:
 
 1. The application lifetime
-    - **Birth:** Process entrypoint, starting with constructors in the program before `main`
+    - **Birth:** The `main` function or process entrypoint is called, starting with constructors in the program before `main`
     - **Death:** The `main` function returns, ending with destructors in the program after `main`
 2. Library subsystem lifetimes
     - **Birth:** Library initializers/constructors (e.g. Windows `DLL_PROCESS_ATTACH` or legacy Unix `_init`)
@@ -399,7 +380,7 @@ In user-mode, code runs in the lifetime of a process. Within a process there are
         - Beyond that, its implementation can technically be anything, but on modern systems a stack is implemented by adding and subtracting to a stack pointer register
     - Also referred to as block scope or automatic storage duration
 
-All other lifetimes occur as a result of these three lifetimes. For instance, heap lifetimes inherit from these three types of lifetime because one of them must keep a reference to a given heap allocation within its scope. Thread-local data is just stack memory with the lifetime of the entire stack. Abstracting further, it could be said that the stack lifetime is the parent of all lifetimes because references to threads, in a multithreaded application, are stored in the stack or are indirectly referenced by the stack, outside of remotely spawned threads by the outside environment. These three points, though, define the optimal level of abstraction for modern user-mode processes.
+All other lifetimes occur as a result of these three lifetimes. For instance, heap allocation lifetimes inherit from these three types of lifetime because one of them must keep a reference to a given heap allocation within its scope. Thread-local data is just stack memory with the lifetime of the entire stack. Abstracting further, it could be said that the stack lifetime of the main thread is the parent of all lifetimes, especially in a single-threaded application, but also in a multithreaded application because references to threads are stored in the stack or are indirectly referenced by the stack, excluding threads remotely spawned by the outside environment. These three points, though, define the optimal level of abstraction for defining lifetime as it relates to modern user-mode processes.
 
 ## Comparing OS Library Loading Locations
 
@@ -413,7 +394,7 @@ On Windows, statically linking system DLLs is unsupported and a copyright infrin
 
 `LDR_DDAG_NODE.State` or `LDR_DDAG_STATE` tracks a module's **entire lifetime** from beginning to end. With this analysis, I intend to extrapolate information based on the [known types given to us by Microsoft](https://www.geoffchappell.com/studies/windows/km/ntoskrnl/inc/api/ntldr/ldr_ddag_state.htm) (`dt _LDR_DDAG_STATE` command in WinDbg).
 
-Findings were gathered by [tracing all `LDR_DDAG_STATE.State` values at load-time](#ldr_ddag_node-analysis) and tracing a library unload, as well as searching disassembly.
+Findings were gathered by [tracing all `LDR_DDAG_STATE.State` values at load-time](analysis-commands.md#ldr_ddag_node-analysis) and tracing a library unload, as well as searching disassembly.
 
 Each state represents a **stage of loader work**. This table comprehensively documents where these state changes occur throughout the loader and which locks are present.
 
@@ -504,7 +485,7 @@ When loading a library, loader work begins with the requesting thread calling `L
   </tr>
 </table>
 
-See what a [LDR_DDAG_STATE trace log](data/windows/load-all-modules-ldr-ddag-node-state-trace.txt) looks like ([be aware of the warnings](#ldr_ddag_node-analysis)).
+See what a [LDR_DDAG_STATE trace log](data/windows/load-all-modules-ldr-ddag-node-state-trace.txt) looks like ([be aware of the warnings](analysis-commands.md#ldr_ddag_node-analysis)).
 
 ## Constructors and Destructors Overview
 
@@ -528,7 +509,7 @@ In the ELF executable format, module constructors and destructors are standardiz
 
 The PE (Windows) executable format standard [doesn't define any sections specific to module initialization](https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#special-sections); instead, a `DllMain` function or any module constructors/destructors are included with the rest of the program code in the `.text` section. MSVC optionally provides the [`init_seg`](https://learn.microsoft.com/en-us/cpp/preprocessor/init-seg) pragma to specify a section name with module constructors to run frist when compiling C++ code. However, such a section is only used if this pragma is explicitly specified by the programmer (unlikely) or in the niche cases MSVC will generate one itself (as stated by the documentation). The granularity this pragma provides is low with only `compiler`, `lib`, and `user` options. In contrast, the `.init_array`/`.fini_array` sections and `__attribute__((constructor(priority)))`/`__attribute__((destructor(priority)))` on Unix-like systems serve as a modular and robust means for controlling dynamic initializiation order.
 
-The Windows loader calls a module's `LDR_DATA_TABLE_ENTRY.EntryPoint` at module initialization or deinitialization with the respective `fdwReason` argument (`DLL_PROCESS_ATTACH` or `DLL_PROCESS_DETACH`); it has no knowledge of `DllMain` or C++ constructors/destructors in the module scope. Merging these into one callable `EntryPoint` is the job of a compiler. For instance, [MSVC compiles a stub into your DLL (`dllmain_dispatch`) that calls any module constructors followed by `DllMain` with the `DLL_PROCESS_ATTACH` argument](code/windows/dll-init-order-test/exe-test.c) (and destructors, of course, in the reverse order). Constructors other than `DllMain`, of course, initialize in the order they are laid out in code. The word `Main` in `DllMain` indicates that `DllMain` will run as the last constructor in the module similar to how the `main` function of a program runs after all constructors. Still, I find `DllMain` to generally be a bad name because it may lead people to use constructors in ways that one might use the `main` function of a program due to the similar name (like `DllMain` is just `main` but in a DLL, which is not the case). I also find Microsoft's use of the term "entry point" (e.g. in `LDR_DATA_TABLE_ENTRY.EntryPoint`) to describe calling a module's constructor and destructor routines bad because an [entry point has a specific definition that refers to the start of program execution](https://en.wikipedia.org/wiki/Entry_point). This reason for this name stems from both an EXE and its DLLs having a `LDR_DATA_TABLE_ENTRY`. Especially since the Windows loader does accurately set the EXE's `EntryPoint` set to the program's main function (then [just above `EntryPoint` is the `DllBase` member of `LDR_DATA_TABLE_ENTRY`](https://www.geoffchappell.com/studies/windows/km/ntoskrnl/inc/api/ntldr/ldr_data_table_entry.htm), which conflates EXEs with DLLs but the other way around). So, a good question is posed by asking why the `LDR_DATA_TABLE_ENTRY` structure definition should be shared between an EXE and its DLLs at all seeing as the [as the GNU loader does not conflate these concepts](#link_map-analysis-gnu-loader) because, besides both being some code with data that is mapped into memory, these are completely different things. Up until one point in Windows history, [the `LDR_DATA_TABLE_ENTRY` structure definition was even shared between kernel and user-mode modules until separating into the `KLDR_DATA_TABLE_ENTRY` structure](https://www.geoffchappell.com/studies/windows/km/ntoskrnl/inc/api/ntldr/ldr_data_table_entry/index.htm): "The `LDR_DATA_TABLE_ENTRY` structure is NTDLL’s record of how a DLL is loaded into a process. In early Windows versions, this structure is similarly the kernel’s record of each module that is loaded for kernel-mode execution. The different demands of kernel and user modes eventually led to the separate definition of a `KLDR_DATA_TABLE_ENTRY`." The GNU loader calls legacy [`init` before going through the `init_array` functions](https://elixir.bootlin.com/glibc/glibc-2.38/source/elf/dl-init.c#L56) (the opposite of Windows where `DllMain` comes last after all other constructors, similar to how a `main` function would). All of these facts come together to paint a picture of Windows being too kernel-centric and monolithic, not considering the unique requirements of user-mode and correctly distinguishing between execution environments.
+The Windows loader calls a module's `LDR_DATA_TABLE_ENTRY.EntryPoint` at module initialization or deinitialization with the respective `fdwReason` argument (`DLL_PROCESS_ATTACH` or `DLL_PROCESS_DETACH`); it has no knowledge of `DllMain` or C++ constructors/destructors in the module scope. Merging these into one callable `EntryPoint` is the job of a compiler. For instance, [MSVC compiles a stub into your DLL (`dllmain_dispatch`) that calls any module constructors followed by `DllMain` with the `DLL_PROCESS_ATTACH` argument](code/windows/dll-init-order-test/exe-test.c) (and destructors, of course, in the reverse order). Constructors other than `DllMain`, of course, initialize in the order they are laid out in code. The word `Main` in `DllMain` indicates that `DllMain` will run as the last constructor in the module similar to how the `main` function of a program runs after all constructors. Still, I find `DllMain` to generally be a bad name because it may lead people to use constructors in ways that one might use the `main` function of a program due to the similar name (like `DllMain` is just `main` but in a DLL, which is not the case). I also find Microsoft's use of the term "entry point" (e.g. in `LDR_DATA_TABLE_ENTRY.EntryPoint`) to describe calling a module's constructor and destructor routines bad because an [entry point has a specific definition that refers to the start of program execution](https://en.wikipedia.org/wiki/Entry_point). This reason for this name stems from both an EXE and its DLLs having a `LDR_DATA_TABLE_ENTRY`. Especially since the Windows loader does accurately set the EXE's `EntryPoint` set to the program's main function (then [just above `EntryPoint` is the `DllBase` member of `LDR_DATA_TABLE_ENTRY`](https://www.geoffchappell.com/studies/windows/km/ntoskrnl/inc/api/ntldr/ldr_data_table_entry.htm), which conflates EXEs with DLLs but the other way around). So, a good question is posed by asking why the `LDR_DATA_TABLE_ENTRY` structure definition should be shared between an EXE and its DLLs at all seeing as the [as the GNU loader does not conflate these concepts](#analysis-commands.md#link_map-analysis) because, besides both being some code with data that is mapped into memory, these are completely different things. Up until one point in Windows history, [the `LDR_DATA_TABLE_ENTRY` structure definition was even shared between kernel and user-mode modules until separating into the `KLDR_DATA_TABLE_ENTRY` structure](https://www.geoffchappell.com/studies/windows/km/ntoskrnl/inc/api/ntldr/ldr_data_table_entry/index.htm): "The `LDR_DATA_TABLE_ENTRY` structure is NTDLL’s record of how a DLL is loaded into a process. In early Windows versions, this structure is similarly the kernel’s record of each module that is loaded for kernel-mode execution. The different demands of kernel and user modes eventually led to the separate definition of a `KLDR_DATA_TABLE_ENTRY`." The GNU loader calls legacy [`init` before going through the `init_array` functions](https://elixir.bootlin.com/glibc/glibc-2.38/source/elf/dl-init.c#L56) (the opposite of Windows where `DllMain` comes last after all other constructors, similar to how a `main` function would). All of these facts come together to paint a picture of Windows being too kernel-centric and monolithic, not considering the unique requirements of user-mode and correctly distinguishing between execution environments.
 
 The name `DllMain` is inherited from [`LibMain`](https://learn.microsoft.com/en-us/archive/msdn-magazine/2000/july/under-the-hood-happy-10th-anniversary-windows#dlls-and-module-management), which along with Windows Exit Procedure (WEP) for exit, was its name in the 16-bit DLLs used by Windows 3.x (non-NT). When Windows was built for 16-bit applications (before Windows NT 3.1 and Windows 95, non-NT), [multitasking was cooperative not preemptive](https://web.archive.org/web/20150619005446/https://support.microsoft.com/en-us/kb/117567) so predictable scheduling meant there was no need for synchronization mechanisms such as loader lock. System libraries were also typically already loaded in the [single shared address space](#virtual-address-spaces) and that was the level tasks (what we now call "processes" were widely referred to as "tasks" before each application had an independent address space and execution context) would reference-count them on (**Nitpick:** Through the use of a [virtual machine](https://en.wikipedia.org/wiki/Virtual_DOS_machine), early Windows versions on MS-DOS could run a given application in protected mode, albeit with no true privilege separation, and multithreading, but applications had to specifically be written to support this functionality and [DOS was borked](https://retrocomputing.stackexchange.com/a/26228), that is why it got abandoned). Still, the MS-DOS EXE format allowed for a [pseudo-DLL](data/windows/timeline-verification) to specify whether module initialization should be "Global" or "Per-Process" (this information can be gathered using the old `exehdr` tool), which would have only lessened the room for module initialization issues in the global case. There was no dynamic linker in MS-DOS because the pseudo-DLLs of that time did not support imports as they did starting with Windows NT. This fact would have made it unnecessary to hold a lock while running a module initialization routine due to having no other DLLs depend on the initialization code being complete, at least not that the loader could have been aware of (a flag likely existed to ensure `FreeLibrary` could not unload a pseudo-DLL before it was done loading, but that is it). Obviously then, delay loading did not exist Windows 3.x (so, the loader was naturally at the top of the lock hierarchy). Delayed DLL loading was added to [Visual C++ 6.0](https://winworldpc.com/product/visual-c/6x) (1998) as the public header `delayimp.h` (although, the MSVC compiler Microsoft internally used to build Windows may have supported delay loading earlier). Delay loading a DLL was and still is done by the [`/DELAYLOAD` linker option](https://github.com/reactos/reactos/blob/1ea3af8959da6fcf34d3eb92885fe01ce18de83c/sdk/cmake/msvc.cmake#L302-L317), which under the hood uses `LoadLibrary`/`GetProcAddress` with address caching to implement the functionality. Later, delay loading was also integrated into the native loader (*When?*). DLL thread initializers/deinitializers `DLL_THREAD_ATTACH` and `DLL_THREAD_DETACH` didn't exist [until Windows NT 3.1](http://web.archive.org/web/20240308195249/http://bytepointer.com/resources/pietrek_peering_inside_pe.htm#:~:text=DllCharacteristics). `NtTerminateProcess` was also introduced [with Windows NT 3.1](https://www.geoffchappell.com/studies/windows/win32/ntdll/history/names310.htm#:~:text=NtTerminateProcess) seemingly as an incredibly poor and hasty but deliberate "design" decision. Anyway, the MS-DOS API likely was not spawning threads all the time like Win32 does since it was originally designed for use in a cooperatively multitasking system. COM (which tightly couples with the loader by placing itself at the top of the lock hierarchy in `CoFreeUnusedLibraries` and potenitally other places) wasn't a foundational Windows technology used pervasively within the Windows API [until Windows NT 4.0](https://bitsavers.computerhistory.org/pdf/microsoft/windows_NT_4.0/Solomon_-_Inside_Windows_NT_2ed_1998.pdf#:~:text=Component%20Object%20Model) (released in 1996). These properties of older systems largely mitigated issues arising especially from `LibMain` on Windows versions prior to Windows NT 3.1 and `DllMain` in later Windows versions. Official [Windows 3.x (non-NT) books](https://bitsavers.computerhistory.org/pdf/microsoft/windows_3.1/) at the time (specifically "Windows Programmers Reference Volume 2 Functions" released in 1992), provided no guidance on `LibMain` besides that the "`LibMain` function is called by the system to initialize a dynamic-link library (DLL)". Although, there was a note for WEP that explictly stated "The `FreeLibrary` function should not be called from within a WEP function". Additionally, we know from [Matt Pietrek's Windows Internals book](https://bitsavers.computerhistory.org/pdf/microsoft/windows_3.1/Pietrek_-_Windows_Internals_1993.pdf) (released in 1993, shortly before Windows NT 3.1 came out and long before the author [later became a Microsoft employee](https://en.wikipedia.org/wiki/Matt_Pietrek)) that "A common problem programmers encounter is that functions like `MessageBox()` won't work inside the `LibMain()` of an implicitly-linked DLL". The reason is that creating a window to [show a message box](https://elliotonsecurity.com/perfect-dll-hijacking/offlinescannershell-mpclient-dll-missing-export-error.png) requires initialization of the USER application message queue by the `InitApp()` function in USER. This message queue is not initialized in the `LibMain` of USER but by some setup work done before calling `WinMain` in the EXE (the book provides the relevant reverse engineered pseudocode of `C0W.ASM` to prove this): "For EXEs, the important parts of the startup code involves calling `InitTask()` and then `InitApp()`, which we cover momentarily. After those functions have been called, the EXE is completely initialized and ready to start its work as a Windows program." The book notes that initialization is done this way because a DLL "cannot own things that Windows associates with a task, like message queues" (i.e. a DLL may not exist for the full application lifetime) so it cannot own the application message queue. However, the core issue here is that there each task had a single, global application message queue and a DLL couldn't create and tear down its own, independent message queue instance to perform a GUI operation detached from the application (obviously, this is no longer the case in modern Windows). Instead of the application lifetime (that of the EXE), the message box can live [in the instance lifetime](#the-process-lifetime) (from when birth when the call to `MessageBox` is made to death when it returns, since `MessageBox` is a synchronous function), or for more complex GUI operations that continue in the DLL outside of its moudle initializer, [in the lifetime of the DLL](#the-process-lifetime) (from birth at `DLL_PROCESS_ATTACH` to death at `DLL_PROCESS_DETACH` for modern `DllMain`, since our DLL depends on the GUI subsystem). Thus, GUI operations not working from the `LibMain` of implicitly-linked DLLs was a consequence of tight coupling between the GUI subsystem and the operating system. [See here for information on Windows and Windows NT history.](#computer-history-perspective)
 
@@ -705,7 +686,7 @@ I was able to confirm the lack of safety in WinDbg and after searching around fo
 
 On the legacy and modern Windows loaders, `GetProcAddress` holds the ability to initialize a module if it's uninitialized. In this section, we learn why `GetProcAddress` can perform module initialization and compare how `GetProcAddress` determines if module initialization should occur across loader versions.
 
-`GetProcAddress` may perform module initialization to fix the issue of someone doing [`GetModuleHandle` ➜ `GetProcAddress`](https://learn.microsoft.com/en-us/archive/blogs/mgrier/the-nt-dll-loader-dll_process_attach-reentrancy-step-2-getprocaddress) on a partially loaded (i.e. uninitialized) library. This problem can arise when `GetModuleHandle` is used from `DllMain` and possibly in concurrent `GetModuleHandle` cases (**Note:** Looking to `ntdll!LdrpFindLoadedDll` code used by `GetModuleHandle`, I can see there's a special case not usually triggered and that I can't get to trigger whereby the `ntdll!LdrpFindLoadedDll` will become the load owner to drain the work queue before re-doing the DLL search with `ntdll!LdrpFindLoadedDllInternal`. This path may exist to fix the concurrent `GetModuleHandle` case). `GetModuleHandle` is also problematic because it [doesn't increment a library's reference count](https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-getmodulehandlea#remarks) thus leaving your program vulnerable to using a library that no longer exists in the process. The core idea of `GetModuleHandle` being a function that can get a handle to a libary without loading it if it's currently unloaded is alright; however, these two implementation problems are what breaks `GetModuleHandle`. Furthermore, the `LoadLibrary` name by Microsoft is slightly misleading and should instead be called `LibraryOpen`/`OpenLibrary` similiar to the POSIX `dlopen`. This is in the same way that someone would call the `fopen` and `fclose` functions in the standard C API to work with files, opening (not "loading") a handle to the file if it's not open or simply increasing the reference count if it happens that some other code in the process has already opened it, all without any knowledge if your call will the be the one to initially "load" it into the process (okay, this is a nitpick). On Windows, the complex dependency chains between DLLs in combination with delay loading makes `GetModuleHandle` is risky in the case that an immediately loaded library changes statuses to a lazy loaded library across Windows versions, thereby breaking applications. The `GetModuleHandle` function arguably shouldn't exist, as it doesn't in POSIX. Or if it is to exist, it should have been implemented right (e.g. as a flag to `LoadLibraryEx`). But, since `GetModuleHandle` exists and is commonly used throughout the Windows ecosystem, Microsoft had to implement their best hack to workaround its pitfalls. A better workaround than making `GetProcAddress` initialize on behalf of `GetModuleHandle` might have been to make `GetModuleHandle` not return the module's handle if the module isn't fully loaded, or to simply turn `GetModuleHandle` into a `LoadLibrary` call. Although, the latter solution could introduce concurrency issues for old code relying on the inherently faulty `GetModuleHandle` function because `GetModuleHandle` doesn't typically require load owner protection using `ntdll!LdrpLoadCompleteEvent` (**see previous note**) [nor did it typically require loader lock protection on the legacy loader](https://github.com/reactos/reactos/blob/eafa7c68b61ce250aee7c7a0cb498a80f1e2a17b/dll/win32/kernel32/client/loader.c#L848) (`GetModuleHandleW` calls legacy `BasepGetModuleHandleExW` passing `NoLock = TRUE`). However, Microsoft clearly didn't choose either of those solutions because I tested doing `GetModuleHandle` on a partially loaded library from `DllMain` (I verified the module I was getting a handle of was uninitialized [in WinDbg](#ldr_ddag_node-analysis)) and it **successfully gave me a handle to the uninitialized library**.
+`GetProcAddress` may perform module initialization to fix the issue of someone doing [`GetModuleHandle` ➜ `GetProcAddress`](https://learn.microsoft.com/en-us/archive/blogs/mgrier/the-nt-dll-loader-dll_process_attach-reentrancy-step-2-getprocaddress) on a partially loaded (i.e. uninitialized) library. This problem can arise when `GetModuleHandle` is used from `DllMain` and possibly in concurrent `GetModuleHandle` cases. `GetModuleHandle` is also problematic because it [doesn't increment a library's reference count](https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-getmodulehandlea#remarks) thus leaving your program vulnerable to using a library that no longer exists in the process. The core idea of `GetModuleHandle` being a function that can get a handle to a libary without loading it if it's currently unloaded is alright; however, these two implementation problems are what breaks `GetModuleHandle`. Furthermore, the `LoadLibrary` name by Microsoft is slightly misleading and should instead be called `LibraryOpen`/`OpenLibrary` similiar to the POSIX `dlopen`. This is in the same way that someone would call the `fopen` and `fclose` functions in the standard C API to work with files, opening (not "loading") a handle to the file if it's not open or simply increasing the reference count if it happens that some other code in the process has already opened it, all without any knowledge if your call will the be the one to initially "load" it into the process (okay, this is a nitpick). On Windows, the complex dependency chains between DLLs in combination with delay loading makes `GetModuleHandle` is risky in the case that an immediately loaded library changes statuses to a lazy loaded library across Windows versions, thereby breaking applications. The `GetModuleHandle` function arguably shouldn't exist, as it doesn't in POSIX. Or if it is to exist, it should have been implemented right (e.g. as a flag to `LoadLibraryEx`). But, since `GetModuleHandle` exists and is commonly used throughout the Windows ecosystem, Microsoft had to implement their best hack to workaround its pitfalls. A better workaround than making `GetProcAddress` initialize on behalf of `GetModuleHandle` might have been to make `GetModuleHandle` not return the module's handle if the module isn't fully loaded, or to simply turn `GetModuleHandle` into a `LoadLibrary` call. Although, the latter solution could introduce concurrency issues for old code relying on the inherently faulty `GetModuleHandle` function because `GetModuleHandle` doesn't typically require load owner protection using `ntdll!LdrpLoadCompleteEvent` [nor did it typically require loader lock protection on the legacy loader](https://github.com/reactos/reactos/blob/eafa7c68b61ce250aee7c7a0cb498a80f1e2a17b/dll/win32/kernel32/client/loader.c#L848) (`GetModuleHandleW` calls legacy `BasepGetModuleHandleExW` passing `NoLock = TRUE`). However, Microsoft clearly didn't choose either of those solutions because I tested doing `GetModuleHandle` on a partially loaded library from `DllMain` (I verified the module I was getting a handle of was uninitialized [in WinDbg](analysis-commands.md#ldr_ddag_node-analysis)) and it **successfully gave me a handle to the uninitialized library**.
 
 The GNU loader implements a form of `GetModuleHandle` within `dlopen` as the [`RTLD_NOLOAD` flag](https://man7.org/linux/man-pages/man3/dlmopen.3.html#DESCRIPTION). However, after running [an experiment](code/glibc/dlopen-noload/initialization), I found that the GNU loader will initialize an uninitialized library before returning a handle to it, even with the `RTLD_NOLOAD` flag. This behavior resolves my greatest concern regarding `GetModuleHandle` on the GNU/Linux side of things. Next, [testing](code/glibc/dlopen-noload/reference-count) if `RTLD_NOLOAD` increments the library's reference count reveals that indeed does. Perfect, great job on this GNU developers!
 
@@ -840,7 +821,7 @@ An enclave is a security feature that isolates a region of data or code within a
 
 Within SGX, there is [SGX1 and SGX2](https://caslab.csl.yale.edu/workshops/hasp2016/HASP16-16_slides.pdf). SGX1 only allows using statically allocated memory with a set size before enclave initialization. SGX2 adds support for an enclave to allocate memory dynamically. Due to this limitation, putting a library into an enclave on [SGX1 requires that the library be statically linked](https://download.01.org/intel-sgx/latest/linux-latest/docs/Intel_SGX_Developer_Guide.pdf). On the other hand, [SGX2 supports dynamically loading/linking libraries](https://www.intel.com/content/dam/develop/public/us/en/documents/Dynamic-Loading-to-Build-Intel-SGX-Applications-in-Linux.docx).
 
-A Windows VBS-based enclave requires Microsoft's signature as the root in the chain of trust or as a countersignature on a third party's certificate of an Authenticode-signed DLL. The signature must contain a specific extended key usage (EKU) value that permits running as an enclave. Thanks to the *Windows Internals* book for this tidbit on VBS signing requirements. Enabling test signing on your system can get an unsigned enclave running. VBS enclaves may call [enclave-compatible versions of Windows API functions](https://learn.microsoft.com/en-us/windows/win32/trusted-execution/available-in-enclaves) from the enclave version of the same library.
+A Windows VBS-based enclave requires Microsoft's signature as the root in the chain of trust or as a countersignature on a third party's certificate of an Authenticode-signed DLL. The signature must contain a specific extended key usage (EKU) value that permits running as an enclave. Thanks to the *Windows Internals, Part 2 (7th edition)* book for this tidbit on VBS signing requirements. Enabling test signing on your system can get an unsigned enclave running. VBS enclaves may call [enclave-compatible versions of Windows API functions](https://learn.microsoft.com/en-us/windows/win32/trusted-execution/available-in-enclaves) from the enclave version of the same library.
 
 Both Windows and Linux support loading libraries into enclaves. An enclave library requires special preparation; a programmer cannot load any generic library into an enclave.
 
@@ -1086,55 +1067,6 @@ The increased granularity in locking would overall make it less likely for lock 
 When all considerations are taken into account, I stand by MT-safe library initialization as a viable strategy for making this process more flexible and preventing deadlocks. Another benefit being the significant increase in concurrency for dynamic library loading calls, especially for some module initializers that may run long (for non-initialization actions throughout the process lifetime you can always spawn a thread, which is sufficiently performant as long as it's not waited on, then join back in the library destructor without any MT-safety being necessary... of course DLL subsystem lifetimes are broken by the whole `NtTerminateProcess` situation on Windows, though).
 
 At the same time, there are reasons why some Unix loaders (e.g. musl) simply choose to forgo dynamic loading all together, but this option is not on the table for Windows.
-
-## Case Study on ABBA Deadlock Between the Loader Lock and GDI+ Lock
-
-**Note:** Throughout this section, I refer to the synchronization mechanism that is at the top of a modern Windows loader's lock hierarchy colloquially as "loader lock" (as does Microsoft and this Old New Thing article). However, internally, this title actually goes to the `LdrpLoadCompleteEvent` loader event.
-
-This case study is not regarding code that Microsoft engineers wrote but of a third-party shell extension that this Old New Thing article reports on. [Here we have the ABBA deadlock between loader lock and GDI+ lock](https://devblogs.microsoft.com/oldnewthing/20160805-00/?p=94035). **This ABBA deadlock occurs between at three threads and two locks.** The two locks are being acquired in an inconsistent order, thus making it an ABBA deadlock. The ABBA deadlock here occurs with a layer of indirection on top of the classic ABBA deadlock scenario because the `GdiPlus!GdiplusShutdown` thread (which holds the GDI+ lock) is waiting for a worker thread that is attempting to acquire the loader lock.
-
-Here's a timeline showcasing this ABBA deadlock:
-
-| Time | Shell Extension Thread                         | Shell Worker Thread                                                | GDI+ Background Thread                                                                |
-| ---- | ---------------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
-| t1   | `LoadLibraryExW`: Attempts to take loader lock | `GdiplusShutdown`: Attempts to take GDI+ lock                      | `RealMsgWaitForMultipleObjectsEx`: Listening for messages                             |
-| t2   | Gets loader lock                               | Gets GDI+ lock                                                     | -                                                                                     |
-| t3   | `GdiplusStartup`: Attempts to take GDI+ lock   | `BackgroundThreadShutdown`: Signals GDI+ background thread to exit | -                                                                                     |
-| t4   |  Waits for GDI+ lock                           |  Waits for background thread to exit                               | Recevies thread exit message                                                          |
-| t5   | -                                              | -                                                                  | `LdrShutdownThread`: Attempts to take loader lock to run `DLL_THREAD_DETACH` routines |
-| t6   | -                                              | -                                                                  | Waits for loader lock eternally                                                       |
-
-The GDI+ background thread message loop function (`GdiPlus!BackgroundThreadProc`) typically waits for messages from `USER32!RealMsgWaitForMultipleObjectsEx` (which in turns calls `win32u!NtUserMsgWaitForMultipleObjectsEx`). The `BackgroundThreadShutdown` function sets a custom event object (`gdiplus!Globals::ThreadQuitEvent`) to signal the GDI+ background thread to shutdown. `BackgroundThreadShutdown` then waits on the GDI+ background thread object (stored in `gdiplus!Globals::ThreadNotify`). Information obtained by reading disassembly and debugging with the `!handle` command in WinDbg.
-
-Microsoft documentation and this Old New Thing article say the root cause of this problem is running `GdiPlus!GdiplusStartup` from `DllMain`. However, my opinion on the root cause of this problem leans more on the architectural side of things, and it's that each library's `DllMain` receives `DLL_THREAD_ATTACH` and `DLL_THREAD_DETACH` notifications in the first place. These notifications should never have existed because their synchronization breaks the [library subsystem lifetime](#the-process-lifetime) for threads. DLL thread routines are only supposed to be for initializing per-thread data, so one might rightfully question the need for synchronization here; however, it is necssary to ensure a DLL cannot have its `DLL_THREAD_ATTACH` routine run before its `DLL_PROCESS_ATTACH` and that there are no partially loaded DLLs (pending initialization) when `DLL_THREAD_ATTACH` routines run, which would be important in the case of circular dependencies (otherwise, just iterating the `PEB_LDR_DATA.InInitializationOrderModuleList` would suffice). In addition, the synchronization protects from any and all DLLs being unloaded while running thread routines. The loader could also ensure a module is not concurrently unloaded by incrementing the reference count on each module, running its DLL thread routine, then decrementing that module's reference count, and then repeat for all modules. But, that could be taxing on performance, and then if a reference count concurrently drops to zero then actual library unload must occur, anyway. This DLL thread routine syncrhonization also tries ([but fails](#a-concurrency-bug-in-the-windows-loader), on a modern Windows loader) to protect the linked list that the loader iterates to run each DLL thread routine at thread startup (keeping the lock acquiried captures a consistent snapshot of the loaded DLLs while running the DLL thread routines, if that is desirable). Additionally, while only acquiring the `ntdll!LdrpLoaderLock` lock is necessary to protect against concurrent module initialization/deinitialization, `DLL_PROCESS_ATTACH` and `DLL_PROCESS_DETACH` routines will likely also want to run under the `ntdll!LdrpLoadCompleteEvent` lock, acquired before `ntdll!LdrpLoaderLock`, to avoid lock hierarchy violation in the case that one of these routines trigger a library load or unload. In regard to the notifications themselves, [they are effectively useless](https://stackoverflow.com/a/30637968), and well-written libraries often disable them to improve performance with `DisableThreadLibraryCalls`. All in all, it would appear that DLL thread notifications come with more disadvantages than advantages. I'm also unaware of any other operating system requiring such notifications.
-
-The GDK, common to GNU/Linux systems, is the closest equivalent to Windows GDI+. GDK makes up the foundational GUI components that the full GTK ([formerly named GTK+](https://en.wikipedia.org/wiki/GTK)) GUI framework relies on. GDI+ fulfills the same role for Windows GUI frameworks like Windows Forms. [Creating the equivalent simple window demo applications in GDI+ and GDK](code/gui-sample), I can't help but notice that GDK initialization with `gdk_init` doesn't spawn a background thread like `GdiplusStartup` does. So, in combination with the abscence of `DLL_THREAD_ATTACH` and `DLL_THREAD_DETACH` routines, plainly having the lower-level GUI component not spawn a thread in the first place is another mitigating circumstance for this kind of deadlock occuring on a GNU/Linux system. In the simple case of creating a window, I notice this background message loop never processes any messages (it never calls `DispatchMessage`). While [`GdiplusStartup` creates this background thread by default](https://learn.microsoft.com/en-us/windows/win32/api/gdiplusinit/nf-gdiplusinit-gdiplusstartup#examples), it can be disabled by passing the `SuppressBackgroundThread` flag through the `GdiplusStartupInput` function argument. Apparently, [the GDI+ background thread is used to run hooks](https://learn.microsoft.com/en-us/windows/win32/api/gdiplusinit/ns-gdiplusinit-gdiplusstartupoutput). And apparently these [hooks (`NotificationHook` and `NotificationUnhook`) can be used in Windows applications for shell integration](https://learn.microsoft.com/en-us/cpp/mfc/special-cwinapp-services#_core_shell_registration) (although, this documentation advises suppressing the background thread for this purpose). Overall, I don't think how Windows uses these hooks represents a good separation of components (like GDI+ is over extending itself) and, while I know [Windows likes spawning threads](https://devblogs.microsoft.com/oldnewthing/20191115-00/?p=103102), this thread in particular appears to be one of those instances of ["DLLs creating worker threads behind your back"](https://devblogs.microsoft.com/oldnewthing/20100122-00/?p=15193) only to waste CPU cycles and context switches (when the thread is not waiting), at least in the simple case for GDI+. It's also worth noting that ReactOS and Wine don't implement the GDI+ background thread.
-
-To provide some nuance, its common and expected for a full-fledged GUI program or framework (e.g. GTK) to spawn threads in order to avoid blocking the the GUI [message/event loop](https://en.wikipedia.org/wiki/Message_loop_in_Microsoft_Windows). The GUI message/event loop receives user input events and an application must respond accordingly. As a result, only the core functionality necessary to paint each frame of an application is put into the message/event loop of a GUI app. A long-running operation would block this loop thus making the user inteface freeze or less responsive, which is when threads become useful in a GUI program. However, the lower-level GDI+ spawning a thread to provide hooks is questionable because creating this *additional* message loop in every GDI+ program by default looks to be an over-extension or [feature creep](https://en.wikipedia.org/wiki/Feature_creep). Generally, multithreading introduces significant complexity over a procedural program—the number of things that *can* go wrong increases substantially, one of those things being ABBA deadlock. And in this case, the introduction of multithreading doesn't appear to justify the complexity that comes with it.
-
-A third architecrual reason why this deadlock could never have occurred on GDK is that GDK doesn't lock. Read more on the historical thread safety rating of GTK/GDK and how it interacted with Windows:
-
-The intricate nature and diverse use cases of a GUI makes thread safety a challenge for its many data structures and large amount of state. There was a time when GDK (the underlying GUI library of the GTK GUI framework), the closest cross-platform equivalent to Windows GDI+, was thread-safe\* but not MT-safe (i.e. there was simply one global lock for protecting all state relating to GDK, which means GDK cannot operate concurrently). Now here's where that asterisk comes in, at the time, [GDK could only safely be used from multiple threads on the X11 backend; on a Windows API backend, GDK calls were unsafe to perform from more than one thread at all](https://web.archive.org/web/20110621231256/https://developer.gnome.org/gdk3/stable/gdk3-Threads.html). Why this was the case specifically depends on how the implementation of GDK interacted with Windows; however, it's most likely due to the poor but common practice of Windows APIs (GDI+ being one of them) relying on thread-local data and possibly other unknown factors that make thread affinity an issue out-of-the-box. Since GDK (and the full GTK GUI framework utilizing GDK) aims to be cross-platform, this meant the library had to advise against using GDK on more than one thread on any platform. Eventually, Windows combined with [complications from the Python Global Interpreter Lock (GIL)](https://web.archive.org/web/20121018233406/https://developer.gnome.org/gdk3/stable/gdk3-Threads.html) ([which is now on track to becoming optional in Python](https://peps.python.org/pep-0703/) and likely removed at some point in the future) caused [GDK to deprecate and remove thread-safety, anyway](https://web.archive.org/web/20121018233406/https://developer.gnome.org/gdk3/stable/gdk3-Threads.html#gdk3-Threads.description). In the end, GDK gains a small performance boost from never having to lock/unlock before accessing what would have been shared data. And hey, you can't ABBA deadlock if stipluating access from only one thread means you don't need to lock. Whereas, **GDI+ on Windows requires both locking and relies on thread-local data** (as does the broader Windows GUI ecosystem). Some Windows GUI frameworks and generally a lot of Windows components internally use or are implemented in COM, which requires that `CoInitialize`/[`CoInitializeEx`](https://learn.microsoft.com/en-us/windows/win32/api/combaseapi/nf-combaseapi-coinitializeex) and `CoUninitialize` run on the same thread. In my view, thread-local data sucks because it's fragile and often used to work around poor design. In particular, using thread-local data at the operating system level is a bad call because the operating system should aim to be flexible instead of imposing strict threading requirements on higher up subsystems. Issues with thread-local storage include:
-
-1. Thread-affinity issues (locks you to the thread your or someone else's code created the thread-local storage on, which [becomes a `DllMain` issue](https://devblogs.microsoft.com/oldnewthing/20040127-00/?p=40873))
-2. Running out of indexes ([TLS maximum slots is 1088 on modern Windows](https://devblogs.microsoft.com/oldnewthing/20170712-00/?p=96585) and FLS has up to 128 slots)
-3. Promotes the creation of poorly structured programs, because why create a function-oriented subsytem or program that clearly passes through values and keeps track of memory, freeing references exactly when needed, when you can just be lazy and allocate TLS/FLS slots that will cleanup memory for you because FLS callbacks allow freeing the dynamically allocated memory or other resource a slot points to at thread exit and pointer-sized data stored directly in TLS will all free at once when the thread's stack gets cleaned up (either way, a subsystem must keep track of its reference to a thread-local slot to use it)
-4. Thread-local storage lookup can rely too much on dynamic operations (at least on Windows), TLS lookup and storage introduces extra function calls, and TLS memory reads/writes cannot benefit as strongly from locality of reference as well as a contiguous allocation could, thus negatively affecting performance
-5. Often unnecessarily extends memory lifetime until the end of the thread thus wasting memory (it's also easy forget cleanup thereby if stroing dynamically allocated data with TLS) when typical stack memory already provides fine-grained memory lifetime management for data directly on the stack (also, RAII is a great pattern)
-6. Decreases modularly because an absences of thread-local data enables an application them to optionally make a subsystem thread-safe by creating and acquiring their own custom lock whenever their program uses that subsystem (as long as nobody else injects in to use the same subsystem, this is a tangible solution)
-7. Thread-local data can complicate library unload or even make correctly unloading a library impossible
-    - If a library is dynamically loaded, the contained subsystem is used on a different thread and the subsystem uses `FlsAlloc` to create thread-local data with a callback into its library code, then the library is unloaded, and later the thread exits then \*crash\*!
-    - Windows intergrating thread-local data into the loader with `DLL_THREAD_ATTACH`/`DLL_THREAD_DETACH` means dynamically loaded libraries cannot safely use these routines of the `DllMain` function; otherwise, the library could be unloaded between the execution of those routines thus leaking resources if `DLL_THREAD_ATTACH` allocated some memory that `DLL_THREAD_ATTACH` was supposed to clean up
-    - As a library, using thread-local storage is only completely safe when the given library owns the thread it is creating thread-local storage on
-8. It is easy to accidentally use a slot that isn't yours thus creating an instability or an [application compatibility issue](https://devblogs.microsoft.com/oldnewthing/20221128-00/?p=107456) where memory sanitizers would have been able to proactively catch an issue with traditional pointers (or more optimally cause the programmer to simply allocate a contiguous memory region with `malloc` or `alloca`, if a contigous allocation is desired)
-
-Refining my argument: Thread-local storage can only be disadvantageous if it's used to, typically dynamically, store state over an unwieldy large portion of the thread's execution (e.g. this excludes obviously sensible uses of thread-local data like the [thread's error value or `errno`](https://en.wikipedia.org/wiki/Thread-local_storage#Usage)) or the thread-local storage is initialization for some task thereby requiring special deinitialization at some point in the future (as is the case with COM initialization/deinitalization). A common argument in favor of thread-local storage is its "performance", but if that's a concern for you then forget about thread-local storage and use [`alloca`](https://www.gnu.org/software/libc/manual/2.23/html_node/Advantages-of-Alloca.html) (i.e. moving the stack pointer) at an appropriate place in the call stack (remember: this requires the horror that is properly structuring a subsystem/program) to create a contiguous memory allocation of a given number of slots (which you can determine at run-time using `alloca`) then use that. Did I mention that `alloca` gives you locality of reference and zero lookup cost for free? Plus no lock acquisitions, unlike `TlsAlloc` (due to [`TlsAlloc` acquiring the PEB lock on every allocation](https://github.com/reactos/reactos/blob/54433319af31c2b49737469d36072153de375f4d/dll/win32/kernel32/client/thread.c#L1109) because it works by using this process-wide `Peb->TlsBitmap` state for some poor reason) and `FlsAlloc`! In cases where thread-local storage is misused, it becomes nothing more than bloat on top of stack memory. Also, an FLS index is just bloat on top of a pointer because now you have to search a binary array to find the value of that index (this is how Windows implements FLS index lookup, whereas a TLS index is literally just an offset into some memory on Windows, so I'll give it a pass).
-
-More on GDI+ in general, the graphic interface itself isn't implemented in COM, it can use COM to do things like rendering image files (with the [Windows Imaging Component or WIC](https://learn.microsoft.com/en-us/windows/win32/wic/-wic-about-windows-imaging-codec))—and COM is its own separate can of worms (other Windows GUI frameworks like MFC and UWP are implemented in COM). GDK supports images using [GdkPixbuf](https://docs.gtk.org/gdk-pixbuf/ctor.Pixbuf.new_from_file.html). Oh, also, GDI (the base for GDI+) is this hugely monolthic and bloated mess that's built into the kernel ([win32k](https://j00ru.vexillium.org/syscalls/win32k/64/) is a [huge attack surface for security bugs](https://stackoverflow.com/a/41413104)) while still managing to be slower than any GUI on GNU/Linux (speaking from experience).
-
-Therefore, the GUI architecture common to GNU/Linux systems exhibits a more flexible and robust design than its Windows counterpart. Note that while Windows GDI+ and cross-platform GDK are highly comparable for the aforementioned reasons, they aren't the same. For instance, GDI+ is considered somewhat historical now and newer Windows GUI frameworks like WPF rely on DirectX whereas GTK/GDK has been going strong for decades without [reimaging what a GUI framework is every few years](https://irrlicht3d.org/index.php?t=1626). And to top off the list of GUI frameworks, Blazor Hybrid. Though I haven’t worked with Blazor myself, my father, a long-time .NET developer, has (although, only web Blazor and not Hybrid for desktop apps). After sharing his tepid experience complete with a thorough evaluation, I asked if he sees the technology sticking around. He shook his head and said comically: "This thing is going to die!". Alright, another round of GUI framework roulette it is!
-
-Maybe we can do a Vulkan vs DirectX technical review in the future, if we are feeling brave.
 
 ## The Problem with How Windows Uses DLLs
 
@@ -1505,9 +1437,9 @@ For all these reasons and more, I find that the Windows securable thread model i
 
 ### Expensive Threads
 
-Everybody knows that, on Windows, process creation is slow. However, this fact is [commonly attributed to an architectural preference of Windows](https://stackoverflow.com/a/48244) favoring multithreading over multiprocessing (i.e. one process housing multiple threads over separate single-threaded processes). It follows then, that Windows would be better optimized for threads and multithreaded workloads than Unix-like operating systems.
+Everybody knows that, on Windows, process creation is slow. However, this fact is [commonly attributed to an architectural preference of Windows](https://stackoverflow.com/a/48244) favoring multithreading over multiprocessing (i.e. one process housing multiple threads over separate single-threaded processes). It follows then, that Windows would be better optimized for creating threads and multithreaded workloads than Unix-like operating systems.
 
-Let's get some numbers on Windows vs. Linux thread creation and join times for 10,000 threads (benchmark source code for [Linux](code/glibc/thread-perf) and [Windows](code/windows/thread-perf)):
+Let's get some numbers on Windows vs. Linux thread creation and join times for 10,000 threads (benchmark source code for [Linux](code/glibc/thread-performance) and [Windows](code/windows/thread-performance)):
 
 | System   | Native Create Thread (seconds) | Native Create Thread with 50 FLS Allocations (seconds) | Native Create Thread without Loader Initialization (seconds) |
 | -------- | ------------------------------ | ------------------------------------------------------ | ------------------------------------------------------------ |
@@ -1516,19 +1448,19 @@ Let's get some numbers on Windows vs. Linux thread creation and join times for 1
 
 **Benchmark systems details:** Both Xen HVMs, Intel i5 4590, 4 vCPUs each, 8 GiBs of memory each, up-to-date Windows 10 22H2 and Fedora 39 on Linux 6.1. Tests performed while the host system and other virtual machines were suspended or turned off.
 
-Linux native thread creation and join times comes out firmly ahead, averaging speeds 3.2x faster than Windows. However, outside of some server applications that may correspond each client connection to a new thread, quickly creating 10,000 threads is not a realistic workload. Upon booting Windows, Process Explorer shows that there are about 1,000 threads between all processes on the system. So, Windows thread creation time is unlikely to become a performance bottleneck in practice. Additionally, Windows typically aims to keep threads alive and waiting as worker threads instead deleting and recreating them later. Still, CPU cycles add up and it only takes one Windows DLL to be doing something suboptimal from its `DLL_THREAD_ATTACH`/`DLL_THREAD_DETACH` for thread creation time to plunge. Also, `DLL_THREAD_ATTACH`/`DLL_THREAD_DETACH` routines require the same locks as loading a library, which could also cause thread creation peformance to take a substantial hit if these operations overlap. Interestingly, by looking at these numbers we can see that Windows thread creation overhead primarily comes from the time it takes for the NT kernel to spawn the thread itself and not from any action in user-mode. Another minor note is that not joining threads on Linux yields around a 25% performance improvement, although this didn't seem to have a noticeable effect on Windows (joining means running the thread until its end so any perfomance impact here would be due to the scheduler).
+Linux native thread creation and join times comes out firmly ahead, averaging speeds 3.2x faster than Windows. However, outside of some server applications that may correspond each client connection to a new thread, quickly creating 10,000 threads is not a realistic workload. Upon booting Windows, Process Explorer shows that there are about 1,000 threads between all processes on the system. So, Windows thread creation time is unlikely to become a performance bottleneck in practice especially because Windows typically keeps threads alive and waiting as worker threads for some time instead of immediately deleting them in case new work comes along. Windows threads run their `DLL_THREAD_ATTACH` and `DLL_THREAD_DETACH` routines at thread startup and exit, which requires the same synchronization as `LoadLibrary` (including the `DLL_PROCESS_ATTACH` routine) and `FreeLibrary` (including the `DLL_PROCESS_DETACH` routine) operations. Therefore, significant variance or unexpected stutters could be present in thread startup and exit times if overlapping thread creation/exit or library load/free operations occur. Interestingly, by looking at these numbers we can see that Windows thread creation overhead primarily comes from the time it takes for the NT kernel to spawn the thread itself and not from any action in user-mode (in the future, we may run tests to see how perfomance changes with two threads simultaneously creating threads since the synchronization requirement of thread loader initialization could have a greater effect then). Another minor note is that not joining threads on Linux yields around a 25% performance improvement, although this didn't seem to have a noticeable effect on Windows (joining means running the thread until its end so any perfomance impact here would be due to the scheduler).
 
-Next, we will review the difference in resource consumption between Windows and Unix threads. Each thread requires its own stack memory allocation. On Windows, the default reservation size of this memory mapping is [1 MiB](https://learn.microsoft.com/en-us/windows/win32/procthread/thread-stack-size). However, only [64 KiBs](https://devblogs.microsoft.com/oldnewthing/20031008-00/?p=42223) of that reservation is consumed from phyiscal memory. On Linux, these sizes are [8 MiB](https://unix.stackexchange.com/a/473445) and the [archiecture's page size](https://stackoverflow.com/a/24819521) (typically 4 KiBs on modern x86-based and ARM systems), respectively. Since Linux and other Unix-like systems follow the system's page size (the smallest possible memory mapping size as set by the MMU) when creating memory mappings, each thread's stack memory mapping consumes significantly less memory on Unix systems than on Windows. Specifically, with an average page size of 4 KiB, Linux threads are 16x more lightweight in memory than on Windows. These facts only account for user-mode threads because kernel-mode threads do not exist in virtual memory. Kernel-mode threads are fully committed into physical memory with a fixed size stack (typically [8 KiBs on Linux](https://docs.kernel.org/next/x86/kernel-stacks.html) or [16 KiBs on Windows](https://bsodtutorials.blogspot.com/2013/11/kernel-stacks-user-stacks-dpc-stacks.html)). Generally, less memory mapping granularity also makes guard pages less effective at catching memory overrun bugs.
+Next, we will review the difference in resource consumption between Windows and Unix threads. Each thread requires its own stack memory allocation. On Windows, the default reservation size of this memory mapping is [1 MiB](https://learn.microsoft.com/en-us/windows/win32/procthread/thread-stack-size). However, only [64 KiBs](https://devblogs.microsoft.com/oldnewthing/20031008-00/?p=42223) of that reservation is consumed from phyiscal memory. On Linux, these sizes are [8 MiB](https://unix.stackexchange.com/a/473445) and the [archiecture's page size](https://stackoverflow.com/a/24819521) (typically 4 KiBs on modern x86-based and ARM systems), respectively. Since Linux and other Unix-like systems follow the system's page size (the smallest possible memory mapping size as set by the MMU) when creating memory mappings, each thread's stack memory mapping consumes significantly less memory on Unix systems than on Windows, an attribute which is certainly desirable for a general-purpose computer. Specifically, with a page size of 4 KiB means Linux threads are 16x more lightweight in memory than Windows. These facts only account for user-mode threads because kernel-mode threads do not exist in virtual memory. Kernel-mode threads are fully committed into physical memory with a fixed size stack (typically [8 KiBs on Linux](https://docs.kernel.org/next/x86/kernel-stacks.html) or [16 KiBs on Windows](https://bsodtutorials.blogspot.com/2013/11/kernel-stacks-user-stacks-dpc-stacks.html)). Generally, less memory mapping granularity also makes guard pages less effective at catching memory overrun bugs.
 
-Checking in Process Explorer, a freshly booted Windows system has around 1,000 threads between all processes. 1,000 × 64 = 64,000 KiB or 62.5 MiB of memory spent just on thread stacks. In contrast, `htop` (since `ps` and `top` default to including kernel threads) shows a typical freshly booted Linux system has around 100 threads (although this number increases to ~150 when starting an XFCE desktop). Let's compare apples to apples since Windows has its desktop open. 150 × 4 = 600 KiBs in thread stacks. Let's assume that thread stacks stay within 4 KiBs because stacks mostly consist of pointers and thus rarely grow to be very large. By our measurement, the end result is that threads themselves on a typical Linux desktop system consume 107 times fewer memory resources than Windows.
+Checking in Process Explorer, a freshly booted Windows system has around 1,000 threads between all processes. 1,000 × 64 = 64,000 KiB or 62.5 MiB of memory spent just on thread stacks. In contrast, `htop` (since `ps` and `top` default to including kernel threads) shows a typical freshly booted Linux system has around 100 threads (although this number increases to ~150 when starting an XFCE desktop). Let's compare apples to apples since Windows has its desktop open. 150 × 4 = 600 KiBs in thread stacks. Let's assume that thread stacks stay within 4 KiBs because stacks mostly consist of pointers and thus rarely grow to be very large. By our measurement, the end result is that threads themselves on a typical Linux desktop system consume **107x fewer memory resources** than Windows.
 
 With more threads, in particular running threads, comes greater context switching overhead. The cost for a kernel to swtich between threads is expensive and not a negligible factor in performance. This price includes saving and restoring CPU state, CPU cache (L1, L2, and L3) eviction leading to cache misses having the largest potential performance impact, TLB (translation lookaside buffer) flushes thus invalidating virtual-to-physical address translation caches, and general kernel bookkeeping.
 
 Checking in Performance Monitor, a freshly booted Windows system does around 700 context switches per second while idling. In contrast, checking `vmstat` shows that an idling desktop Linux system sees around 150 context switches per second. Linux, probably due to less overall background work going on, has around 5 times less context switches while idling. These differences are significant and could lead to notable baseline performance and battery life differences (although, Windows may takes steps to reduce background work when running on a battery for devices like laptops).
 
-A kernel's scheduler plays a large role in the perfomance of a multithreading program or threads within a system. A scheduler decides which thread the kernel should switch to when a context switch occurs. As of version 6.6 (2023), the Linux kernel uses a new scheduler called [earliest eligible virtual deadline first (EEVDF)](https://en.wikipedia.org/wiki/Earliest_eligible_virtual_deadline_first_scheduling) that employs an algorithm by the same name. This scheduler takes into account multiple paramters including virtual time, eligible time, virtual requests and virtual deadlines for determining scheduling priority. This scheduler replaces the Completely Fair Scheduler (CFS), likely because overly striving for equal run-time distribution over thread readiness factors can cause [lock convoys](https://learn.microsoft.com/en-us/archive/msdn-magazine/2008/october/concurrency-hazards-solving-problems-in-your-multithreaded-code#lock-convoys) in practice. According to *Windows Internals*, "Windows implements a priority-driven, preemptive scheduling system". Indeed, the Windows scheduler is dynamic, relying heavily on ["prority boosts"](https://learn.microsoft.com/en-us/windows/win32/procthread/scheduling) to optimize for the foreground window, user interface interactiveness, multimedia applications, and lock ownership for locks that fully rely on the kernel (e.g. an event object allows execution to proceed). The *Windows Internals* book talks in-depth about the scheduler in its "Thread scheduling" subchapter. The scheduler on Windows and Linux is best optimized for the workloads common to each system (similar to a heap memory allocator, there are no settings that will be best optimized for every possible workload).
+A kernel's scheduler plays a large role in the perfomance of a multithreading program or threads within a system. A scheduler decides which thread the kernel should switch to when a context switch occurs. As of version 6.6 (2023), the Linux kernel uses a new scheduler called [earliest eligible virtual deadline first (EEVDF)](https://en.wikipedia.org/wiki/Earliest_eligible_virtual_deadline_first_scheduling) that employs an algorithm by the same name. This scheduler takes into account multiple paramters including virtual time, eligible time, virtual requests and virtual deadlines for determining scheduling priority. This scheduler replaces the Completely Fair Scheduler (CFS), likely because overly striving for equal run-time distribution over thread readiness factors can cause [lock convoys](https://learn.microsoft.com/en-us/archive/msdn-magazine/2008/october/concurrency-hazards-solving-problems-in-your-multithreaded-code#lock-convoys) in practice. According to *Windows Internals: System architecture, processes, threads, memory management, and more, Part 1 (7th edition)*, "Windows implements a priority-driven, preemptive scheduling system". Indeed, the Windows scheduler is dynamic, relying heavily on ["priority boosts"](https://learn.microsoft.com/en-us/windows/win32/procthread/scheduling) to optimize for the foreground window, user interface interactiveness, multimedia applications, and lock ownership for locks that fully rely on the kernel (e.g. an event object allows execution to proceed). The *Windows Internals* book talks in-depth about the scheduler in its "Thread scheduling" subchapter. The scheduler on Windows and Linux is best optimized for the workloads common to each system (similar to a heap memory allocator, there are no settings that will be best optimized for every possible workload).
 
-Departing from synthetic benchmarks, [Linux is also better equipped to take advantage of modern CPUs with high core counts in real-world applications](https://www.phoronix.com/review/3990x-windows-linux/6), with increasing margins for a higher number of cores.
+Departing from synthetic benchmarks, [Linux is also better equipped to take advantage of modern CPUs with high core counts in real-world applications](https://www.phoronix.com/review/3990x-windows-linux/6), with increasing margins for higher numbers of cores.
 
 Based on our findings, we can conclude that Windows threads, like processes, are significantly more expensive and heavyweight than their typical Unix counterpart.
 
@@ -1545,6 +1477,64 @@ Nowhere has this huge attack surface come to light more than in the 2022 paper [
 Concurrency bugs are difficult to catch in code review or fuzzing. As a result, multithreading, especially when combined with any sizable amount of shared state, should be avoided in security-sensitive contexts.
 
 In contrast to Windows, Unix architecture tends to avoid this entire class of bugs through modular design that allows (single-threaded) multi-processing instead of multi-threading where data crosses security boundaries.
+
+## DLL Thread Routines Anti-Feature
+
+The Windows [loader](#defining-loader-and-linker-terminology) is tightly coupled with the [threading implementation](https://en.wikipedia.org/wiki/Thread_(computing)#1:1_(kernel-level_threading)) to provide a feature known as [DLL thread routines or notifications](#constructors-and-destructors-overview). The notifications run a callback in each DLL at thread startup and exit times. By default, all Windows DLLs are registered for this callback and can define custom actions by handling the `DLL_THREAD_ATTACH` or `DLL_THREAD_DETACH` call reasons in `DllMain`.
+
+DLL thread routines are an anti-feature that should have never existed because their synchronization [breaks](code/windows/loadlibrary-thread-join) the [library subsystem lifetime](#the-process-lifetime) for threads.
+
+DLL thread notifiactions themselves are [are effectively useless](https://stackoverflow.com/a/30637968), and well-written libraries often disable them to improve performance by calling `DisableThreadLibraryCalls` (a dynamic operation that must be called in `DLL_PROCESS_ATTACH`). Dynamically allocated [thread-local data](#flimsy-thread-local-data) is already a fragile mechanism for managing state and integrating it with the loader causes breakage.
+
+There is no good trade-off that justifies the existence of these notifications and they come with far more disadvantages than advantages. Additionally, other operating systems work just fine without requiring loaded libraries receive thread creation and exit notifications.
+
+### Synchronization Requirements
+
+DLL thread routines are for initializing per-thread data, so one might question the need for process-wide synchronization here. However, these routines are initiated as part of the [loader's state machine](#what-is-concurrency-and-parallelism) and a module is accessible from the global scope, so synchronization is necessary for a few reasons:
+
+1. Protect from concurrent library unload
+    - Thread startup and exit acquiring the same locks needed for library load and free fully protects all DLLs from being unloaded while `DLL_THREAD_ATTACH` or `DLL_THREAD_DETACH` routines run
+    - The loader could also ensure a module is not concurrently unloaded by incrementing the reference count on each module, running its DLL thread routine, then decrementing that module's reference count, and then repeat for all modules. But, that could be taxing on performance, and if a reference count concurrently drops to zero then actual library unload (acquiring the typical locks) must occur, anyway.
+2. Avoid running `DLL_THREAD_ATTACH` for partially loaded libraries
+    - It is likely a desired trait that the `DLL_PROCESS_ATTACH` of modules that the current module depends on or all modules is finished running before their `DLL_THREAD_ATTACH` routines run because thread attach routines could depend on initialization done by the processs attach routines
+    - Presumably a module will have sufficiently initialized itself before spawning a thread in its module initializer. In the case of desiring fully initialized dependencies for a module spawning a thread from its `DLL_PROCESS_ATTACH` before `DLL_THREAD_ATTACH` routines run on the new thread, circular dependencies get in the way of that.
+3. Module list protection
+    - The loader thread initialization function walks a module list to initialize each module, this list is a global data structure that requires protection to walk between nodes ([Windows fails to protect this access](#a-concurrency-bug-in-the-windows-loader))
+      - There could be a lock specific to just protecting a modlue list's access; however, Windows groups the protection of module lists in with broader locks
+    - If a consistent snapshot of the loaded modules at a given point in time is desired then the lock must remain held while all the callbacks are run, a trait which is desirable because the loader does not want to run the `DLL_THREAD_ATTACH` of a module while it is still in its [`LdrModulesInitializing`](#windows-loader-module-state-transitions-overview) state due to a concurrent library load but it likely still wants to run the `DLL_THREAD_ATTACH` of a `LdrModulesInitializing` library that is responsible for starting the new thread
+4. Full load owner protection requirement
+    - Technically, only acquiring `ntdll!LdrpLoaderLock` is necessary to protect from concurrent library unload because unloading libraries must first deinitialize by calling `DLL_PROCESS_DETACH` routines, which requires `ntdll!LdrpLoaderLock` protection, before any futher unloading steps can occur
+    - Still, full loader owner protection by the `ntdll!LdrpLoadCompleteEvent` and `ntdll!LdrpLoaderLock` sychronization mechanisms is necessary to prevent lock hierarchy violation in the case that a `DLL_THREAD_ATTACH` or `DLL_THREAD_DETACH` routine loads a library perhaps accidentally due to Windows delay loading
+    - This fact makes no difference to DLL thread routines breaking the library subsystem lifetime but some extra performance in concurrent library load and thread startup scenarios could be eeked out if not for requiring full load owner protection
+
+## Flimsy Thread-Local Data
+
+Thread-local data is a fragile mechanism that introduces unnecessary failure points, is often a symptom of poor design, and is unfit for use in subsystems, particularly at the operating-system-level, for a variety of reasons:
+
+1. Thread-affinity issues
+    - A subsystem that creates thread-local data ties itself to the lifetime of the thread it created the data on, once that thread exits the thread-local data is invalid to use on any thread ([a source of `DllMain` issues on Windows](https://devblogs.microsoft.com/oldnewthing/20040127-00/?p=40873))
+    - Subsystems should avoid imposing strict threading requirements on other subsystems or the application
+    - Keeping track of the caller is always best performed by explictly passing a context structure around, as is commonly done by C libraries like [SQLite with its `sqlite3` structure](https://www.sqlite.org/c3ref/sqlite3.html), rather than assuming the caller's identity is tied to the thread its on like COM does with its `CoInitialize`/`CoInitializeEx` functions
+2. Dynamically allocated thread-local storage can quickly run out of indexes
+    - TLS has [1088 maximum slots per-process](https://devblogs.microsoft.com/oldnewthing/20170712-00/?p=96585) and FLS has [128 maximum slots per-process](https://ntdoc.m417z.com/fls_maximum_available)
+    - glibc thread-specific data has [1024 maximum keys per-process](https://elixir.bootlin.com/glibc/glibc-2.38/source/sysdeps/unix/sysv/linux/bits/local_lim.h#L63-L64)
+3. Thread-local storage has subpar performance
+    - Thread-local storage slots may not be as close together in memory as they would be in a single contiguous allocation using [`alloca`](https://www.gnu.org/software/libc/manual/2.23/html_node/Advantages-of-Alloca.html), which could lessen the [locality of reference](https://en.wikipedia.org/wiki/Locality_of_reference) performance benefit for memory accesses
+    - Thread-local storage retrival and storage can introduce unnecessary overhead in the form of lookup cost and extra function calls
+      - On Windows, a dynamic thread-local storage allocation with `TlsAlloc` due to [`TlsAlloc` acquires the shared PEB lock on every allocation](https://github.com/reactos/reactos/blob/54433319af31c2b49737469d36072153de375f4d/dll/win32/kernel32/client/thread.c#L1109) because it works by modifying the process-wide `Peb->TlsBitmap` data structure
+      - On Windows, a dynamic thread-local storage allocation with `FlsAlloc` returns an FLS index which is implemented as a key in a binary array, which means that retrieving thread-local data means you need to search a binary array each time (it's bloat on top of a pointer or index)
+      - glibc simply implements thread-specific data key as an index [stored as an unsigned integer](https://elixir.bootlin.com/glibc/glibc-2.38/source/sysdeps/nptl/bits/pthreadtypes.h#L48-L49) and [uses an per-key MT-safe atomic swap to create keys](https://elixir.bootlin.com/glibc/glibc-2.38/source/nptl/pthread_key_create.c#L32-L34)
+4. Thread-local data can complicate library unload or even make correctly unloading a library impossible
+    - The library's lifetime may be shorter or longer than the thread's lifetime
+    - For example: If an worker thread dynamically loads a library, uses the contained subsystem which calls `FlsAlloc` to create thread-local data with a callback into its library code, then the library is unloaded, and later the thread exits then a crash will occur! Simpling call `FlsFree` from `DLL_PROCESS_DETACH` will not solve the problem because the thread could have exit before your library was unloaded.
+    - Another example: If the `DLL_THREAD_ATTACH` of a dynamically loaded library allocates some per-thread data, a new thread is created anywehre in the process, then that library is unloaded before the thread exits, the resources that the `DLL_THREAD_DETACH` of the now unloaded DLL would have cleaned up will be leaked
+    - Unfortunately, [MacOS has already been hit with this issue](https://github.com/rust-lang/rust/issues/28794#issuecomment-368693049)
+5. It is easy to accidentally use a thread-local data slot that is not yours thus creating an instability or an [application compatibility issue](https://devblogs.microsoft.com/oldnewthing/20221128-00/?p=107456) where memory sanitizers would have been able to proactively catch an issue with traditional pointers
+6. Thread-local data is easy to misuse outside of its one valid use case: Giving each thread gets its own isolated instance of some data
+    - A valid use case would be creating a thread-local variable like: `__thread int thread_local_counter = 0;` or [`errno`](https://en.wikipedia.org/wiki/Thread-local_storage#Usage) by the operating system
+      - It is technically valid to pass thread-local data slots or keys between threads as long as the owning thread reamins alive, but this is not a common practice because there is usually a better way
+    - An application programmer may misuse thread-local data in a way that unnecessarily extends memory lifetime until the end of a thread, which could be a waste when typical stack memory provides fine-grained memory lifetime management and can also automatically clean up resources with a great pattern like [RAII](https://en.cppreference.com/w/cpp/language/raii)
+    - Instead of creating a structured function-oriented program or subsystem that cleanly passes through values and keeps track of memory in block scope, a programmer can easily use thread-local storage to be lazy by allocating FLS slots with a custom cleanup FLS callback at thread exit when keeping the data in a smaller block scope would have created a cleaner and more coherent codebase
 
 ## Component Model Technology Overview
 
@@ -2168,544 +2158,14 @@ NTSTATUS LdrpDecrementModuleLoadCountEx(LDR_DATA_TABLE_ENTRY Entry, BOOL DontCom
 }
 ```
 
-## Analysis Commands
-
-These are some helpful tips and commands to aid analysis.
-
-### `LDR_DATA_TABLE_ENTRY` Analysis
-
-List all module `LDR_DATA_TABLE_ENTRY` structures:
-
-```cmd
-!list -x "dt ntdll!_LDR_DATA_TABLE_ENTRY" @@C++(&@$peb->Ldr->InLoadOrderModuleList)
-```
-
-### `LDR_DDAG_NODE` Analysis
-
-List all module `DdagNode` structures:
-
-```cmd
-!list -x "dt ntdll!_LDR_DATA_TABLE_ENTRY @$extret -t BaseDllName; dt ntdll!_LDR_DDAG_NODE @@C++(((ntdll!_LDR_DATA_TABLE_ENTRY *)@$extret)->DdagNode)" @@C++(&@$peb->Ldr->InLoadOrderModuleList)
-```
-
-Note that `$extret` is a pseudo-register that the WinDbg `!list` command specially uses to store each list entry's address as it iterates through the list.
-
-List all module `DdagNode.State` values:
-
-```cmd
-!list -x "dt ntdll!_LDR_DATA_TABLE_ENTRY @$extret -cio -t BaseDllName; dt ntdll!_LDR_DDAG_NODE @@C++(((ntdll!_LDR_DATA_TABLE_ENTRY *)@$extret)->DdagNode) -cio -t State" @@C++(&@$peb->Ldr->InLoadOrderModuleList)
-```
-
-Trace all `DdagNode.State` values starting from its initial allocation to the next module load for every module:
-
-```cmd
-bp ntdll!LdrpAllocateModuleEntry "bp /1 @$ra \"bc 999; ba999 w8 @@C++(&((ntdll!_LDR_DATA_TABLE_ENTRY *)@$retreg)->DdagNode->State) \\\"ub . L1; g\\\"; g\"; g"
-```
-- This command breaks on `ntdll!LdrpAllocateModuleEntry`, sets a temporary breakpoint on its return address (`@$ra`), continues execution, sets a watchpoint on `DdagNode.State` in the returned `LDR_DATA_TABLE_ENTRY` (`@$retreg`), and logs the previous disassembly line on watchpoint hit
-- We must clear the previous watchpoint (`bc 999`) to set a new one every time a new module load occurs (`ModLoad` message in WinDbg debug output). Deleting hardware breakpoints is necessary because they are a finite resource of the CPU.
-
-This analyis command's only action right now is to print the assembly instruction (`ub . L1;`) that caused the debugger to break for our trace. Throw in some more actions like monitoring locks at your leisure: `!critsec ntdll!LdrpLoaderLock; dp ntdll!LdrpModuleDataTableLock L1;`
-
-**Warning:** Due to how module loads work out when multiple libraries load from one `LoadLibrary`, deleting the previous wachpoint may cause some later state changes to not appear in the trace. For this reason, it's necessary to sample modules randomly over a few separate executions. Run `sxe ld:<DLL_TO_BEGIN_SAMPLE_AT>` and remove the watchpoint deletion command (`bc 999`), then run the trace command starting from that point.
-
-**Warning:** This command will continue tracing an address after a module unloads, which causes `LdrpUnloadNode` ➜ `RtlFreeHeap` of memory. Disregard junk results from that point forward due to potential reallocation of the underlying memory until the next `ModLoad` WinDbg message, meaning a fresh watchpoint.
-
-### List All Dynamically Loaded DLLs
-
-Find all DLLs loaded by manually calling `LoadLibrary`:
-
-```cmd
-.for (r $t0=@@C++(@$peb->Ldr->InLoadOrderModuleList.Flink); @$t0 != @@C++(&@$peb->Ldr->InLoadOrderModuleList); r $t0=poi(@$t0);) { .if (@@C++(((ntdll!_LDR_DATA_TABLE_ENTRY *)@$t0)->LoadReason) == 4) { dt ntdll!_LDR_DATA_TABLE_ENTRY @$t0 -cio -t BaseDllName } }
-```
-
-Windows sometimes depends on an isolated bit of funcionality in another DLL at a specifc time and uses dynamic loading to access it. For instance, UCRT (`ucrtbase.dll`; the default CRT starting with Windows 10) does a [`LoadLibrary` for `kernel.appcore.dll` specifically at process exit](code/windows/dll-process-detach-test-harness/dll-process-detach-test-harness.c). Process creation (e.g. `CreateProcess`), internally handled by `ntdll.dll`, can [also dynamically load libraries](#comparing-os-library-loading-locations) to access specific bits of functionality.
-
-Since these dynamic loads happen at run-time, hidden dependency tricks like these won't show up in a `dumpbin` output. Also, the [Dependencies](https://github.com/lucasg/Dependencies) project states that libaries depended on by way of "dynamic loading via LoadLibrary are not supported (and probably won't ever be)." So, this WinDbg command closes the gap for us. Just attach WinDbg to a running process and see what hidden dependencies may be lurking.
-
-Luckily, the Windows loader keeps track of each library's load reason in its `LDR_DATA_TABLE_ENTRY`, which makes our job pretty easy. The `LoadReason` of `4` corresponds to `LoadReasonDynamicLoad` in [`LDR_DLL_LOAD_REASON`](https://www.geoffchappell.com/studies/windows/km/ntoskrnl/inc/api/ntldr/ldr_dll_load_reason.htm). Only a DLL that was directly dynamically loaded by `LoadLibrary` will be marked as `LoadReasonDynamicLoad` (this is my desired functionality). Dependencies of a dynamically loaded library will be marked as `LoadReasonStaticDependency` (same as a DLL loaded at initial process load-time).
-
-Note that we manually iterate the `InLoadOrderModuleList` list using the `.for` command instead of the `!list` command. We do this because the `!list` command forcefully outputs two newlines between each list entry thus creating uneven empty space between results since we output nothing on entries where we don't find a dynamically loaded DLL.
-
-As a sample output, here are all dynamically loaded DLLs present in `explorer.exe` (attached to the process):
-
-```
-BaseDllName _UNICODE_STRING  "explorer.exe"
-BaseDllName _UNICODE_STRING  "KERNEL32.DLL"
-BaseDllName _UNICODE_STRING  "IMM32.DLL"
-BaseDllName _UNICODE_STRING  "comctl32.dll"
-BaseDllName _UNICODE_STRING  "appresolver.dll"
-BaseDllName _UNICODE_STRING  "OneCoreUAPCommonProxyStub.dll"
-BaseDllName _UNICODE_STRING  "StartTileData.dll"
-BaseDllName _UNICODE_STRING  "IDStore.dll"
-BaseDllName _UNICODE_STRING  "wlidprov.dll"
-BaseDllName _UNICODE_STRING  "Windows.StateRepositoryPS.dll"
-BaseDllName _UNICODE_STRING  "Windows.ApplicationModel.dll"
-BaseDllName _UNICODE_STRING  "usermgrproxy.dll"
-BaseDllName _UNICODE_STRING  "Windows.CloudStore.dll"
-BaseDllName _UNICODE_STRING  "Windows.UI.dll"
-BaseDllName _UNICODE_STRING  "windowscodecs.dll"
-BaseDllName _UNICODE_STRING  "Windows.StateRepositoryClient.dll"
-BaseDllName _UNICODE_STRING  "dcomp.dll"
-BaseDllName _UNICODE_STRING  "d3d10warp.dll"
-BaseDllName _UNICODE_STRING  "AppExtension.dll"
-BaseDllName _UNICODE_STRING  "dataexchange.dll"
-BaseDllName _UNICODE_STRING  "TileDataRepository.dll"
-BaseDllName _UNICODE_STRING  "MrmCoreR.dll"
-BaseDllName _UNICODE_STRING  "explorerframe.dll"
-BaseDllName _UNICODE_STRING  "thumbcache.dll"
-BaseDllName _UNICODE_STRING  "twinui.pcshell.dll"
-BaseDllName _UNICODE_STRING  "windows.immersiveshell.serviceprovider.dll"
-BaseDllName _UNICODE_STRING  "OneCoreCommonProxyStub.dll"
-BaseDllName _UNICODE_STRING  "twinui.appcore.dll"
-BaseDllName _UNICODE_STRING  "twinui.dll"
-BaseDllName _UNICODE_STRING  "ApplicationFrame.dll"
-BaseDllName _UNICODE_STRING  "PhotoMetadataHandler.dll"
-BaseDllName _UNICODE_STRING  "cscapi.dll"
-BaseDllName _UNICODE_STRING  "HolographicExtensions.dll"
-BaseDllName _UNICODE_STRING  "Windows.UI.Immersive.dll"
-BaseDllName _UNICODE_STRING  "AboveLockAppHost.dll"
-BaseDllName _UNICODE_STRING  "Windows.Web.dll"
-BaseDllName _UNICODE_STRING  "Windows.Shell.BlueLightReduction.dll"
-BaseDllName _UNICODE_STRING  "Windows.Internal.Signals.dll"
-BaseDllName _UNICODE_STRING  "FileSyncShell64.dll"
-BaseDllName _UNICODE_STRING  "IconCodecService.dll"
-BaseDllName _UNICODE_STRING  "EhStorShell.dll"
-BaseDllName _UNICODE_STRING  "cscui.dll"
-BaseDllName _UNICODE_STRING  "TaskFlowDataEngine.dll"
-BaseDllName _UNICODE_STRING  "StructuredQuery.dll"
-BaseDllName _UNICODE_STRING  "Windows.Security.Authentication.Web.Core.dll"
-BaseDllName _UNICODE_STRING  "Windows.Data.Activities.dll"
-BaseDllName _UNICODE_STRING  "ieframe.dll"
-BaseDllName _UNICODE_STRING  "Windows.Devices.Enumeration.dll"
-BaseDllName _UNICODE_STRING  "MSWB7.dll"
-BaseDllName _UNICODE_STRING  "DevDispItemProvider.dll"
-BaseDllName _UNICODE_STRING  "Windows.Internal.UI.Shell.WindowTabManager.dll"
-BaseDllName _UNICODE_STRING  "MLANG.dll"
-BaseDllName _UNICODE_STRING  "NotificationControllerPS.dll"
-BaseDllName _UNICODE_STRING  "ActXPrxy.dll"
-BaseDllName _UNICODE_STRING  "Windows.Networking.Connectivity.dll"
-BaseDllName _UNICODE_STRING  "Windows.UI.Core.TextInput.dll"
-BaseDllName _UNICODE_STRING  "UIAnimation.dll"
-BaseDllName _UNICODE_STRING  "windowsudk.shellcommon.dll"
-BaseDllName _UNICODE_STRING  "UIAutomationCore.DLL"
-BaseDllName _UNICODE_STRING  "npmproxy.dll"
-BaseDllName _UNICODE_STRING  "ondemandconnroutehelper.dll"
-BaseDllName _UNICODE_STRING  "mswsock.dll"
-BaseDllName _UNICODE_STRING  "rsaenh.dll"
-BaseDllName _UNICODE_STRING  "rasadhlp.dll"
-BaseDllName _UNICODE_STRING  "fwpuclnt.dll"
-BaseDllName _UNICODE_STRING  "schannel.DLL"
-BaseDllName _UNICODE_STRING  "mskeyprotect.dll"
-BaseDllName _UNICODE_STRING  "ncryptsslp.dll"
-BaseDllName _UNICODE_STRING  "cryptnet.dll"
-BaseDllName _UNICODE_STRING  "SystemSettings.DataModel.dll"
-BaseDllName _UNICODE_STRING  "Windows.Storage.Search.dll"
-BaseDllName _UNICODE_STRING  "msIso.dll"
-BaseDllName _UNICODE_STRING  "PCShellCommonProxyStub.dll"
-BaseDllName _UNICODE_STRING  "ShellCommonCommonProxyStub.dll"
-BaseDllName _UNICODE_STRING  "stobject.dll"
-BaseDllName _UNICODE_STRING  "InputSwitch.dll"
-BaseDllName _UNICODE_STRING  "Windows.UI.Shell.dll"
-BaseDllName _UNICODE_STRING  "es.dll"
-BaseDllName _UNICODE_STRING  "prnfldr.dll"
-BaseDllName _UNICODE_STRING  "dxp.dll"
-BaseDllName _UNICODE_STRING  "atlthunk.dll"
-BaseDllName _UNICODE_STRING  "Syncreg.dll"
-BaseDllName _UNICODE_STRING  "Actioncenter.dll"
-BaseDllName _UNICODE_STRING  "Windows.FileExplorer.Common.dll"
-BaseDllName _UNICODE_STRING  "wpdshserviceobj.dll"
-BaseDllName _UNICODE_STRING  "PortableDeviceTypes.dll"
-BaseDllName _UNICODE_STRING  "PortableDeviceApi.dll"
-BaseDllName _UNICODE_STRING  "cscobj.dll"
-BaseDllName _UNICODE_STRING  "srchadmin.dll"
-BaseDllName _UNICODE_STRING  "SyncCenter.dll"
-BaseDllName _UNICODE_STRING  "imapi2.dll"
-BaseDllName _UNICODE_STRING  "AUDIOSES.DLL"
-BaseDllName _UNICODE_STRING  "pnidui.dll"
-BaseDllName _UNICODE_STRING  "netprofm.dll"
-BaseDllName _UNICODE_STRING  "NetworkUXBroker.dll"
-BaseDllName _UNICODE_STRING  "EthernetMediaManager.dll"
-BaseDllName _UNICODE_STRING  "bthprops.cpl"
-BaseDllName _UNICODE_STRING  "wpnclient.dll"
-BaseDllName _UNICODE_STRING  "Windows.Internal.System.UserProfile.dll"
-BaseDllName _UNICODE_STRING  "NetworkExplorer.dll"
-BaseDllName _UNICODE_STRING  "SettingSync.dll"
-BaseDllName _UNICODE_STRING  "SettingSyncCore.dll"
-BaseDllName _UNICODE_STRING  "Windows.UI.Xaml.dll"
-BaseDllName _UNICODE_STRING  "WindowsInternal.ComposableShell.Experiences.Switcher.dll"
-BaseDllName _UNICODE_STRING  "TileControl.dll"
-BaseDllName _UNICODE_STRING  "TaskFlowUI.dll"
-BaseDllName _UNICODE_STRING  "UiaManager.dll"
-BaseDllName _UNICODE_STRING  "wscinterop.dll"
-BaseDllName _UNICODE_STRING  "werconcpl.dll"
-BaseDllName _UNICODE_STRING  "hcproviders.dll"
-BaseDllName _UNICODE_STRING  "ieproxy.dll"
-BaseDllName _UNICODE_STRING  "windows.internal.shell.broker.dll"
-BaseDllName _UNICODE_STRING  "UserOOBE.dll"
-BaseDllName _UNICODE_STRING  "wdscore.dll"
-BaseDllName _UNICODE_STRING  "dbghelp.dll"
-BaseDllName _UNICODE_STRING  "MsftEdit.dll"
-BaseDllName _UNICODE_STRING  "Windows.Globalization.dll"
-BaseDllName _UNICODE_STRING  "tiptsf.dll"
-BaseDllName _UNICODE_STRING  "UIRibbon.dll"
-BaseDllName _UNICODE_STRING  "drprov.dll"
-BaseDllName _UNICODE_STRING  "ntlanman.dll"
-BaseDllName _UNICODE_STRING  "davclnt.dll"
-BaseDllName _UNICODE_STRING  "dlnashext.dll"
-BaseDllName _UNICODE_STRING  "WorkFoldersShell.dll"
-BaseDllName _UNICODE_STRING  "NppShell.dll"
-BaseDllName _UNICODE_STRING  "virtdisk.dll"
-BaseDllName _UNICODE_STRING  "sfc_os.dll"
-BaseDllName _UNICODE_STRING  "msxml6.dll"
-BaseDllName _UNICODE_STRING  "fhcfg.dll"
-BaseDllName _UNICODE_STRING  "CloudExperienceHostBroker.dll"
-BaseDllName _UNICODE_STRING  "cdprt.dll"
-BaseDllName _UNICODE_STRING  "execmodelclient.dll"
-BaseDllName _UNICODE_STRING  "execmodelproxy.dll"
-```
-
-Yes, `KERNEL32.dll` is listed because `ntdll.dll` loads it at process start up with `LoadLibrary` (or rather, the internal `ntdll!LdrLoadDll` function). The loader also marks the EXE module as being dynamically loaded. Some of my custom shell extensions may be in here (e.g. `NppShell.dll` from Notepad++).
-
-### List All Calls to Delay Loaded Imports
-
-To search disassembly for all instances of delay loading within a module:
-
-```
-as /c delayLoadedImports .shell -ci ".foreach (sym { x /1 <INSERT_DLL_NAME>!_imp_load_* }) { .echo ${sym} }" powershell -Command "$input -replace '_imp_load_', '_imp_'"
-.foreach /s (token "${delayLoadedImports}") { .if($spat("${token}","*!*")) { .printf "\nSearching for Calls to Delay Loaded Import: %y\n", ${token}; .catch {# "call*${token}" <INSERT_DLL_BASE_ADDRESS> L9999999} } }
-```
-
-The first command searches for delay loaded imports (`x KERNEL32!_imp_load_*`), getting their symbol names (`/1`), and replacing `_imp_load_` for `_imp` to later search the code for calls to these imports, which go through the IAT to to call the `_imp_load` code for delay loading. WinDbg commands cannot perform string manipulation. So, we employ the `.shell` command to run a find and replace operation using PowerShell. The output is stored into an alias string variable named `delayLoadedImports`. Use the `al` command to view the contents of all aliases.
-
-The second command iterates over the first command's output of import symbol names that will be delay loaded. It searches (`#`) the desired module's code for `call`s to that import. We catch errors from the search command to continue execution despite specifying an arbitrarily long length (`L9999999`) to search for instead of determining the module's size. The `.printf` command nicely separates the output. The `.shell` command may output some noise like `.shell: Process exited`, `<.shell waiting 10 second(s) for process>`, or `<.shell running: .shell_quit to abandon, ENTER to wait>` into the output. `.foreach /s` delimits on any whitespace (space or newline). So, to filter these out we look for values containg `!`, which only a module + symbol name pair like `KERNEL32!CreateProcessWStub` would contain. Note that this `.foreach` loop even works if the module name contains a space because WinDbg replaces each instance of a space with an underscore (`_`).
-
-To find instances of delay loading at run-time, simply: `bp ntdll!LdrResolveDelayLoadedAPI`
-
-### Trace `TEB.SameTebFlags`
-
-```cmd
-ba w8 @@C++(&@$teb->SameTebFlags-3)
-```
-
-`TEB.SameTebFlags` isn't memory-aligned, so we need to subtract `3` to set a hardware breakpoint. This watchpoint still captures the full `TEB.SameTebFlags` but now `TEB.MuiImpersonation`, `TEB.CrossTebFlags`, and `TEB.SpareCrossTebBits`, in front of `TEB.SameTebFlags` in the `TEB` structure, will also fire our watchpoint. However, these other members are rarely used, so it's only a minor inconvenience.
-
-ASLR randomizes the TEB's location on every execution, so you must set the watchpoint again when restarting the program in WinDbg.
-
-Read the TEB: `dt @$teb ntdll!_TEB`
-
-### Searching Assembly for Structure Offsets
-
-These commands contain the offset/register values specific to a 64-bit process. Please adjust them if you're working with a 32-bit process.
-
-WinDbg command: `# "*\\+38h\\]*" <NTDLL ADDRESS> L9999999`
-  - [Search NTDLL disassembly](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/---search-for-disassembly-pattern-) for occurrences of offset `+0x38` (useful to search for potential `LDR_DDAG_NODE.State` references)
-  - Put the output of this command into an `offset-search.txt` file
-
-Filter command pipeline (POSIX sh): `sed '/^ntdll!Ldr/!d;N;' offset-search.txt | sed 'N;/\[rsp+/d;'`
-  - The [WinDbg `#` command](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/---search-for-disassembly-pattern-) outputs two lines for each finding, hence the `sed` commands using its `N` command to read the next line into pattern space
-  - First command: Filter for findings beginning with `ntdll!Ldr` because we're interested in the loader
-  - Second command: Filter out offsets to the stack pointer, which is just noise operating on local variables
-    - Consistently use `sed` as a `grep -v`/`grep -v -A1` substitute because the latter prints a group separator, which we don't want (GNU `grep` supports `--no-group-separator` to remove this, but I prefer to keep POSIX compliant)
-
-Depending on what you're looking for, you should filter further—for example, filtering down to only `mov` or `lea` assembly instructions. Be aware that the results may not be comprehensive because the code could also add/subtract an offset from a member in the structure it's already at to reach another member in the current structure (i.e. use of the [`CONTAINING_RECORD`](https://learn.microsoft.com/en-us/windows/win32/api/ntdef/nf-ntdef-containing_record) macro). It's still generally helpful, though.
-
-Due to two's complement, negative numbers will, of course, show up like: `0FFFFFFFFh` (e.g. for `-1`, WinDbg disassembly prints it with a leading zero)
-
-### Monitor a Critical Section Lock
-
-Watch for reads/writes to a critical section's locking status.
-
-```cmd
-ba r4 @@C++(&((ntdll!_RTL_CRITICAL_SECTION *)@@(ntdll!LdrpDllNotificationLock))->LockCount)
-```
-
-I tested placing a watchpoint on loader lock (`ntdll!LdrpLoaderLock`). Doing this won't tell you much about a modern Windows loader because, as mentioned elsewhere, it is mostly the state, such as the `LDR_DDAG_NODE.State` or `LoadOwner`/`LoaderWorker` in `TEB.SameTebFlags` that the loader internally tests to make decisions (the loader itself never directly tests loader lock). However, outside of the loader, [some Windows API operations](data/windows/winhttp-dllmain-debugging.log) may directly check the status of loader lock using the `ntdll!RtlIsCriticalSectionLocked` or `ntdll!RtlIsCriticalSectionLockedByThread` functions to branch on the state of loader lock itself.
-
-### Debug Critical Section Locks
-
-To enable critical section debugging, run this command at process startup: `ew ntdll!RtlpForceCSDebugInfoCreation 1`
-
-Then, use the `!ntsdexts.locks -v` or `!cs` command to display all critical section locks. Alternatively, use `!ntsdexts.locks` or `!cs -l` to display only the currently locked critical section locks.
-
-### Application Relaunch Testing
-
-These commands enable easy repeated relaunching an application to test for some condition (e.g. an unlikely concurrent scenario or other non-deterministic bugs). The first command disables the initial `ntdll!LdrpDoDebuggerBreak` breakpoint. The second command restarts the application upon termination. The third command breaks on some condition you want to continually test for.
-
-To do this kind of testing, place the following commands in the WinDbg `Startup` commands textbox at `File` > `Settings` > `Debugging settings` > `Startup`. WinDbg may forget the state of these configurations across application restarts, so it's best to run them on each start (`sxn ibp` is always retained, `sxe -c` is always forgotten, and WinDbg appears to bug and forget all breakpoints on restart occasionally):
-
-```cmd
-sxn ibp
-sxe -c ".restart" epr
-bp ntdll!RtlpWaitOnCriticalSection ".if (@@C++(@$peb->Ldr->ShutdownInProgress) == 1) { .echo FOUND } .else { .echo TEST; g }"
-```
-
-Note that just because a concurrency bug exists, doesn't necessarily mean that continually relaunching an applicaiton will ever exhibit the exact timing necessary to realize an incorrect result or a crash. Realizing a concurrency bug depends on threads interleaving in exactly the right (or wrong) way. Whether the specific interleaving that realizes the bug occurs depends on a plethora of variables (e.g. how long an application leaves data in an inconsistent state with faulty locking, what the application is doing at that point in time, the system load, your hardware, and so on).
-
-On Windows, the [CHESS tool](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/chess-chesspldi2009tutorial.pdf) can test code at run-time to reliably find concurrency bugs. Provided one has source code, [Clang Thread Safety Analysis](https://clang.llvm.org/docs/ThreadSafetyAnalysis.html) can find concurrency bugs in C++ code. However, the latter analysis tool cannot recognize Windows API locking mechanisms.
-
-In WinDbg, you can manually test thread interleavings using the [freeze/unfreeze thread commands](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/-f--freeze-thread-) along with breakpoints. Set a breakpoint on where you believe the code leaves shared data in an inconsistent state without protection, freeze the thread at that point. Resume the process and have another thread execute the relevant code path that tries using the same shared data to test your concurrency theory.
-
-### Track Loader Events
-
-This WinDbg command tracks load and work completions.
-
-```cmd
-ba e1 ntdll!NtSetEvent ".if ($argreg == poi(ntdll!LdrpLoadCompleteEvent)) { .echo Set LoadComplete Event; k } .elsif ($argreg == poi(ntdll!LdrpWorkCompleteEvent)) { .echo Set WorkComplete Event; k }; gc"
-```
-
-We use a hardware execution breakpoint (`ba e1`) instead of a software breakpoint (`bp`) because otherwise, there's some strange bug where WinDbg may never hit the breakpoint for `LdrpWorkCompleteEvent` (root cause requires investigation).
-
-Note that this tracer is slow because Windows often uses events (calling `NtSetEvent`) even outside the loader.
-
-Swap out `ntdll!NtSetEvent` for `ntdll!NtWaitForSingleObject` and change `echo` messages to get more information. The `LdrpLoadCompleteEvent` and `LdrpWorkCompleteEvent` events are never manually reset (`ntdll!NtResetEvent`). They're [auto-reset events](https://learn.microsoft.com/en-us/windows/win32/sync/event-objects), so passing them into a wait function causes them to reset (even if no actual waiting occurs).
-
-Be aware that anti-malware software hooking on `ntdll!NtWaitForSingleObject` (or other NTDLL internal functions) can cause a breakpoint command to run twice (I ran into this issue).
-
-View state of Win32 events WinDbg command: `!handle 0 ff Event`
-
-### Disable Loader Worker Threads
-
-This CMD command helps analyze what locks are acquired in what parts of the code without the chance of a loader worker thread muddying your analysis (among other things). These show up as `ntdll!TppWorkerThread` threads in WinDbg at process startup (note that any threads belonging to other thread pools also take this thread name).
-
-```cmd
-reg add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\<YOUR_EXE_FILENAME>" /v MaxLoaderThreads /t REG_DWORD /d 1 /f
-```
-
-Yes, the correct value for disabling loader threads from spawning is `1`. Set `0` and loader threads still spawn (`0` appears to be the same as unset). Setting `2` spawns one loader worker thread, and that pattern continues...
-
-Internally, at process initialization (`LdrpInitializeProcess`), the loader retrieves `MaxLoaderThreads` in `LdrpInitializeExecutionOptions`. `LdrpInitializeExecutionOptions` queries this registry value (along with others) and saves the result. Later, the `MaxLoaderThreads` registry value becomes the first argument to the `LdrpEnableParallelLoading` function. `LdrpEnableParallelLoading` validates the value before passing it as the second argument to the `TpSetPoolMaxThreads` function. The `TpSetPoolMaxThreads` function does a [`NtSetInformationWorkerFactory`](https://ntdoc.m417z.com/ntsetinformationworkerfactory) system call with the second argument being the enum value [`WorkerFactoryThreadMaximum`](https://ntdoc.m417z.com/workerfactoryinfoclass) (`5`) to set the maximum thread count and the desired count pointed to by the third argument within the `WorkerFactoryInformation` structure (undocumented).
-
-The maximum number of threads the parallel loader allows is `4`. Specifying a higher thread count will top out at `4`.
-
-Creating threads happens with [`ntdll!NtCreateWorkerFactory`](https://ntdoc.m417z.com/ntcreateworkerfactory). The `ntdll!NtCreateWorkerFactory` function only does the `NtCreateWorkerFactory` system call; this is a kernel wrapper for creating multiple threads at once, improving performance because it avoids extra user-mode ⬌ kernel-mode context switches.
-
-Some operations, such as `ShellExecute`, may spawn threads named `ntdll!TppWorkerThread`. However, these worker threads belong to an unrelated thread pool, not the loader worker thread pool, and thus, never call the `ntdll!LdrpWorkCallback` function entry point. Make sure to distinguish threads that are part of the loader worker thread pool: `dt @$teb ntdll!_TEB -t LoaderWorker`
-
-### Thread and Worker Logging
-
-Trace all thread startups including specialized logging for worker threads. Logging all new threads is helpful in case a thread quickly starts then exits. We take take down the new thread's entry point. However, this information is insufficient in the case of a thread belonging to a thread pool because they all get the same thread entry point of `ntdll!TppWorkerThread`. In this case, we navigate the undocumented `TP_WORK` structure to find the worker entry point (64-bit support only):
-
-```cmd
-bp ntdll!LdrInitializeThunk ".if (@@C++(((ntdll!_CONTEXT *)@@(@$argreg))->Rcx) != ntdll!TppWorkerThread) { .foreach (token { ln @@C++(((ntdll!_CONTEXT *)@@(@$argreg))->Rcx) }) { .if($spat(\"${token}\",\"*!*\")) { .printf \"New Thread (0x%x): %y\\n\", @$tid, ${token}; .break } } } .else { .foreach (token { ln poi(poi(@@C++(((ntdll!_CONTEXT *)@@(@$argreg))->Rdx)+50h)-48h) }) { .if($spat(\"${token}\",\"*!*\")) { .printf \"New Worker (0x%x): %y\\n\", @$tid, ${token}; .break } } }; g"
-```
-
-The output is clean and looks like this:
-
-```
-New Thread (0x84a0): combase!CRpcThreadCache::RpcWorkerThreadEntry (00007ff8`d37bcf30)
-New Worker (0x2e50): RPCRT4!PerformGarbageCollection (00007ff8`d3b305c0)
-New Worker (0x34d0): ntdll!EtwpNotificationThread (00007ff8`d4235170)
-New Thread (0x5bfc): ntdll!DbgUiRemoteBreakin (00007ff8`d42bcab0)
-```
-
-See the [List All Calls to Delay Loaded Imports](#list-all-calls-to-delay-loaded-imports) section for information on how the WinDbg command itself works.
-
-**Background Information:** On Windows, thread creation (e.g. the `CreateThread` API) allows for passing an `lpParameter` to the new thread. The thread pool internals use this parameter to pass the worker a `TP_WORK` structure. Thread startup happens in this sequence of events: `ntdll!LdrInitializeThunk` ➜ `ntdll!LdrpInitialize` (thread loader initialization, then back to `ntdll!LdrInitializeThunk`) -- `NtContinue` --> `ntdll!RtlUserThreadStart` ➜ `KERNEL32!BaseThreadInitThunk` ➜ `<thread entry point>`. To break on thread startup as early as possible, we set our breakpoint on `ntdll!LdrInitializeThunk`. `ntdll!LdrInitializeThunk` receives a `CONTEXT` structure as its first argument. Following `LdrpInitialize`, `ntdll!LdrInitializeThunk` runs the `NtContinue` system call. `NtContinue` swaps the CPU register values for what is inside the `CONTEXT` structure that it also receives at its first argument. This `CONTEXT` structure is what contains the thread entry point (first argument, `rcx`) and thread argument (second argument, `rdx`) that the thread uses to proceed with execution. Our WinDbg command reads from these values from the `CONTEXT` structure to generate log messages.
-
-If you attach to a process and want to find the last entry point of a given `ntdll!TppWorkerThread` worker thread:
-
-```cmd
-ln poi(@@C++(((ntdll!_TEB *)@@(@$teb))->ThreadPoolData)+40h)
-```
-
-The `ntdll!TppWorkerThread` thread entry point function initializes `ThreadPoolData` in the new thread. As such, this command won't work to find out information about a `ntdll!TppWorkerThread` thread before the thread's loader initialization (running `DLL_THREAD_ATTACH` routines). Once again, Microsoft hasn't released debug symbol information for thread pools, but I found the worker entry point can be found at offset `0x40` (on a 64-bit program) in `ThreadPoolData` pointed to by the TEB.
-
-Get the requested entry point and call stack of threads submitting work to a thread pool (not logging on worker thread creation):
-
-```cmd
-bp ntdll!TpAllocWork "ln rdx; k; g"
-```
-
-The `ntdll!TpAllocWork` function is called by the [public `CreateThreadpoolWork` API](https://learn.microsoft.com/en-us/windows/win32/api/threadpoolapiset/nf-threadpoolapiset-createthreadpoolwork). Although less common, a work submitter can request a different worker entry point each time it submits work. Hence, another reason why this WinDbg command could be helpful. We break on the internal NTDLL function to ensure libraries not going through the public API won't bypass our logging.
-
-Note that if code does not set a callback environment with the[`InitializeThreadpoolEnvironment`](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-initializethreadpoolenvironment#remarks) function or it uses the legacy [`QueueUserWorkItem`](https://learn.microsoft.com/en-us/windows/win32/api/threadpoollegacyapiset/nf-threadpoollegacyapiset-queueuserworkitem) thread pool function, then that work will be assigned to a process-wide shared thread pool. These shared pool threads do not have have a particular callback associated with them so printing the thread entry point will turn up null in that case. Also know that the [work callback of a thread pool environment can change](https://learn.microsoft.com/en-us/windows/win32/procthread/using-the-thread-pool-functions). So, comprehensive logging requires we also make a tracer for `CreateThreadpoolWork` (but the existing WinDbg commands still work well for gathering information about snapshot in time and in most cases since most work callbacks do not change).
-
-### List All `LdrpCriticalLoaderFunctions`
-
-Whether a critical loader function (`ntdll!LdrpCriticalLoaderFunctions`) is detoured (i.e. hooked) determines whether `ntdll!LdrpDetourExist` is `TRUE` or `FALSE`. BlackBerry's Jeffrey Tang covered this in ["Windows 10 Parallel Loading Breakdown"](https://blogs.blackberry.com/en/2017/10/windows-10-parallel-loading-breakdown); however, this article only lists the first few critical loader functions, so here we show all of them. Below are the commands for determining all critical loader functions should they change in the future:
-
-```cmd
-0:000> ln ntdll!LdrpCriticalLoaderFunctions
-(00007ffb`1cb8df20)   ntdll!LdrpCriticalLoaderFunctions   |  (00007ffb`1cb8e020)   ntdll!RtlpMemoryZoneCriticalRoutines
-0:000> ? (00007ffb`1cb8e020 - 00007ffb`1cb8df20) / @@(sizeof(void*))
-Evaluate expression: 32 = 00000000`00000020
-0:000> .for (r $t0=0; $t0 < <OUTPUT_OF_PREVIOUS_EXPRESSION_HERE>; r $t0=$t0+1) { u poi(ntdll!LdrpCriticalLoaderFunctions + $t0 * @@(sizeof(void*))) L1 }
-ntdll!NtOpenFile:
-00007ffb`1cb0d630 4c8bd1          mov     r10,rcx
-ntdll!NtCreateSection:
-00007ffb`1cb0d910 4c8bd1          mov     r10,rcx
-ntdll!NtQueryAttributesFile:
-00007ffb`1cb0d770 4c8bd1          mov     r10,rcx
-... more output ...
-```
-
-Clean up the output by filtering it through this POSIX `sed` pipeline: `sed 'n;d;' <OUTPUT_FILE> | sed 's/.$//'`
-
-Finally, we have a comprehensive list of critical loader functions:
-
-```
-ntdll!NtOpenFile
-ntdll!NtCreateSection
-ntdll!NtQueryAttributesFile
-ntdll!NtOpenSection
-ntdll!NtMapViewOfSection
-ntdll!NtWriteVirtualMemory
-ntdll!NtResumeThread
-ntdll!NtOpenSemaphore
-ntdll!NtOpenMutant
-ntdll!NtOpenEvent
-ntdll!NtCreateUserProcess
-ntdll!NtCreateSemaphore
-ntdll!NtCreateMutant
-ntdll!NtCreateEvent
-ntdll!NtSetDriverEntryOrder
-ntdll!NtQueryDriverEntryOrder
-ntdll!NtAccessCheck
-ntdll!NtCreateThread
-ntdll!NtCreateThreadEx
-ntdll!NtCreateProcess
-ntdll!NtCreateProcessEx
-ntdll!NtCreateJobObject
-ntdll!NtCreateEnclave
-ntdll!NtOpenThread
-ntdll!NtOpenProcess
-ntdll!NtOpenJobObject
-ntdll!NtSetInformationThread
-ntdll!NtSetInformationProcess
-ntdll!NtDeleteFile
-ntdll!NtCreateFile
-ntdll!NtMapViewOfSectionEx
-ntdll!NtExtendSection
-```
-
-Make sure to prepend `0n` to `OUTPUT_OF_PREVIOUS_EXPRESSION_HERE` if you use the base ten representation (`0n32`); otherwise, WinDbg interprets that number as hex (base 16) by default.
-
-Microsoft's public symbols only come with names that typically do not include any information on type or size. This can be seen by running `x /d ntdll!LdrpCriticalLoaderFunctions` which reveals `<no type information>`. Hence, we must find the `ntdll!LdrpCriticalLoaderFunctions` size with the `ln` command instead of `sizeof`.
-
-### Find Root Cause of System Error Code or User-Mode Deadlocks
-
-Monitor the thread's error code for changes (i.e. [Win32](https://learn.microsoft.com/en-us/windows/win32/debug/system-error-codes--0-499-), [NTSTATUS](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-erref/596a1078-e883-4972-9bbc-49e60bebca55), [Winsock, or NetAPI](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/-error#parameters) code):
-
-```cmd
-ba w4 @@C++(&((ntdll!_TEB *)@@(@$teb))->LastErrorValue) ".printf \"Error: %d\\n\", @@C++(((ntdll!_TEB *)@@(@$teb))->LastErrorValue)"
-```
-
-This command is useful for discovering where and why a Windows API function fails internally. Use the `!error` easily turn an error value into an erroce code type (requires specifying the error number as the first argument; `!error` doesn't read the `LastErrorValue` itself).
-
-Sometimes, a thread error code may be set a bit later, after the internal error was initially recorded in some other state variable. This was the case for [determining the root cause of a WinHTTP operation failing from `DllMain`](data/windows/winhttp-dllmain-debugging.log). The `wt -oR -i ntdll` command works great for finding out what went wrong in these situations as well as for debugging user-mode deadlocks in Windows (`-i ntdll`: not tracing NTDLL significantly improves performance and removes the vast majority of noise from the output). This command also works well to get an overview on what a Windows API call is doing behined the scenes.
-
-### Loader Debug Logging
-
-The Windows loader supports printing debug messages. These help determine what actions the loader is doing at a high level. However, these messages won't help you reverse engineer how the loader works internally (e.g. they certainly don't help with figuring out how the loader supports concurrency).
-
-The loader performs bitwise `and` operations on `LdrpDebugFlags` to determine debugging behavior (the individual flag values should be reasonably clear based on the commands given below). Flag values are in hexadecimal.
-
-Run one of the following WinDbg commands to enable loader debug logging:
-
-Info, warning, and error messages: `eb ntdll!LdrpDebugFlags 1`
-
-Warning and error messages: `eb ntdll!LdrpDebugFlags 2`
-
-Info messages: `eb ntdll!LdrpDebugFlags 4`
-
-No messages + debug break on errors: `eb ntdll!LdrpDebugFlags 10`
-
-No messages + debug break on warnings: `eb ntdll!LdrpDebugFlags 40`
-
-No messages + debug break on warnings or errors: `eb ntdll!LdrpDebugFlags 50`
-
-Info, warning and error messages + debug break on warnings or errors: `eb ntdll!LdrpDebugFlags 51`
-
-Warning and error messages + debug break on warnings or errors: `eb ntdll!LdrpDebugFlags 52`
-
-Info messages + debug break on warnings or errors: `eb ntdll!LdrpDebugFlags 54`
-
-A warning would be something like `LdrpGetProcedureAddress` (exposed as `GetProcAddress` in the public API) failing to locate a procedure. An error would typically be something fatal to the entire loading/unloading process such as a DLL failing to initialize (i.e. `DllMain` returning `FALSE`), or raising an exception during DLL initialization (the loader will catch this if you don't).
-
-To start logging the loader as early as possible, run `sxe ld:ntdll` to break on the first assembly instruction of NTDLL then restart the program. Run `sxn ld` to undo this command and verify by running `sx`.
-
-During logging, you may find it helpful to use the [`sxe out:SOME STRING` command](https://devblogs.microsoft.com/oldnewthing/20240403-00/?p=109607) to break when WinDbg prints a given message.
-
-### Trace COM Initializations and Objects
-
-Trace COM initialization [threading model](https://learn.microsoft.com/en-us/windows/win32/api/objbase/ne-objbase-coinit):
-
-```cmd
-r $t10 = 0; bp combase!CoInitializeEx ".printf \"COM Thread Init (0x%x)\\n\", @$tid; dt combase!tagCOINIT @rdx; r $t10 = $t10 + 1; g"
-```
-
-Ensure calls to `CoInitialize`/`CoInitializeEx` are balanced out by an equal number of `CoUnitialize` (COM initializations are reference counted):
-
-```cmd
-r $t11 = 0; bp combase!CoUninitialize ".printf \"COM Thread Fini (0x%x)\\n\", @$tid; dt combase!tagCOINIT @rdx; r $t11 = $t11 + 1; g"
-```
-
-```cmd
-.printf "COM Init Count: %d\nCOM Fini Count: %d\n", $t10, $t11
-```
-
-Tracing `ShellExecute` as an experiment, I predominantly found `COINIT_APARTMENTTHREADED` (STA), although most if not all of the components advertise support for `Both` threading models in the registry.
-
-`rdx` refers to the second function argument in `stdcall` (64-bit only). WinDbg doesn't have an `$argreg` pseudo-register for the second function argument. `CoInitialize` (STA only) calls `CoInitializeEx` (defaults to MTA, with option of STA), so this breakpoint catches both. I believe in-process severs (most common) typically use STA and out-of-process servers typically use MTA.
-
-Trace new connections to COM components (`CoCreateInstance`):
-
-```cmd
-bp combase!CComActivator::DoCreateInstance ".foreach ( clsid { dt ntdll!_GUID @$argreg }) { .printf \"Creating COM object (0x%x): ${clsid}\\n\", @$tid; !dreg HKCR\\CLSID\\${clsid}!*; !dreg HKCR\\CLSID\\${clsid}; !dreg HKCR\\CLSID\\${clsid}\\InProcServer32!*; k; .break }; g"
-```
-
-For each creation of a COM object instance, we check for its CLSID (a GUID) in the registry (`HKCR` for a merged view of `system-wide`/`per-user` registered components). This command will only resolve the identities of registered COM components. An unregisted COM component (e.g. in an application manifest, manually loaded in memory, or through other advanced ways) won't resolve. In that case, I recommend looking up in the call stack for telling symbols or searching the internet for the CLSID (retrieve with the command: `dt ntdll!_GUID @$argreg`), you will likely find what it references.
-
-We break on the internal `combase!CComActivator::DoCreateInstance` function instead of `CoCreateInstance`/`CoCreateInstanceEx` because there are some sneaky ways to create COM instances without these public functions using a class factory. `.foreach` allows us to to parse out only the first token (the CLSID) outputted by the `dt` command.
-
-### `link_map` Analysis (GNU Loader)
-
-List all library `link_map` structures:
-
-```python
-python
-map = int(gdb.parse_and_eval("((struct r_debug *) &_r_debug)->r_map->l_next"))
-while map:
-    print(gdb.parse_and_eval(f'((struct link_map *){map})->l_name'))
-    map = int(gdb.parse_and_eval(f'((struct link_map *){map})->l_next'))
-```
-
-We get a list head from the `r_debug` structure (run `ptype struct r_debug` in GDB to get this structure's definition) then iterate the linear (i.e. non-circular) `link_map` list while printing the library names including their full paths (`l_name`). Notice we skip over the list head immediately by accessing `l_next` before iterating.
-
-GDB doesn't have a `!list` macro command like WinDbg, so we use scripting. GDB supports in-line scripting with Python. This is unlike WinDbg where in-line scripting with it's choice language of JavaScript is not possible. A one-liner is not Pythonic and Python's syntax doesn't adapt well to that usage, so we use a short multi-line script (which is more readable anyways, as Python intends) that you can easily copy & paste into your GDB prompt. We choose to frequently run GDB commands with `gdb.parse_and_eval` over using the native Python functions because working with the C-style types is easier.
-
-Example Output:
-
-```
-0x7ffff7fc7371 "linux-vdso.so.1"
-0x7ffff7fc1080 "/lib64/libc.so.6"
-0x400318 "/lib64/ld-linux-x86-64.so.2"
-0x4052a0 "/home/user/Documents/operating-system-design-review/load-library/lib1.so"
-0x406610 "/home/user/Documents/operating-system-design-review/load-library/lib2.so"
-```
-
-### Get TCB and Set GSCOPE Watchpoint (GNU Loader)
-
-Read the [thread control block](https://en.wikipedia.org/wiki/Thread_control_block) on GNU/Linux (equivalent to TEB on Windows):
-
-```
-set print pretty
-print *(tcbhead_t*)($fs_base)
-```
-
-Set a watchpoint on this thread's GSCOPE flag:
-
-```
-print &((tcbhead_t*)($fs_base))->gscope_flag
-watch *<OUTPUT_OF_LAST_COMMAND>
-```
-
-## Big thanks to Microsoft for successfully nerd sniping me!
+## License
 
 The document you just read is under a CC BY-SA License.
 
 This repo's code is triple licensed under the MIT License, GPLv2, or GPLv3 at your choice.
 
 Copyright (C) 2023-2025 Elliot Killick <contact@elliotkillick.com>
+
+**Big thanks to Microsoft for successfully nerd sniping me!**
 
 EOF

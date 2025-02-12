@@ -9,9 +9,9 @@ These instructions are for building and running the code samples in this repo:
     - Windows: Run `build.bat` where this script exists
     - For cross-platform Rust: `cargo build`
 2. Pre-execution
-   - Unix: Run `export LD_LIBRARY_PATH="$PWD"` (set this varible to where the libraries are) so an application can its find libraries
-   - Windows: This system searches the program folder and current working directory by default (copy or move files if necessary, e.g. with the `copy /y` command)
-   - For cross-platform Rust: Not necessary when using `cargo` helpers
+    - Unix: Run `export LD_LIBRARY_PATH="$PWD"` (set this varible to where the libraries are) so an application can its find libraries
+    - Windows: This system searches the program folder and current working directory by default (copy or move files if necessary, e.g. with the `copy /y` command)
+    - For cross-platform Rust: Not necessary when using `cargo` helpers
 3. Run
     - Unix: Run `./<PROGRAM>` or `gdb ./<PROGRAM>` to debug
     - Windows: Run `<PROGRAM_NAME>.exe` or pop it into WinDbg to debug
