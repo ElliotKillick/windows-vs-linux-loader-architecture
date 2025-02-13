@@ -1,0 +1,1282 @@
+Dynamically loading an empty DLL. Source code is the "loadlibrary" code sample.
+
+Breakpoint 1 hit
+KERNELBASE!LoadLibraryW:
+00007ffa`54572030 4533c0          xor     r8d,r8d
+0:000> wt -oR
+Tracing KERNELBASE!LoadLibraryW to return address 00007ff7`b9741011
+    3     0 [  0] KERNELBASE!LoadLibraryW
+   19     0 [  0] KERNELBASE!LoadLibraryExW
+   53     0 [  1]   ntdll!RtlInitUnicodeStringEx rax = 0
+   55    53 [  0] KERNELBASE!LoadLibraryExW
+   51     0 [  1]   ntdll!LdrLoadDll
+   11     0 [  2]     ntdll!LdrpInitializeDllPath
+   53     0 [  3]       ntdll!memset rax = 00000004`c99cf650
+   21    53 [  2]     ntdll!LdrpInitializeDllPath rax = 00000004`c99cf650
+   56    74 [  1]   ntdll!LdrLoadDll
+   19     0 [  2]     ntdll!LdrpLoadDll
+   19     0 [  3]       ntdll!LdrpLogDllState rax = 00000004`c9aaa000
+   29    19 [  2]     ntdll!LdrpLoadDll
+   24     0 [  3]       ntdll!LdrpPreprocessDllName
+   23     0 [  4]         ntdll!LdrpApplyFileNameRedirection
+   19     0 [  5]           ntdll!LdrpLogDllState rax = 00000004`c9aaa000
+   33    19 [  4]         ntdll!LdrpApplyFileNameRedirection
+   36     0 [  5]           ntdll!ApiSetResolveToHost rax = 0
+   45    55 [  4]         ntdll!LdrpApplyFileNameRedirection
+   19     0 [  5]           ntdll!LdrpLogDllState rax = 00000004`c9aaa000
+   65    74 [  4]         ntdll!LdrpApplyFileNameRedirection
+   58     0 [  5]           ntdll!RtlDosApplyFileIsolationRedirection_Ustr
+   26     0 [  6]             ntdll!sxsisol_InitUnicodeStringBufferAroundUnicodeStrings rax = 00000004`c99cf230
+   79    26 [  5]           ntdll!RtlDosApplyFileIsolationRedirection_Ustr
+  119     0 [  6]             ntdll!RtlFindCharInUnicodeString
+    6     0 [  7]               ntdll!_security_check_cookie rax = 0
+  129     6 [  6]             ntdll!RtlFindCharInUnicodeString rax = 0
+  101   161 [  5]           ntdll!RtlDosApplyFileIsolationRedirection_Ustr
+   20     0 [  6]             ntdll!RtlDetermineDosPathNameType_Ustr rax = 5
+  144   181 [  5]           ntdll!RtlDosApplyFileIsolationRedirection_Ustr
+   23     0 [  6]             ntdll!sxsisol_SearchActCtxForDllName
+   49     0 [  7]               ntdll!memset rax = 00000004`c99cefe4
+   46    49 [  6]             ntdll!sxsisol_SearchActCtxForDllName
+   29     0 [  7]               ntdll!RtlFindActivationContextSectionString
+   30     0 [  8]                 ntdll!RtlpFindActivationContextSection_CheckParameters rax = 0
+   47    30 [  7]               ntdll!RtlFindActivationContextSectionString
+   50     0 [  8]                 ntdll!RtlpFindNextActivationContextSection
+   63     0 [  9]                   ntdll!RtlpLocateActivationContextSection
+   25     0 [ 10]                     ntdll!bsearch
+    1     0 [ 11]                       ntdll!guard_check_icall
+    1     0 [ 11]                       ntdll!guard_check_icall_nop rax = 00000004`c99ced98
+   40     2 [ 10]                     ntdll!bsearch
+    5     0 [ 11]                       ntdll!RtlpCompareActivationContextDataTOCEntryById rax = ffffffff
+   60     7 [ 10]                     ntdll!bsearch
+    7     0 [ 11]                       ntdll!RtlpCompareActivationContextDataTOCEntryById rax = 0
+   73    14 [ 10]                     ntdll!bsearch rax = 00000145`5bbb00fc
+   86    87 [  9]                   ntdll!RtlpLocateActivationContextSection
+    6     0 [ 10]                     ntdll!_security_check_cookie rax = 0
+   95    93 [  9]                   ntdll!RtlpLocateActivationContextSection rax = 0
+   77   188 [  8]                 ntdll!RtlpFindNextActivationContextSection rax = 0
+   64   295 [  7]               ntdll!RtlFindActivationContextSectionString
+   37     0 [  8]                 ntdll!RtlpFindUnicodeStringInSection
+  179     0 [  9]                   ntdll!RtlHashUnicodeString rax = 0
+  114   179 [  8]                 ntdll!RtlpFindUnicodeStringInSection
+    6     0 [  9]                   ntdll!_security_check_cookie rax = c0150008
+  124   185 [  8]                 ntdll!RtlpFindUnicodeStringInSection rax = c0150008
+  110   604 [  7]               ntdll!RtlFindActivationContextSectionString rax = c0150008
+   73   763 [  6]             ntdll!sxsisol_SearchActCtxForDllName
+    6     0 [  7]               ntdll!_security_check_cookie rax = c0150008
+   83   769 [  6]             ntdll!sxsisol_SearchActCtxForDllName rax = c0150008
+  165  1033 [  5]           ntdll!RtlDosApplyFileIsolationRedirection_Ustr
+   42     0 [  6]             ntdll!memset rax = 00000004`c99cf200
+  190  1075 [  5]           ntdll!RtlDosApplyFileIsolationRedirection_Ustr
+    6     0 [  6]             ntdll!_security_check_cookie rax = c0150008
+  200  1081 [  5]           ntdll!RtlDosApplyFileIsolationRedirection_Ustr rax = c0150008
+   82  1355 [  4]         ntdll!LdrpApplyFileNameRedirection rax = 0
+  137  1437 [  3]       ntdll!LdrpPreprocessDllName
+   16     0 [  4]         ntdll!LdrpAppendUnicodeStringToFilenameBuffer
+   17     0 [  5]           ntdll!LdrpAllocateFileNameBufferIfNeeded rax = 0
+   24    17 [  4]         ntdll!LdrpAppendUnicodeStringToFilenameBuffer
+   12     0 [  5]           ntdll!memcpy rax = 00000004`c99cf4c0
+   37    29 [  4]         ntdll!LdrpAppendUnicodeStringToFilenameBuffer rax = 0
+  199  1503 [  3]       ntdll!LdrpPreprocessDllName rax = 0
+   42  1721 [  2]     ntdll!LdrpLoadDll
+   26     0 [  3]       ntdll!LdrpLoadDllInternal
+   22     0 [  4]         ntdll!LdrpFastpthReloadedDll
+  175     0 [  5]           ntdll!LdrpFindLoadedDllByName
+   12     0 [  6]             ntdll!RtlAcquireSRWLockExclusive rax = 4c
+  181    12 [  5]           ntdll!LdrpFindLoadedDllByName
+   44     0 [  6]             ntdll!LdrpFindLoadedDllByNameLockHeld rax = c0000135
+  186    56 [  5]           ntdll!LdrpFindLoadedDllByName
+    5     0 [  6]             ntdll!RtlReleaseSRWLockExclusive rax = 1
+  191    61 [  5]           ntdll!LdrpFindLoadedDllByName
+    5     0 [  6]             ntdll!RtlGetCurrentServiceSessionId rax = 0
+  204    66 [  5]           ntdll!LdrpFindLoadedDllByName rax = c0000135
+   32   270 [  4]         ntdll!LdrpFastpthReloadedDll rax = c0000135
+   36   302 [  3]       ntdll!LdrpLoadDllInternal
+   15     0 [  4]         ntdll!LdrpDrainWorkQueue
+   10     0 [  5]           ntdll!RtlEnterCriticalSection rax = 0
+   34    10 [  4]         ntdll!LdrpDrainWorkQueue
+   19     0 [  5]           ntdll!RtlLeaveCriticalSection rax = 0
+   49    29 [  4]         ntdll!LdrpDrainWorkQueue rax = 00000004`c9aab000
+   40   380 [  3]       ntdll!LdrpLoadDllInternal
+ 1786     0 [  4]         ntdll!LdrpDetectDetour
+    6     0 [  5]           ntdll!NtQueryInformationThread rax = 0
+>> More than one level popped 4 -> 4
+ 1797     6 [  4]         ntdll!LdrpDetectDetour
+    6     0 [  5]           ntdll!_security_check_cookie rax = 0
+ 1801    12 [  4]         ntdll!LdrpDetectDetour rax = 0
+   51  2193 [  3]       ntdll!LdrpLoadDllInternal
+   24     0 [  4]         ntdll!LdrpFindOrPrepareLoadingModule
+  175     0 [  5]           ntdll!LdrpFindLoadedDllByName
+   12     0 [  6]             ntdll!RtlAcquireSRWLockExclusive rax = 4c
+  181    12 [  5]           ntdll!LdrpFindLoadedDllByName
+   44     0 [  6]             ntdll!LdrpFindLoadedDllByNameLockHeld rax = c0000135
+  186    56 [  5]           ntdll!LdrpFindLoadedDllByName
+    5     0 [  6]             ntdll!RtlReleaseSRWLockExclusive rax = 1
+  191    61 [  5]           ntdll!LdrpFindLoadedDllByName
+    5     0 [  6]             ntdll!RtlGetCurrentServiceSessionId rax = 0
+  204    66 [  5]           ntdll!LdrpFindLoadedDllByName rax = c0000135
+   38   270 [  4]         ntdll!LdrpFindOrPrepareLoadingModule
+   23     0 [  5]           ntdll!LdrpAllocatePlaceHolder
+   22     0 [  6]             ntdll!RtlAllocateHeap
+   88     0 [  6]             ntdll!RtlpAllocateHeapInternal
+  141     0 [  7]               ntdll!RtlpAllocateHeap
+   75     0 [  8]                 ntdll!RtlpHeapRemoveListEntry rax = 00000145`5bcb0320
+  219    75 [  7]               ntdll!RtlpAllocateHeap
+   19     0 [  8]                 ntdll!RtlLeaveCriticalSection rax = 0
+  226    94 [  7]               ntdll!RtlpAllocateHeap
+   58     0 [  8]                 ntdll!memset rax = 00000145`5bcb3890
+  248   152 [  7]               ntdll!RtlpAllocateHeap rax = 00000145`5bcb3890
+  115   400 [  6]             ntdll!RtlpAllocateHeapInternal rax = 00000145`5bcb3890
+   44   537 [  5]           ntdll!LdrpAllocatePlaceHolder
+   12     0 [  6]             ntdll!memcpy rax = 00000145`5bcb3950
+   50   549 [  5]           ntdll!LdrpAllocatePlaceHolder
+   12     0 [  6]             ntdll!LdrpAllocateModuleEntry
+   22     0 [  7]               ntdll!RtlAllocateHeap
+   88     0 [  7]               ntdll!RtlpAllocateHeapInternal
+  949     0 [  8]                 ntdll!RtlpAllocateHeap
+   19     0 [  9]                   ntdll!RtlLeaveCriticalSection rax = 0
+  956    19 [  8]                 ntdll!RtlpAllocateHeap
+   53     0 [  9]                   ntdll!memset rax = 00000145`5bcbaae0
+  978    72 [  8]                 ntdll!RtlpAllocateHeap rax = 00000145`5bcbaae0
+  115  1050 [  7]               ntdll!RtlpAllocateHeapInternal rax = 00000145`5bcbaae0
+   21  1187 [  6]             ntdll!LdrpAllocateModuleEntry
+   22     0 [  7]               ntdll!RtlAllocateHeap
+   88     0 [  7]               ntdll!RtlpAllocateHeapInternal
+  652     0 [  8]                 ntdll!RtlpAllocateHeap
+   19     0 [  9]                   ntdll!RtlLeaveCriticalSection rax = 0
+  659    19 [  8]                 ntdll!RtlpAllocateHeap
+   42     0 [  9]                   ntdll!memset rax = 00000145`5bcb6670
+  681    61 [  8]                 ntdll!RtlpAllocateHeap rax = 00000145`5bcb6670
+  115   742 [  7]               ntdll!RtlpAllocateHeapInternal rax = 00000145`5bcb6670
+   39  2066 [  6]             ntdll!LdrpAllocateModuleEntry
+   24     0 [  7]               ntdll!RtlGetActiveActivationContext
+    6     0 [  8]                 ntdll!_security_check_cookie rax = 0
+   30     6 [  7]               ntdll!RtlGetActiveActivationContext rax = 0
+   68  2102 [  6]             ntdll!LdrpAllocateModuleEntry rax = 00000145`5bcbaae0
+   58  2719 [  5]           ntdll!LdrpAllocatePlaceHolder
+   19     0 [  6]             ntdll!LdrpLogDllState rax = 00000004`c9aaa000
+   72  2738 [  5]           ntdll!LdrpAllocatePlaceHolder rax = 0
+   44  3080 [  4]         ntdll!LdrpFindOrPrepareLoadingModule
+   23     0 [  5]           ntdll!LdrpLoadKnownDll
+   26     0 [  6]             ntdll!LdrpFindKnownDll
+    6     0 [  7]               ntdll!NtOpenSection rax = c0000034
+>> More than one level popped 6 -> 6
+   44     6 [  6]             ntdll!LdrpFindKnownDll rax = c0000135
+   34    50 [  5]           ntdll!LdrpLoadKnownDll rax = c0000135
+   55  3164 [  4]         ntdll!LdrpFindOrPrepareLoadingModule rax = c0000135
+   58  5412 [  3]       ntdll!LdrpLoadDllInternal
+   21     0 [  4]         ntdll!LdrpProcessWork
+   33     0 [  5]           ntdll!LdrpMapDllSearchPath
+   11     0 [  6]             ntdll!LdrpInitializeDllPath
+   53     0 [  7]               ntdll!memset rax = 00000004`c99cf2c0
+   23    53 [  6]             ntdll!LdrpInitializeDllPath rax = 00000004`c99cf2c0
+   51    76 [  5]           ntdll!LdrpMapDllSearchPath
+   39     0 [  6]             ntdll!LdrpSearchPath
+    7     0 [  7]               ntdll!LdrpComputeLazyDllPath
+   12     0 [  8]                 ntdll!RtlAcquireSRWLockExclusive rax = 00000004`c99cf174
+   20    12 [  7]               ntdll!LdrpComputeLazyDllPath
+   42     0 [  8]                 ntdll!LdrpGetDllPath
+   21     0 [  9]                   ntdll!RtlpGetCachedPath
+   12     0 [ 10]                     ntdll!RtlAcquireSRWLockExclusive rax = 00000004`c99cef68
+   37    12 [  9]                   ntdll!RtlpGetCachedPath
+    5     0 [ 10]                     ntdll!RtlReleaseSRWLockExclusive rax = 1
+   48    17 [  9]                   ntdll!RtlpGetCachedPath rax = 00000145`5bcb6d10
+   79    65 [  8]                 ntdll!LdrpGetDllPath
+   13     0 [  9]                   ntdll!LdrpLogDllStateEx2
+    5     0 [ 10]                     ntdll!RtlGetCurrentServiceSessionId rax = 0
+   23     5 [  9]                   ntdll!LdrpLogDllStateEx2 rax = 0
+   91    93 [  8]                 ntdll!LdrpGetDllPath rax = 0
+   36   196 [  7]               ntdll!LdrpComputeLazyDllPath
+    5     0 [  8]                 ntdll!RtlReleaseSRWLockExclusive rax = 1
+   41   201 [  7]               ntdll!LdrpComputeLazyDllPath rax = 0
+ 6996   242 [  6]             ntdll!LdrpSearchPath
+   15     0 [  7]               ntdll!LdrpAllocateUnicodeString
+    5     0 [  8]                 ntdll!NtdllpAllocateStringRoutine
+   22     0 [  8]                 ntdll!RtlAllocateHeap
+   88     0 [  8]                 ntdll!RtlpAllocateHeapInternal
+  847     0 [  9]                   ntdll!RtlpAllocateHeap
+   19     0 [ 10]                     ntdll!RtlLeaveCriticalSection rax = 0
+  871    19 [  9]                   ntdll!RtlpAllocateHeap rax = 00000145`5bcbac10
+  115   890 [  8]                 ntdll!RtlpAllocateHeapInternal rax = 00000145`5bcbac10
+   25  1032 [  7]               ntdll!LdrpAllocateUnicodeString rax = 0
+ 7597  1299 [  6]             ntdll!LdrpSearchPath
+   25     0 [  7]               ntdll!RtlAppendUnicodeStringToString
+   12     0 [  8]                 ntdll!memcpy rax = 00000145`5bcbac8e
+   41    12 [  7]               ntdll!RtlAppendUnicodeStringToString rax = 0
+ 7603  1352 [  6]             ntdll!LdrpSearchPath
+   22     0 [  7]               ntdll!LdrpResolveDllName
+   18     0 [  8]                 ntdll!LdrpGetFullPath
+   61     0 [  9]                   ntdll!RtlGetFullPathName_Ustr
+   65     0 [ 10]                     ntdll!memset rax = 00000004`c99cf1c0
+   68    65 [  9]                   ntdll!RtlGetFullPathName_Ustr
+    9     0 [ 10]                     ntdll!RtlpIsDosDeviceName_Ustr
+   25     0 [ 11]                       ntdll!RtlDetermineDosPathNameType_Ustr rax = 2
+  186    25 [ 10]                     ntdll!RtlpIsDosDeviceName_Ustr rax = 0
+   72   276 [  9]                   ntdll!RtlGetFullPathName_Ustr
+   25     0 [ 10]                     ntdll!RtlDetermineDosPathNameType_Ustr rax = 2
+ 1655   301 [  9]                   ntdll!RtlGetFullPathName_Ustr
+    6     0 [ 10]                     ntdll!_security_check_cookie rax = 96
+ 1664   307 [  9]                   ntdll!RtlGetFullPathName_Ustr rax = 96
+   40  1971 [  8]                 ntdll!LdrpGetFullPath rax = 0
+   37  2011 [  7]               ntdll!LdrpResolveDllName
+   15     0 [  8]                 ntdll!LdrpAllocateUnicodeString
+    5     0 [  9]                   ntdll!NtdllpAllocateStringRoutine
+   22     0 [  9]                   ntdll!RtlAllocateHeap
+   88     0 [  9]                   ntdll!RtlpAllocateHeapInternal
+  864     0 [ 10]                     ntdll!RtlpAllocateHeap
+   19     0 [ 11]                       ntdll!RtlLeaveCriticalSection rax = 0
+  888    19 [ 10]                     ntdll!RtlpAllocateHeap rax = 00000145`5bcbace0
+  115   907 [  9]                   ntdll!RtlpAllocateHeapInternal rax = 00000145`5bcbace0
+   25  1049 [  8]                 ntdll!LdrpAllocateUnicodeString rax = 0
+   44  3085 [  7]               ntdll!LdrpResolveDllName
+   59     0 [  8]                 ntdll!memcpy rax = 00000145`5bcbace0
+   51  3144 [  7]               ntdll!LdrpResolveDllName
+   18     0 [  8]                 ntdll!LdrpGetNtPathFromDosPath
+   15     0 [  9]                   ntdll!RtlDosPathNameToRelativeNtPathName
+   38     0 [ 10]                     ntdll!RtlpDosPathNameToRelativeNtPathName
+   25     0 [ 11]                       ntdll!RtlDetermineDosPathNameType_Ustr rax = 2
+   77    25 [ 10]                     ntdll!RtlpDosPathNameToRelativeNtPathName
+   10     0 [ 11]                       ntdll!memcpy rax = 00000004`c99cf1c0
+  107    35 [ 10]                     ntdll!RtlpDosPathNameToRelativeNtPathName
+   66     0 [ 11]                       ntdll!memcpy rax = 00000004`c99cf1c8
+  144   101 [ 10]                     ntdll!RtlpDosPathNameToRelativeNtPathName
+    6     0 [ 11]                       ntdll!_security_check_cookie rax = 0
+  150   107 [ 10]                     ntdll!RtlpDosPathNameToRelativeNtPathName rax = 0
+   18   257 [  9]                   ntdll!RtlDosPathNameToRelativeNtPathName rax = 0
+   37   275 [  8]                 ntdll!LdrpGetNtPathFromDosPath
+    6     0 [  9]                   ntdll!NtQueryAttributesFile rax = 0
+>> More than one level popped 8 -> 8
+   40   281 [  8]                 ntdll!LdrpGetNtPathFromDosPath
+    6     0 [  9]                   ntdll!_security_check_cookie rax = 0
+   46   287 [  8]                 ntdll!LdrpGetNtPathFromDosPath rax = 0
+  154  3477 [  7]               ntdll!LdrpResolveDllName
+   53     0 [  8]                 ntdll!RtlInitUnicodeStringEx rax = 0
+  166  3530 [  7]               ntdll!LdrpResolveDllName rax = 0
+ 7612  5048 [  6]             ntdll!LdrpSearchPath
+    9     0 [  7]               ntdll!LdrpFreeUnicodeString
+    5     0 [  8]                 ntdll!NtdllpFreeStringRoutine
+   21     0 [  8]                 ntdll!RtlFreeHeap
+   41     0 [  9]                   ntdll!RtlpFreeHeapInternal
+   39     0 [ 10]                     ntdll!RtlpFreeHeap
+    8     0 [ 11]                       ntdll!RtlTryEnterCriticalSection rax = 1
+  406     8 [ 10]                     ntdll!RtlpFreeHeap rax = 1
+   51   414 [  9]                   ntdll!RtlpFreeHeapInternal
+    8     0 [ 10]                     ntdll!RtlpHpStackLoggingEnabled rax = 0
+   65   422 [  9]                   ntdll!RtlpFreeHeapInternal rax = 1
+   28   487 [  8]                 ntdll!RtlFreeHeap rax = 1
+   15   520 [  7]               ntdll!LdrpFreeUnicodeString rax = 1
+ 7629  5583 [  6]             ntdll!LdrpSearchPath
+    5     0 [  7]               ntdll!LdrpIsSecurityEtwLoggingEnabled
+    5     0 [  8]                 ntdll!RtlGetCurrentServiceSessionId rax = 0
+   14     5 [  7]               ntdll!LdrpIsSecurityEtwLoggingEnabled
+    5     0 [  8]                 ntdll!RtlGetCurrentServiceSessionId rax = 0
+   24    10 [  7]               ntdll!LdrpIsSecurityEtwLoggingEnabled rax = 0
+ 7637  5617 [  6]             ntdll!LdrpSearchPath
+    6     0 [  7]               ntdll!_security_check_cookie rax = 0
+ 7647  5623 [  6]             ntdll!LdrpSearchPath rax = 0
+   67 13346 [  5]           ntdll!LdrpMapDllSearchPath
+   27     0 [  6]             ntdll!LdrpAppCompatRedirect rax = 0
+   74 13373 [  5]           ntdll!LdrpMapDllSearchPath
+    6     0 [  6]             ntdll!LdrpHashUnicodeString
+  179     0 [  7]               ntdll!RtlHashUnicodeString rax = 0
+   12   179 [  6]             ntdll!LdrpHashUnicodeString rax = e54d10b1
+   82 13564 [  5]           ntdll!LdrpMapDllSearchPath
+   15     0 [  6]             ntdll!LdrpFindExistingModule
+   12     0 [  7]               ntdll!RtlAcquireSRWLockExclusive rax = 00000004`c99cf118
+   23    12 [  6]             ntdll!LdrpFindExistingModule
+   44     0 [  7]               ntdll!LdrpFindLoadedDllByNameLockHeld rax = c0000135
+   30    56 [  6]             ntdll!LdrpFindExistingModule
+    5     0 [  7]               ntdll!RtlReleaseSRWLockExclusive rax = 1
+   38    61 [  6]             ntdll!LdrpFindExistingModule rax = c0000135
+   87 13663 [  5]           ntdll!LdrpMapDllSearchPath
+   13     0 [  6]             ntdll!LdrpFreeUnicodeString rax = c0000135
+   96 13676 [  5]           ntdll!LdrpMapDllSearchPath
+   17     0 [  6]             ntdll!LdrpMapDllNtFileName
+   19     0 [  7]               ntdll!LdrpCheckForRetryLoading
+   10     0 [  8]                 ntdll!RtlEnterCriticalSection rax = 0
+   33    10 [  7]               ntdll!LdrpCheckForRetryLoading
+   19     0 [  8]                 ntdll!RtlLeaveCriticalSection rax = 0
+   44    29 [  7]               ntdll!LdrpCheckForRetryLoading rax = 0
+   25    73 [  6]             ntdll!LdrpMapDllNtFileName
+   19     0 [  7]               ntdll!LdrpLogDllState rax = 00000004`c9aaa000
+   36    92 [  6]             ntdll!LdrpMapDllNtFileName
+    5     0 [  7]               ntdll!RtlGetCurrentServiceSessionId rax = 0
+   53    97 [  6]             ntdll!LdrpMapDllNtFileName
+    6     0 [  7]               ntdll!NtOpenFile rax = 0
+>> More than one level popped 6 -> 6
+   74   103 [  6]             ntdll!LdrpMapDllNtFileName
+    6     0 [  7]               ntdll!NtCreateSection rax = 0
+>> More than one level popped 6 -> 6
+   79   109 [  6]             ntdll!LdrpMapDllNtFileName
+    5     0 [  7]               ntdll!RtlGetCurrentServiceSessionId rax = 0
+   92   114 [  6]             ntdll!LdrpMapDllNtFileName
+    8     0 [  7]               ntdll!LdrpMapDllWithSectionHandle
+   19     0 [  8]                 ntdll!LdrpMinimalMapModule
+   37     0 [  9]                   ntdll!RtlEqualUnicodeString rax = 00000145`5bcbad00
+   65    37 [  8]                 ntdll!LdrpMinimalMapModule
+ModLoad: 00007ffa`48220000 00007ffa`48227000   C:\Users\user\Documents\loadlibrary\dll-test.dll
+    6     0 [  9]                   ntdll!NtMapViewOfSection rax = 0
+>> More than one level popped 8 -> 8
+   97    43 [  8]                 ntdll!LdrpMinimalMapModule rax = 0
+   21   140 [  7]               ntdll!LdrpMapDllWithSectionHandle
+   53     0 [  8]                 ntdll!RtlImageNtHeaderEx rax = 0
+   28   193 [  7]               ntdll!LdrpMapDllWithSectionHandle
+   12     0 [  8]                 ntdll!RtlAcquireSRWLockExclusive rax = 0
+   38   205 [  7]               ntdll!LdrpMapDllWithSectionHandle
+   44     0 [  8]                 ntdll!LdrpFindLoadedDllByNameLockHeld rax = c0000135
+   50   249 [  7]               ntdll!LdrpMapDllWithSectionHandle
+   55     0 [  8]                 ntdll!LdrpFindLoadedDllByMappingLockHeld rax = c0000135
+   54   304 [  7]               ntdll!LdrpMapDllWithSectionHandle
+   43     0 [  8]                 ntdll!LdrpInsertDataTableEntry rax = 00000145`5bcbaaf0
+   57   347 [  7]               ntdll!LdrpMapDllWithSectionHandle
+   42     0 [  8]                 ntdll!LdrpInsertModuleToIndexLockHeld
+   40     0 [  9]                   ntdll!RtlRbInsertNodeEx rax = 00000145`5bcb2f90
+   91    40 [  8]                 ntdll!LdrpInsertModuleToIndexLockHeld
+  138     0 [  9]                   ntdll!RtlRbInsertNodeEx rax = 70e0
+   96   178 [  8]                 ntdll!LdrpInsertModuleToIndexLockHeld rax = 70e0
+   59   621 [  7]               ntdll!LdrpMapDllWithSectionHandle
+    5     0 [  8]                 ntdll!RtlReleaseSRWLockExclusive rax = 1
+   63   626 [  7]               ntdll!LdrpMapDllWithSectionHandle
+    6     0 [  8]                 ntdll!RtlIsCriticalSectionLockedByThread rax = 0
+   69   632 [  7]               ntdll!LdrpMapDllWithSectionHandle
+   23     0 [  8]                 ntdll!LdrpCompleteMapModule
+   24     0 [  9]                   ntdll!RtlpImageDirectoryEntryToDataEx
+   43     0 [ 10]                     ntdll!RtlImageNtHeaderEx rax = 0
+   49    43 [  9]                   ntdll!RtlpImageDirectoryEntryToDataEx rax = c0000002
+   54    92 [  8]                 ntdll!LdrpCompleteMapModule rax = 0
+   76   778 [  7]               ntdll!LdrpMapDllWithSectionHandle
+   20     0 [  8]                 ntdll!LdrpProcessMappedModule
+   43     0 [  9]                   ntdll!RtlImageNtHeaderEx rax = 0
+   35    43 [  8]                 ntdll!LdrpProcessMappedModule
+    8     0 [  9]                   ntdll!LdrpValidateEntrySection
+   43     0 [ 10]                     ntdll!RtlImageNtHeaderEx rax = 0
+   20    43 [  9]                   ntdll!LdrpValidateEntrySection rax = 00007ffa`48220001
+   53   106 [  8]                 ntdll!LdrpProcessMappedModule
+    3     0 [  9]                   ntdll!LdrpGenRandom
+    5     0 [ 10]                     ntdll!RtlIsProcessorFeaturePresent rax = 1
+   15     5 [  9]                   ntdll!LdrpGenRandom rax = 5fca32c8`fd612374
+   61   126 [  8]                 ntdll!LdrpProcessMappedModule
+   17     0 [  9]                   ntdll!LdrInitSecurityCookie
+   15     0 [ 10]                     ntdll!LdrpFetchAddressOfSecurityCookie
+   43     0 [ 11]                       ntdll!RtlImageNtHeaderEx rax = 0
+   17    43 [ 10]                     ntdll!LdrpFetchAddressOfSecurityCookie
+    9     0 [ 11]                       ntdll!LdrImageDirectoryEntryToLoadConfig
+   43     0 [ 12]                         ntdll!RtlImageNtHeaderEx rax = 0
+   19    43 [ 11]                       ntdll!LdrImageDirectoryEntryToLoadConfig
+   24     0 [ 12]                         ntdll!RtlpImageDirectoryEntryToDataEx
+   43     0 [ 13]                           ntdll!RtlImageNtHeaderEx rax = 0
+   53    43 [ 12]                         ntdll!RtlpImageDirectoryEntryToDataEx rax = 0
+   42   139 [ 11]                       ntdll!LdrImageDirectoryEntryToLoadConfig rax = 00007ffa`48223210
+   34   224 [ 10]                     ntdll!LdrpFetchAddressOfSecurityCookie
+   35     0 [ 11]                       ntdll!RtlImageRvaToSection rax = 00007ffa`48220250
+   49   259 [ 10]                     ntdll!LdrpFetchAddressOfSecurityCookie rax = 00007ffa`48224008
+   37   308 [  9]                   ntdll!LdrInitSecurityCookie
+   34     0 [ 10]                     ntdll!LdrpGenSecurityCookie
+    6     0 [ 11]                       ntdll!NtQueryPerformanceCounter rax = 0
+>> More than one level popped 10 -> 10
+   44     6 [ 10]                     ntdll!LdrpGenSecurityCookie rax = 60757a14`a50e9058
+   62   358 [  9]                   ntdll!LdrInitSecurityCookie rax = 1
+   76   546 [  8]                 ntdll!LdrpProcessMappedModule
+   34     0 [  9]                   ntdll!LdrpCfgProcessLoadConfig
+    4     0 [ 10]                     ntdll!LdrControlFlowGuardEnforced rax = 0
+   38     4 [  9]                   ntdll!LdrpCfgProcessLoadConfig
+    4     0 [ 10]                     ntdll!LdrControlFlowGuardEnforced rax = 0
+   51     8 [  9]                   ntdll!LdrpCfgProcessLoadConfig rax = 0
+   89   605 [  8]                 ntdll!LdrpProcessMappedModule
+    8     0 [  9]                   ntdll!RtlInsertInvertedFunctionTable
+   11     0 [ 10]                     ntdll!RtlCaptureImageExceptionValues
+   24     0 [ 11]                       ntdll!RtlpImageDirectoryEntryToDataEx
+   43     0 [ 12]                         ntdll!RtlImageNtHeaderEx rax = 0
+   53    43 [ 11]                       ntdll!RtlpImageDirectoryEntryToDataEx rax = 0
+   23    96 [ 10]                     ntdll!RtlCaptureImageExceptionValues rax = 0
+   10   119 [  9]                   ntdll!RtlInsertInvertedFunctionTable
+   12     0 [ 10]                     ntdll!RtlAcquireSRWLockExclusive rax = 0
+   12   131 [  9]                   ntdll!RtlInsertInvertedFunctionTable
+    6     0 [ 10]                     ntdll!LdrProtectMrdata
+   12     0 [ 11]                       ntdll!RtlAcquireSRWLockExclusive rax = 0
+   13    12 [ 10]                     ntdll!LdrProtectMrdata
+   16     0 [ 11]                       ntdll!LdrpChangeMrdataProtection
+    6     0 [ 12]                         ntdll!NtProtectVirtualMemory rax = 0
+>> More than one level popped 11 -> 11
+   20     6 [ 11]                       ntdll!LdrpChangeMrdataProtection rax = 0
+   22    38 [ 10]                     ntdll!LdrProtectMrdata
+    5     0 [ 10]                     ntdll!RtlReleaseSRWLockExclusive rax = 1
+   18   196 [  9]                   ntdll!RtlInsertInvertedFunctionTable
+   49     0 [ 10]                     ntdll!RtlpInsertInvertedFunctionTableEntry
+   51     0 [ 11]                       ntdll!memcpy rax = 00007ffa`56c91570
+   65    51 [ 10]                     ntdll!RtlpInsertInvertedFunctionTableEntry rax = 1f8
+   20   312 [  9]                   ntdll!RtlInsertInvertedFunctionTable
+    6     0 [ 10]                     ntdll!LdrProtectMrdata
+   12     0 [ 11]                       ntdll!RtlAcquireSRWLockExclusive rax = 1f8
+   16    12 [ 10]                     ntdll!LdrProtectMrdata
+   16     0 [ 11]                       ntdll!LdrpChangeMrdataProtection
+    6     0 [ 12]                         ntdll!NtProtectVirtualMemory rax = 0
+>> More than one level popped 11 -> 11
+   20     6 [ 11]                       ntdll!LdrpChangeMrdataProtection rax = 0
+   22    38 [ 10]                     ntdll!LdrProtectMrdata
+    5     0 [ 10]                     ntdll!RtlReleaseSRWLockExclusive rax = 1
+   25   377 [  9]                   ntdll!RtlInsertInvertedFunctionTable
+    5     0 [  9]                   ntdll!RtlReleaseSRWLockExclusive rax = 1
+   94  1012 [  8]                 ntdll!LdrpProcessMappedModule
+   12     0 [  9]                   ntdll!RtlAcquireSRWLockExclusive rax = 1
+  102  1024 [  8]                 ntdll!LdrpProcessMappedModule
+   11     0 [  9]                   ntdll!LdrpSignalModuleMapped rax = 00000145`5bcb6670
+  104  1035 [  8]                 ntdll!LdrpProcessMappedModule
+    5     0 [  9]                   ntdll!RtlReleaseSRWLockExclusive rax = 1
+  108  1040 [  8]                 ntdll!LdrpProcessMappedModule
+   19     0 [  9]                   ntdll!LdrpLogDllState rax = 00000004`c9aaa000
+  118  1059 [  8]                 ntdll!LdrpProcessMappedModule rax = 0
+   82  1955 [  7]               ntdll!LdrpMapDllWithSectionHandle
+   10     0 [  8]                 ntdll!LdrpLogNewDllLoad
+    5     0 [  9]                   ntdll!RtlGetCurrentServiceSessionId rax = 0
+   19     5 [  8]                 ntdll!LdrpLogNewDllLoad
+    5     0 [  9]                   ntdll!RtlGetCurrentServiceSessionId rax = 0
+   30    10 [  8]                 ntdll!LdrpLogNewDllLoad rax = 0
+   91  1995 [  7]               ntdll!LdrpMapDllWithSectionHandle
+   17     0 [  8]                 ntdll!LdrpMapAndSnapDependency
+   21     0 [  9]                   ntdll!LdrpFindDllActivationContext
+    1     0 [ 10]                     ntdll!guard_dispatch_icall_nop
+   25     0 [ 10]                     KERNEL32!BasepProbeForDllManifest
+    2     0 [ 11]                       KERNELBASE!InitOnceExecuteOnce
+   27     0 [ 12]                         ntdll!RtlRunOnceExecuteOnce rax = 0
+    8    27 [ 11]                       KERNELBASE!InitOnceExecuteOnce rax = 1
+   39    35 [ 10]                     KERNEL32!BasepProbeForDllManifest
+   26     0 [ 11]                       ntdll!LdrResFindResourceDirectory
+   34     0 [ 12]                         ntdll!LdrResSearchResource
+    5     0 [ 13]                           ntdll!RtlGetCurrentServiceSessionId rax = 0
+  100     5 [ 12]                         ntdll!LdrResSearchResource
+   10     0 [ 13]                           ntdll!memcpy rax = 00000004`c99ceda8
+  116    15 [ 12]                         ntdll!LdrResSearchResource
+   20     0 [ 13]                           ntdll!LdrpResGetMappingSize
+    5     0 [ 14]                             ntdll!RtlGetCurrentServiceSessionId rax = 0
+   56     5 [ 13]                           ntdll!LdrpResGetMappingSize
+   43     0 [ 14]                             ntdll!RtlImageNtHeaderEx rax = 0
+   85    48 [ 13]                           ntdll!LdrpResGetMappingSize
+    5     0 [ 14]                             ntdll!RtlGetCurrentServiceSessionId rax = 0
+  101    53 [ 13]                           ntdll!LdrpResGetMappingSize rax = 0
+  135   169 [ 12]                         ntdll!LdrResSearchResource
+   44     0 [ 13]                           ntdll!LdrpResSearchResourceMappedFile
+    5     0 [ 14]                             ntdll!RtlGetCurrentServiceSessionId rax = 0
+  104     5 [ 13]                           ntdll!LdrpResSearchResourceMappedFile
+   23     0 [ 14]                             ntdll!LdrpResGetResourceDirectory
+    5     0 [ 15]                               ntdll!RtlGetCurrentServiceSessionId rax = 0
+   47     5 [ 14]                             ntdll!LdrpResGetResourceDirectory
+   53     0 [ 15]                               ntdll!RtlImageNtHeaderEx rax = 0
+  105    58 [ 14]                             ntdll!LdrpResGetResourceDirectory
+    5     0 [ 15]                               ntdll!RtlGetCurrentServiceSessionId rax = 0
+  119    63 [ 14]                             ntdll!LdrpResGetResourceDirectory rax = c0000089
+  110   187 [ 13]                           ntdll!LdrpResSearchResourceMappedFile
+    6     0 [ 14]                             ntdll!_security_check_cookie rax = c0000089
+  119   193 [ 13]                           ntdll!LdrpResSearchResourceMappedFile rax = c0000089
+  140   481 [ 12]                         ntdll!LdrResSearchResource
+    5     0 [ 13]                           ntdll!RtlGetCurrentServiceSessionId rax = 0
+  148   486 [ 12]                         ntdll!LdrResSearchResource
+    6     0 [ 13]                           ntdll!_security_check_cookie rax = c0000089
+  157   492 [ 12]                         ntdll!LdrResSearchResource rax = c0000089
+   28   649 [ 11]                       ntdll!LdrResFindResourceDirectory rax = c0000089
+   49   712 [ 10]                     KERNEL32!BasepProbeForDllManifest rax = c0000089
+   40   762 [  9]                   ntdll!LdrpFindDllActivationContext rax = 0
+   22   802 [  8]                 ntdll!LdrpMapAndSnapDependency
+   17     0 [  9]                   ntdll!LdrpPrepareImportAddressTableForSnap
+   24     0 [ 10]                     ntdll!RtlpImageDirectoryEntryToDataEx
+   43     0 [ 11]                       ntdll!RtlImageNtHeaderEx rax = 0
+   53    43 [ 10]                     ntdll!RtlpImageDirectoryEntryToDataEx rax = 0
+   30    96 [  9]                   ntdll!LdrpPrepareImportAddressTableForSnap
+   43     0 [ 10]                     ntdll!RtlImageNtHeaderEx rax = 0
+   32   139 [  9]                   ntdll!LdrpPrepareImportAddressTableForSnap
+    9     0 [ 10]                     ntdll!LdrImageDirectoryEntryToLoadConfig
+   43     0 [ 11]                       ntdll!RtlImageNtHeaderEx rax = 0
+   19    43 [ 10]                     ntdll!LdrImageDirectoryEntryToLoadConfig
+   24     0 [ 11]                       ntdll!RtlpImageDirectoryEntryToDataEx
+   43     0 [ 12]                         ntdll!RtlImageNtHeaderEx rax = 0
+   53    43 [ 11]                       ntdll!RtlpImageDirectoryEntryToDataEx rax = 0
+   42   139 [ 10]                     ntdll!LdrImageDirectoryEntryToLoadConfig rax = 00007ffa`48223210
+   58   320 [  9]                   ntdll!LdrpPrepareImportAddressTableForSnap
+    6     0 [ 10]                     ntdll!NtProtectVirtualMemory rax = 0
+>> More than one level popped 9 -> 9
+   77   326 [  9]                   ntdll!LdrpPrepareImportAddressTableForSnap rax = 0
+   30  1205 [  8]                 ntdll!LdrpMapAndSnapDependency
+    9     0 [  9]                   ntdll!LdrpShouldModuleImportBeRedirected rax = 0
+   34  1214 [  8]                 ntdll!LdrpMapAndSnapDependency
+   15     0 [  9]                   ntdll!LdrpGetImportDescriptorForSnap
+   24     0 [ 10]                     ntdll!RtlpImageDirectoryEntryToDataEx
+   43     0 [ 11]                       ntdll!RtlImageNtHeaderEx rax = 0
+   53    43 [ 10]                     ntdll!RtlpImageDirectoryEntryToDataEx rax = 0
+   28    96 [  9]                   ntdll!LdrpGetImportDescriptorForSnap rax = 00007ffa`482239d4
+   87  1338 [  8]                 ntdll!LdrpMapAndSnapDependency
+   22     0 [  9]                   ntdll!RtlAllocateHeap
+   68     0 [  9]                   ntdll!RtlpAllocateHeapInternal
+  102     0 [ 10]                     ntdll!RtlpLowFragHeapAllocFromContext
+   48     0 [ 11]                       ntdll!RtlpLfhFindClearBitAndSet rax = f
+  131    48 [ 10]                     ntdll!RtlpLowFragHeapAllocFromContext
+   24     0 [ 11]                       ntdll!memset rax = 00000145`5bcbde40
+  150    72 [ 10]                     ntdll!RtlpLowFragHeapAllocFromContext rax = 00000145`5bcbde40
+   95   222 [  9]                   ntdll!RtlpAllocateHeapInternal rax = 00000145`5bcbde40
+  166  1677 [  8]                 ntdll!LdrpMapAndSnapDependency
+   67     0 [  9]                   ntdll!LdrpLoadDependentModule
+  187     0 [ 10]                     ntdll!RtlAnsiStringToUnicodeString rax = 0
+  129   187 [  9]                   ntdll!LdrpLoadDependentModule
+   19     0 [ 10]                     ntdll!LdrpLogDllState rax = 00000004`c9aaa000
+  136   206 [  9]                   ntdll!LdrpLoadDependentModule
+   36     0 [ 10]                     ntdll!ApiSetResolveToHost rax = 0
+  149   242 [  9]                   ntdll!LdrpLoadDependentModule
+   19     0 [ 10]                     ntdll!LdrpLogDllState rax = 00000004`c9aaa000
+  170   261 [  9]                   ntdll!LdrpLoadDependentModule
+   58     0 [ 10]                     ntdll!RtlDosApplyFileIsolationRedirection_Ustr
+   26     0 [ 11]                       ntdll!sxsisol_InitUnicodeStringBufferAroundUnicodeStrings rax = 00000004`c99ce8d0
+   79    26 [ 10]                     ntdll!RtlDosApplyFileIsolationRedirection_Ustr
+  119     0 [ 11]                       ntdll!RtlFindCharInUnicodeString
+    6     0 [ 12]                         ntdll!_security_check_cookie rax = 0
+  129     6 [ 11]                       ntdll!RtlFindCharInUnicodeString rax = 0
+  101   161 [ 10]                     ntdll!RtlDosApplyFileIsolationRedirection_Ustr
+   20     0 [ 11]                       ntdll!RtlDetermineDosPathNameType_Ustr rax = 5
+  144   181 [ 10]                     ntdll!RtlDosApplyFileIsolationRedirection_Ustr
+   23     0 [ 11]                       ntdll!sxsisol_SearchActCtxForDllName
+   49     0 [ 12]                         ntdll!memset rax = 00000004`c99ce684
+   46    49 [ 11]                       ntdll!sxsisol_SearchActCtxForDllName
+   29     0 [ 12]                         ntdll!RtlFindActivationContextSectionString
+   30     0 [ 13]                           ntdll!RtlpFindActivationContextSection_CheckParameters rax = 0
+   47    30 [ 12]                         ntdll!RtlFindActivationContextSectionString
+   50     0 [ 13]                           ntdll!RtlpFindNextActivationContextSection
+   63     0 [ 14]                             ntdll!RtlpLocateActivationContextSection
+   25     0 [ 15]                               ntdll!bsearch
+    1     0 [ 16]                                 ntdll!guard_check_icall
+    1     0 [ 16]                                 ntdll!guard_check_icall_nop rax = 00000004`c99ce438
+   40     2 [ 15]                               ntdll!bsearch
+    5     0 [ 16]                                 ntdll!RtlpCompareActivationContextDataTOCEntryById rax = ffffffff
+   60     7 [ 15]                               ntdll!bsearch
+    7     0 [ 16]                                 ntdll!RtlpCompareActivationContextDataTOCEntryById rax = 0
+   73    14 [ 15]                               ntdll!bsearch rax = 00000145`5bbb00fc
+   86    87 [ 14]                             ntdll!RtlpLocateActivationContextSection
+    6     0 [ 15]                               ntdll!_security_check_cookie rax = 0
+   95    93 [ 14]                             ntdll!RtlpLocateActivationContextSection rax = 0
+   77   188 [ 13]                           ntdll!RtlpFindNextActivationContextSection rax = 0
+   64   295 [ 12]                         ntdll!RtlFindActivationContextSectionString
+   37     0 [ 13]                           ntdll!RtlpFindUnicodeStringInSection
+  158     0 [ 14]                             ntdll!RtlHashUnicodeString rax = 0
+  114   158 [ 13]                           ntdll!RtlpFindUnicodeStringInSection
+    6     0 [ 14]                             ntdll!_security_check_cookie rax = c0150008
+  124   164 [ 13]                           ntdll!RtlpFindUnicodeStringInSection rax = c0150008
+  110   583 [ 12]                         ntdll!RtlFindActivationContextSectionString rax = c0150008
+   73   742 [ 11]                       ntdll!sxsisol_SearchActCtxForDllName
+    6     0 [ 12]                         ntdll!_security_check_cookie rax = c0150008
+   83   748 [ 11]                       ntdll!sxsisol_SearchActCtxForDllName rax = c0150008
+  165  1012 [ 10]                     ntdll!RtlDosApplyFileIsolationRedirection_Ustr
+   42     0 [ 11]                       ntdll!memset rax = 00000004`c99ce8a0
+  190  1054 [ 10]                     ntdll!RtlDosApplyFileIsolationRedirection_Ustr
+    6     0 [ 11]                       ntdll!_security_check_cookie rax = c0150008
+  200  1060 [ 10]                     ntdll!RtlDosApplyFileIsolationRedirection_Ustr rax = c0150008
+  320  1521 [  9]                   ntdll!LdrpLoadDependentModule
+   16     0 [ 10]                     ntdll!LdrpAppendUnicodeStringToFilenameBuffer
+   17     0 [ 11]                       ntdll!LdrpAllocateFileNameBufferIfNeeded rax = 0
+   24    17 [ 10]                     ntdll!LdrpAppendUnicodeStringToFilenameBuffer
+   12     0 [ 11]                       ntdll!memcpy rax = 00000004`c99cecf0
+   37    29 [ 10]                     ntdll!LdrpAppendUnicodeStringToFilenameBuffer rax = 0
+  403  1587 [  9]                   ntdll!LdrpLoadDependentModule
+   22     0 [ 10]                     ntdll!RtlAllocateHeap
+   68     0 [ 10]                     ntdll!RtlpAllocateHeapInternal
+  102     0 [ 11]                       ntdll!RtlpLowFragHeapAllocFromContext
+   48     0 [ 12]                         ntdll!RtlpLfhFindClearBitAndSet rax = 6
+  145    48 [ 11]                       ntdll!RtlpLowFragHeapAllocFromContext rax = 00000145`5bcb9e50
+   95   193 [ 10]                     ntdll!RtlpAllocateHeapInternal rax = 00000145`5bcb9e50
+  423  1897 [  9]                   ntdll!LdrpLoadDependentModule
+  154     0 [ 10]                     ntdll!LdrpFindLoadedDllByName
+   12     0 [ 11]                       ntdll!RtlAcquireSRWLockExclusive rax = 4c
+  160    12 [ 10]                     ntdll!LdrpFindLoadedDllByName
+   36     0 [ 11]                       ntdll!LdrpFindLoadedDllByNameLockHeld
+  136     0 [ 12]                         ntdll!RtlEqualUnicodeString rax = 00000004`c99ced01
+   57   136 [ 11]                       ntdll!LdrpFindLoadedDllByNameLockHeld rax = 0
+  172   205 [ 10]                     ntdll!LdrpFindLoadedDllByName
+    5     0 [ 11]                       ntdll!RtlReleaseSRWLockExclusive rax = 1
+  177   210 [ 10]                     ntdll!LdrpFindLoadedDllByName
+    5     0 [ 11]                       ntdll!RtlGetCurrentServiceSessionId rax = 0
+  190   215 [ 10]                     ntdll!LdrpFindLoadedDllByName rax = 0
+  436  2302 [  9]                   ntdll!LdrpLoadDependentModule
+   12     0 [ 10]                     ntdll!RtlAcquireSRWLockExclusive rax = 0
+  452  2314 [  9]                   ntdll!LdrpLoadDependentModule
+   12     0 [ 10]                     ntdll!RtlAcquireSRWLockExclusive rax = 1
+  513  2326 [  9]                   ntdll!LdrpLoadDependentModule
+   53     0 [ 10]                     ntdll!RtlDeactivateActivationContextUnsafeFast
+    6     0 [ 11]                       ntdll!_security_check_cookie rax = 00007ffa`56b294c0
+   64     6 [ 10]                     ntdll!RtlDeactivateActivationContextUnsafeFast rax = 00007ffa`56b294c0
+  531  2396 [  9]                   ntdll!LdrpLoadDependentModule
+    6     0 [ 10]                     ntdll!_security_check_cookie rax = 0
+  540  2402 [  9]                   ntdll!LdrpLoadDependentModule rax = 0
+  252  4619 [  8]                 ntdll!LdrpMapAndSnapDependency
+   67     0 [  9]                   ntdll!LdrpLoadDependentModule
+  223     0 [ 10]                     ntdll!RtlAnsiStringToUnicodeString rax = 0
+  129   223 [  9]                   ntdll!LdrpLoadDependentModule
+   19     0 [ 10]                     ntdll!LdrpLogDllState rax = 00000004`c9aaa000
+  136   242 [  9]                   ntdll!LdrpLoadDependentModule
+   36     0 [ 10]                     ntdll!ApiSetResolveToHost rax = 0
+  149   278 [  9]                   ntdll!LdrpLoadDependentModule
+   19     0 [ 10]                     ntdll!LdrpLogDllState rax = 00000004`c9aaa000
+  170   297 [  9]                   ntdll!LdrpLoadDependentModule
+   58     0 [ 10]                     ntdll!RtlDosApplyFileIsolationRedirection_Ustr
+   26     0 [ 11]                       ntdll!sxsisol_InitUnicodeStringBufferAroundUnicodeStrings rax = 00000004`c99ce8d0
+   79    26 [ 10]                     ntdll!RtlDosApplyFileIsolationRedirection_Ustr
+  119     0 [ 11]                       ntdll!RtlFindCharInUnicodeString
+    6     0 [ 12]                         ntdll!_security_check_cookie rax = 0
+  129     6 [ 11]                       ntdll!RtlFindCharInUnicodeString rax = 0
+  101   161 [ 10]                     ntdll!RtlDosApplyFileIsolationRedirection_Ustr
+   20     0 [ 11]                       ntdll!RtlDetermineDosPathNameType_Ustr rax = 5
+  144   181 [ 10]                     ntdll!RtlDosApplyFileIsolationRedirection_Ustr
+   23     0 [ 11]                       ntdll!sxsisol_SearchActCtxForDllName
+   49     0 [ 12]                         ntdll!memset rax = 00000004`c99ce684
+   46    49 [ 11]                       ntdll!sxsisol_SearchActCtxForDllName
+   29     0 [ 12]                         ntdll!RtlFindActivationContextSectionString
+   30     0 [ 13]                           ntdll!RtlpFindActivationContextSection_CheckParameters rax = 0
+   47    30 [ 12]                         ntdll!RtlFindActivationContextSectionString
+   50     0 [ 13]                           ntdll!RtlpFindNextActivationContextSection
+   63     0 [ 14]                             ntdll!RtlpLocateActivationContextSection
+   25     0 [ 15]                               ntdll!bsearch
+    1     0 [ 16]                                 ntdll!guard_check_icall
+    1     0 [ 16]                                 ntdll!guard_check_icall_nop rax = 00000004`c99ce438
+   40     2 [ 15]                               ntdll!bsearch
+    5     0 [ 16]                                 ntdll!RtlpCompareActivationContextDataTOCEntryById rax = ffffffff
+   60     7 [ 15]                               ntdll!bsearch
+    7     0 [ 16]                                 ntdll!RtlpCompareActivationContextDataTOCEntryById rax = 0
+   73    14 [ 15]                               ntdll!bsearch rax = 00000145`5bbb00fc
+   86    87 [ 14]                             ntdll!RtlpLocateActivationContextSection
+    6     0 [ 15]                               ntdll!_security_check_cookie rax = 0
+   95    93 [ 14]                             ntdll!RtlpLocateActivationContextSection rax = 0
+   77   188 [ 13]                           ntdll!RtlpFindNextActivationContextSection rax = 0
+   64   295 [ 12]                         ntdll!RtlFindActivationContextSectionString
+   37     0 [ 13]                           ntdll!RtlpFindUnicodeStringInSection
+  198     0 [ 14]                             ntdll!RtlHashUnicodeString rax = 0
+  140   198 [ 13]                           ntdll!RtlpFindUnicodeStringInSection
+    6     0 [ 14]                             ntdll!_security_check_cookie rax = c0150008
+  150   204 [ 13]                           ntdll!RtlpFindUnicodeStringInSection rax = c0150008
+  110   649 [ 12]                         ntdll!RtlFindActivationContextSectionString rax = c0150008
+   73   808 [ 11]                       ntdll!sxsisol_SearchActCtxForDllName
+    6     0 [ 12]                         ntdll!_security_check_cookie rax = c0150008
+   83   814 [ 11]                       ntdll!sxsisol_SearchActCtxForDllName rax = c0150008
+  165  1078 [ 10]                     ntdll!RtlDosApplyFileIsolationRedirection_Ustr
+   42     0 [ 11]                       ntdll!memset rax = 00000004`c99ce8a0
+  190  1120 [ 10]                     ntdll!RtlDosApplyFileIsolationRedirection_Ustr
+    6     0 [ 11]                       ntdll!_security_check_cookie rax = c0150008
+  200  1126 [ 10]                     ntdll!RtlDosApplyFileIsolationRedirection_Ustr rax = c0150008
+  360  1623 [  9]                   ntdll!LdrpLoadDependentModule
+   16     0 [ 10]                     ntdll!LdrpAppendUnicodeStringToFilenameBuffer
+   17     0 [ 11]                       ntdll!LdrpAllocateFileNameBufferIfNeeded rax = 0
+   24    17 [ 10]                     ntdll!LdrpAppendUnicodeStringToFilenameBuffer
+   12     0 [ 11]                       ntdll!memcpy rax = 00000004`c99cecf0
+   37    29 [ 10]                     ntdll!LdrpAppendUnicodeStringToFilenameBuffer rax = 0
+  454  1689 [  9]                   ntdll!LdrpLoadDependentModule
+  194     0 [ 10]                     ntdll!LdrpFindLoadedDllByName
+   12     0 [ 11]                       ntdll!RtlAcquireSRWLockExclusive rax = 4c
+  200    12 [ 10]                     ntdll!LdrpFindLoadedDllByName
+   36     0 [ 11]                       ntdll!LdrpFindLoadedDllByNameLockHeld
+  134     0 [ 12]                         ntdll!RtlEqualUnicodeString rax = 00000004`c99ced01
+   60   134 [ 11]                       ntdll!LdrpFindLoadedDllByNameLockHeld rax = 0
+  212   206 [ 10]                     ntdll!LdrpFindLoadedDllByName
+    5     0 [ 11]                       ntdll!RtlReleaseSRWLockExclusive rax = 1
+  217   211 [ 10]                     ntdll!LdrpFindLoadedDllByName
+    5     0 [ 11]                       ntdll!RtlGetCurrentServiceSessionId rax = 0
+  230   216 [ 10]                     ntdll!LdrpFindLoadedDllByName rax = 0
+  467  2135 [  9]                   ntdll!LdrpLoadDependentModule
+   12     0 [ 10]                     ntdll!RtlAcquireSRWLockExclusive rax = 0
+  488  2147 [  9]                   ntdll!LdrpLoadDependentModule
+   12     0 [ 10]                     ntdll!RtlAcquireSRWLockExclusive rax = 1
+  558  2159 [  9]                   ntdll!LdrpLoadDependentModule
+   53     0 [ 10]                     ntdll!RtlDeactivateActivationContextUnsafeFast
+    6     0 [ 11]                       ntdll!_security_check_cookie rax = 00007ffa`56b294c0
+   64     6 [ 10]                     ntdll!RtlDeactivateActivationContextUnsafeFast rax = 00007ffa`56b294c0
+  576  2229 [  9]                   ntdll!LdrpLoadDependentModule
+    6     0 [ 10]                     ntdll!_security_check_cookie rax = 0
+  585  2235 [  9]                   ntdll!LdrpLoadDependentModule rax = 0
+  389  7439 [  8]                 ntdll!LdrpMapAndSnapDependency
+   67     0 [  9]                   ntdll!LdrpLoadDependentModule
+  376     0 [ 10]                     ntdll!RtlAnsiStringToUnicodeString rax = 0
+  129   376 [  9]                   ntdll!LdrpLoadDependentModule
+   19     0 [ 10]                     ntdll!LdrpLogDllState rax = 00000004`c9aaa000
+  136   395 [  9]                   ntdll!LdrpLoadDependentModule
+   68     0 [ 10]                     ntdll!ApiSetResolveToHost
+  412     0 [ 11]                       ntdll!ApiSetpSearchForApiSet
+  189     0 [ 12]                         ntdll!RtlCompareUnicodeStrings rax = 0
+  421   189 [ 11]                       ntdll!ApiSetpSearchForApiSet rax = 00000145`5bb9127c
+   96   610 [ 10]                     ntdll!ApiSetResolveToHost rax = 0
+  150  1101 [  9]                   ntdll!LdrpLoadDependentModule
+   19     0 [ 10]                     ntdll!LdrpLogDllState rax = 00000004`c9aaa000
+  232  1120 [  9]                   ntdll!LdrpLoadDependentModule
+   12     0 [ 10]                     ntdll!memcpy rax = 00000004`c99cecf0
+  285  1132 [  9]                   ntdll!LdrpLoadDependentModule
+   12     0 [ 10]                     ntdll!memcpy rax = 00000004`c99ced18
+  821  1144 [  9]                   ntdll!LdrpLoadDependentModule
+   12     0 [ 10]                     ntdll!RtlAcquireSRWLockExclusive rax = 0
+ 1293  1156 [  9]                   ntdll!LdrpLoadDependentModule
+    5     0 [ 10]                     ntdll!RtlGetCurrentServiceSessionId rax = 0
+ 1314  1161 [  9]                   ntdll!LdrpLoadDependentModule
+   12     0 [ 10]                     ntdll!RtlAcquireSRWLockExclusive rax = 0
+ 1335  1173 [  9]                   ntdll!LdrpLoadDependentModule
+   12     0 [ 10]                     ntdll!RtlAcquireSRWLockExclusive rax = 1
+ 1405  1185 [  9]                   ntdll!LdrpLoadDependentModule
+   53     0 [ 10]                     ntdll!RtlDeactivateActivationContextUnsafeFast
+    6     0 [ 11]                       ntdll!_security_check_cookie rax = 00007ffa`56b294c0
+   64     6 [ 10]                     ntdll!RtlDeactivateActivationContextUnsafeFast rax = 00007ffa`56b294c0
+ 1423  1255 [  9]                   ntdll!LdrpLoadDependentModule
+    6     0 [ 10]                     ntdll!_security_check_cookie rax = 0
+ 1432  1261 [  9]                   ntdll!LdrpLoadDependentModule rax = 0
+  402 10132 [  8]                 ntdll!LdrpMapAndSnapDependency
+   21     0 [  9]                   ntdll!RtlFreeHeap
+   75     0 [ 10]                     ntdll!RtlpFreeHeapInternal
+    5     0 [ 11]                       ntdll!RtlGetCurrentServiceSessionId rax = 0
+  130     5 [ 10]                     ntdll!RtlpFreeHeapInternal
+    8     0 [ 11]                       ntdll!RtlpHpStackLoggingEnabled rax = 0
+  144    13 [ 10]                     ntdll!RtlpFreeHeapInternal rax = 1
+   28   157 [  9]                   ntdll!RtlFreeHeap rax = 1
+  406 10317 [  8]                 ntdll!LdrpMapAndSnapDependency
+   12     0 [  9]                   ntdll!RtlAcquireSRWLockExclusive rax = 1
+  410 10329 [  8]                 ntdll!LdrpMapAndSnapDependency
+    5     0 [  9]                   ntdll!RtlReleaseSRWLockExclusive rax = 1
+  420 10334 [  8]                 ntdll!LdrpMapAndSnapDependency
+   18     0 [  9]                   ntdll!LdrpSnapModule
+   19     0 [ 10]                     ntdll!LdrpLogDllState rax = 00000004`c9aaa000
+   20    19 [  9]                   ntdll!LdrpSnapModule
+    9     0 [ 10]                     ntdll!LdrpHandlePendingModuleReplaced rax = 00000004`c9aaa000
+   67    28 [  9]                   ntdll!LdrpSnapModule
+   43     0 [ 10]                     ntdll!RtlImageNtHeaderEx rax = 0
+ 1304    71 [  9]                   ntdll!LdrpSnapModule
+   22     0 [ 10]                     ntdll!LdrpResolveForwarder
+  266     0 [ 11]                       ntdll!strrchr rax = 00007ffa`563c692b
+   56   266 [ 10]                     ntdll!LdrpResolveForwarder
+   26     0 [ 11]                       ntdll!LdrpGetProcedureAddress
+   43     0 [ 12]                         ntdll!RtlImageNtHeaderEx rax = 0
+  519    43 [ 11]                       ntdll!LdrpGetProcedureAddress rax = 0
+   63   828 [ 10]                     ntdll!LdrpResolveForwarder
+    4     0 [ 11]                       ntdll!LdrControlFlowGuardEnforced rax = 0
+   80   832 [ 10]                     ntdll!LdrpResolveForwarder rax = 0
+ 4387   983 [  9]                   ntdll!LdrpSnapModule
+   43     0 [ 10]                     ntdll!RtlImageNtHeaderEx rax = 0
+ 5450  1026 [  9]                   ntdll!LdrpSnapModule
+   43     0 [ 10]                     ntdll!RtlImageNtHeaderEx rax = 0
+11844  1069 [  9]                   ntdll!LdrpSnapModule
+   17     0 [ 10]                     ntdll!LdrpDoPostSnapWork
+    6     0 [ 11]                       ntdll!NtProtectVirtualMemory rax = 0
+>> More than one level popped 10 -> 10
+   27     6 [ 10]                     ntdll!LdrpDoPostSnapWork
+   23     0 [ 11]                       ntdll!LdrpHandleTlsData
+   24     0 [ 12]                         ntdll!RtlpImageDirectoryEntryToDataEx
+   43     0 [ 13]                           ntdll!RtlImageNtHeaderEx rax = 0
+   49    43 [ 12]                         ntdll!RtlpImageDirectoryEntryToDataEx rax = c0000002
+   33    92 [ 11]                       ntdll!LdrpHandleTlsData
+    6     0 [ 12]                         ntdll!_security_check_cookie rax = 0
+   42    98 [ 11]                       ntdll!LdrpHandleTlsData rax = 0
+   31   146 [ 10]                     ntdll!LdrpDoPostSnapWork
+    2     0 [ 11]                       ntdll!LdrControlFlowGuardEnforcedWithExportSuppression
+    4     0 [ 12]                         ntdll!LdrControlFlowGuardEnforced rax = 0
+    7     4 [ 11]                       ntdll!LdrControlFlowGuardEnforcedWithExportSuppression rax = 0
+   39   157 [ 10]                     ntdll!LdrpDoPostSnapWork rax = 0
+11851  1265 [  9]                   ntdll!LdrpSnapModule
+   19     0 [ 10]                     ntdll!LdrpLogDllState rax = 00000004`c9aaa000
+11869  1284 [  9]                   ntdll!LdrpSnapModule rax = 0
+  434 23487 [  8]                 ntdll!LdrpMapAndSnapDependency rax = 0
+  101 25916 [  7]               ntdll!LdrpMapDllWithSectionHandle rax = 0
+   97 26131 [  6]             ntdll!LdrpMapDllNtFileName
+    6     0 [  7]               ntdll!NtClose rax = 0
+>> More than one level popped 6 -> 6
+   99 26137 [  6]             ntdll!LdrpMapDllNtFileName
+    6     0 [  7]               ntdll!NtClose rax = 0
+>> More than one level popped 6 -> 6
+  110 26143 [  6]             ntdll!LdrpMapDllNtFileName rax = 0
+  103 39929 [  5]           ntdll!LdrpMapDllSearchPath
+    5     0 [  6]             ntdll!LdrpIsSecurityEtwLoggingEnabled
+    5     0 [  7]               ntdll!RtlGetCurrentServiceSessionId rax = 0
+   14     5 [  6]             ntdll!LdrpIsSecurityEtwLoggingEnabled
+    5     0 [  7]               ntdll!RtlGetCurrentServiceSessionId rax = 0
+   24    10 [  6]             ntdll!LdrpIsSecurityEtwLoggingEnabled rax = 0
+  115 39963 [  5]           ntdll!LdrpMapDllSearchPath
+   13     0 [  6]             ntdll!LdrpFreeUnicodeString rax = 00000004`c99cf1c0
+  121 39976 [  5]           ntdll!LdrpMapDllSearchPath
+    6     0 [  6]             ntdll!_security_check_cookie rax = 0
+  131 39982 [  5]           ntdll!LdrpMapDllSearchPath rax = 0
+   34 40113 [  4]         ntdll!LdrpProcessWork rax = 80000000
+   60 45559 [  3]       ntdll!LdrpLoadDllInternal
+   15     0 [  4]         ntdll!LdrpDrainWorkQueue
+   10     0 [  5]           ntdll!RtlEnterCriticalSection rax = 0
+   34    10 [  4]         ntdll!LdrpDrainWorkQueue
+   19     0 [  5]           ntdll!RtlLeaveCriticalSection rax = 0
+   52    29 [  4]         ntdll!LdrpDrainWorkQueue rax = 00000004`c9aab000
+   64 45640 [  3]       ntdll!LdrpLoadDllInternal
+   11     0 [  4]         ntdll!LdrpHandleReplacedModule rax = 00000145`5bcbaae0
+   73 45651 [  3]       ntdll!LdrpLoadDllInternal
+    9     0 [  4]         ntdll!LdrpCondenseGraph
+   44     0 [  5]           ntdll!LdrpCondenseGraphRecurse rax = 0
+   11    44 [  4]         ntdll!LdrpCondenseGraph rax = 0
+   78 45706 [  3]       ntdll!LdrpLoadDllInternal
+    9     0 [  4]         ntdll!LdrpPrepareModuleForExecution
+    6     0 [  5]           ntdll!RtlIsCriticalSectionLockedByThread rax = 0
+   25     6 [  4]         ntdll!LdrpPrepareModuleForExecution
+   14     0 [  5]           ntdll!LdrpNotifyLoadOfGraph
+   22     0 [  6]             ntdll!LdrpSendPostSnapNotifications
+   10     0 [  7]               ntdll!RtlEnterCriticalSection rax = 0
+   36    10 [  6]             ntdll!LdrpSendPostSnapNotifications
+   33     0 [  7]               ntdll!SbUpdateSwitchContextBasedOnDll
+   10     0 [  8]                 ntdll!SbGetContextDetailsById rax = 1
+   39    10 [  7]               ntdll!SbUpdateSwitchContextBasedOnDll
+   22     0 [  8]                 ntdll!SbGetContextDetailsByGuid rax = 1
+   44    32 [  7]               ntdll!SbUpdateSwitchContextBasedOnDll
+   26     0 [  8]                 ntdll!SbpDetermineDllContext
+    7     0 [  9]                   ntdll!RtlImageNtHeader
+   43     0 [ 10]                     ntdll!RtlImageNtHeaderEx rax = 0
+   10    43 [  9]                   ntdll!RtlImageNtHeader rax = 00007ffa`482200f8
+   31    53 [  8]                 ntdll!SbpDetermineDllContext
+   10     0 [  9]                   ntdll!SbGetContextDetailsById rax = 1
+   39    63 [  8]                 ntdll!SbpDetermineDllContext
+   30     0 [  9]                   ntdll!SbpRetrieveCompatibilityManifest
+   51     0 [ 10]                     ntdll!RtlQueryInformationActivationContext
+   15     0 [ 11]                       ntdll!LdrpFindLoadedDllByHandle
+   12     0 [ 12]                         ntdll!RtlAcquireSRWLockExclusive rax = 0
+   71    12 [ 11]                       ntdll!LdrpFindLoadedDllByHandle
+    5     0 [ 12]                         ntdll!RtlReleaseSRWLockExclusive rax = 1
+   82    17 [ 11]                       ntdll!LdrpFindLoadedDllByHandle rax = 0
+   72    99 [ 10]                     ntdll!RtlQueryInformationActivationContext
+   32     0 [ 11]                       ntdll!RtlpGetActivationContextData rax = 0
+   97   131 [ 10]                     ntdll!RtlQueryInformationActivationContext
+   26     0 [ 11]                       ntdll!RtlpQueryInformationActivationContextCompatibilityInformation
+   19     0 [ 12]                         ntdll!RtlpLocateActivationContextSectionForQuery
+   34     0 [ 13]                           ntdll!RtlpLocateActivationContextSection
+    6     0 [ 14]                             ntdll!_security_check_cookie rax = c0150001
+   43     6 [ 13]                           ntdll!RtlpLocateActivationContextSection rax = c0150001
+   30    49 [ 12]                         ntdll!RtlpLocateActivationContextSectionForQuery
+    6     0 [ 13]                           ntdll!memset rax = 00000004`c99ceeb8
+   41    55 [ 12]                         ntdll!RtlpLocateActivationContextSectionForQuery rax = 00000004`c99ceff0
+   38    96 [ 11]                       ntdll!RtlpQueryInformationActivationContextCompatibilityInformation rax = 0
+  109   265 [ 10]                     ntdll!RtlQueryInformationActivationContext
+   22     0 [ 11]                       ntdll!LdrpDereferenceModule rax = 3
+  121   287 [ 10]                     ntdll!RtlQueryInformationActivationContext rax = 0
+   51   408 [  9]                   ntdll!SbpRetrieveCompatibilityManifest rax = 1
+   48   522 [  8]                 ntdll!SbpDetermineDllContext
+   41     0 [  9]                   ntdll!SbGetContextDetailsByVersion rax = 1
+   56   563 [  8]                 ntdll!SbpDetermineDllContext
+    6     0 [  9]                   ntdll!_security_check_cookie rax = 1
+   66   569 [  8]                 ntdll!SbpDetermineDllContext rax = 1
+   78   667 [  7]               ntdll!SbUpdateSwitchContextBasedOnDll rax = 1
+   44   755 [  6]             ntdll!LdrpSendPostSnapNotifications
+   10     0 [  7]               ntdll!CompatCachepLookupCdb
+   73     0 [  8]                 ntdll!memset rax = 00000004`c99cf170
+   15    73 [  7]               ntdll!CompatCachepLookupCdb
+  394     0 [  8]                 ntdll!wcsrchr rax = 00000145`5bcbad5c
+   21   467 [  7]               ntdll!CompatCachepLookupCdb
+   53     0 [  8]                 ntdll!RtlInitUnicodeStringEx rax = 0
+   29   520 [  7]               ntdll!CompatCachepLookupCdb
+    6     0 [  8]                 ntdll!NtApphelpCacheControl rax = 0
+>> More than one level popped 7 -> 7
+   40   526 [  7]               ntdll!CompatCachepLookupCdb rax = 0
+   50  1321 [  6]             ntdll!LdrpSendPostSnapNotifications
+   17     0 [  7]               ntdll!LdrpSendDllNotifications
+   11     0 [  8]                 ntdll!RtlEnterCriticalSection rax = 0
+   23    11 [  7]               ntdll!LdrpSendDllNotifications
+   13     0 [  8]                 ntdll!RtlLeaveCriticalSection rax = 0
+   28    24 [  7]               ntdll!LdrpSendDllNotifications rax = 0
+   55  1373 [  6]             ntdll!LdrpSendPostSnapNotifications
+   19     0 [  7]               ntdll!LdrpLogDllState rax = 00000004`c9aaa000
+   60  1392 [  6]             ntdll!LdrpSendPostSnapNotifications
+   19     0 [  7]               ntdll!RtlLeaveCriticalSection rax = 0
+   71  1411 [  6]             ntdll!LdrpSendPostSnapNotifications rax = 0
+   21  1482 [  5]           ntdll!LdrpNotifyLoadOfGraph rax = 0
+   30  1509 [  4]         ntdll!LdrpPrepareModuleForExecution
+   27     0 [  5]           ntdll!LdrpDynamicShimModule rax = 0
+   39  1536 [  4]         ntdll!LdrpPrepareModuleForExecution
+    5     0 [  5]           ntdll!LdrpAcquireLoaderLock
+    5     0 [  6]             ntdll!RtlGetCurrentServiceSessionId rax = 0
+   14     5 [  5]           ntdll!LdrpAcquireLoaderLock
+   10     0 [  6]             ntdll!RtlEnterCriticalSection rax = 0
+   16    15 [  5]           ntdll!LdrpAcquireLoaderLock
+    5     0 [  6]             ntdll!RtlGetCurrentServiceSessionId rax = 0
+   26    20 [  5]           ntdll!LdrpAcquireLoaderLock rax = 0
+   44  1582 [  4]         ntdll!LdrpPrepareModuleForExecution
+   19     0 [  5]           ntdll!LdrpInitializeGraphRecurse
+   55     0 [  6]             ntdll!LdrpInitializeNode
+    6     0 [  7]               ntdll!NtSetInformationVirtualMemory rax = c00000bb
+>> More than one level popped 6 -> 6
+   77     6 [  6]             ntdll!LdrpInitializeNode
+   33     0 [  7]               ntdll!RtlActivateActivationContextUnsafeFast
+    6     0 [  8]                 ntdll!_security_check_cookie rax = 00000004`c99cf2e0
+   35     6 [  7]               ntdll!RtlActivateActivationContextUnsafeFast rax = 00000004`c99cf2e0
+   91    47 [  6]             ntdll!LdrpInitializeNode
+   14     0 [  7]               ntdll!LdrpCallInitRoutine
+    5     0 [  8]                 ntdll!RtlGetCurrentServiceSessionId rax = 0
+   27     5 [  7]               ntdll!LdrpCallInitRoutine
+*** WARNING: Unable to verify checksum for C:\Users\user\Documents\QubesIncoming\lab-projects\loadlibrary\dll-test.dll
+    1     0 [  8]                 ntdll!guard_dispatch_icall_nop
+   10     0 [  8]                 dll_test!_DllMainCRTStartup
+   14     0 [  9]                   dll_test!__security_init_cookie
+   18    14 [  8]                 dll_test!_DllMainCRTStartup
+   26     0 [  8]                 dll_test!dllmain_dispatch
+    8     0 [  9]                   dll_test!dllmain_crt_dispatch
+    9     0 [  9]                   dll_test!dllmain_crt_process_attach
+    8     0 [ 10]                     dll_test!__scrt_initialize_crt
+   92     0 [ 11]                       dll_test!__isa_available_init = int 0n0
+    9    92 [ 10]                     dll_test!__scrt_initialize_crt
+    2     0 [ 11]                       dll_test!__scrt_stub_for_acrt_initialize = bool true
+   12    94 [ 10]                     dll_test!__scrt_initialize_crt
+    2     0 [ 11]                       dll_test!__scrt_stub_for_acrt_initialize = bool true
+   18    96 [ 10]                     dll_test!__scrt_initialize_crt = bool true
+   12   114 [  9]                   dll_test!dllmain_crt_process_attach
+    2     0 [ 10]                     dll_test!__scrt_acquire_startup_lock
+    4     0 [ 11]                       dll_test!__scrt_is_ucrt_dll_in_use = int 0n1
+   13     4 [ 10]                     dll_test!__scrt_acquire_startup_lock = bool false
+   19   131 [  9]                   dll_test!dllmain_crt_process_attach
+    3     0 [ 10]                     dll_test!__scrt_dllmain_before_initialize_c
+    8     0 [ 11]                       dll_test!__scrt_initialize_onexit_tables
+    4     0 [ 12]                         dll_test!__scrt_is_ucrt_dll_in_use = int 0n1
+   14     4 [ 11]                       dll_test!__scrt_initialize_onexit_tables
+    1     0 [ 12]                         dll_test!initialize_onexit_table
+   11     0 [ 12]                         ucrtbase!initialize_onexit_table rax = 0
+   18    16 [ 11]                       dll_test!__scrt_initialize_onexit_tables
+    1     0 [ 12]                         dll_test!initialize_onexit_table
+   11     0 [ 12]                         ucrtbase!initialize_onexit_table rax = 0
+   25    28 [ 11]                       dll_test!__scrt_initialize_onexit_tables = bool true
+    7    53 [ 10]                     dll_test!__scrt_dllmain_before_initialize_c = bool true
+   22   191 [  9]                   dll_test!dllmain_crt_process_attach
+   12     0 [ 10]                     dll_test!_RTC_Initialize
+   23   203 [  9]                   dll_test!dllmain_crt_process_attach
+    2     0 [ 10]                     dll_test!__scrt_initialize_type_info
+    7     0 [ 10]                     ntdll!RtlInitializeSListHead rax = 1
+   24   212 [  9]                   dll_test!dllmain_crt_process_attach
+    2     0 [ 10]                     dll_test!__scrt_initialize_default_local_stdio_options
+    2     0 [ 11]                       dll_test!__local_stdio_printf_options = unsigned int64 * 0x00007ffa`48224060
+    4     2 [ 10]                     dll_test!__scrt_initialize_default_local_stdio_options
+    2     0 [ 11]                       dll_test!__local_stdio_scanf_options = unsigned int64 * 0x00007ffa`48224068
+    7     4 [ 10]                     dll_test!__scrt_initialize_default_local_stdio_options
+   27   223 [  9]                   dll_test!dllmain_crt_process_attach
+    1     0 [ 10]                     dll_test!initterm_e
+   18     0 [ 10]                     ucrtbase!initterm_e rax = 0
+   30   242 [  9]                   dll_test!dllmain_crt_process_attach
+    2     0 [ 10]                     dll_test!__scrt_dllmain_after_initialize_c
+    4     0 [ 11]                       dll_test!__scrt_is_ucrt_dll_in_use = int 0n1
+    5     4 [ 10]                     dll_test!__scrt_dllmain_after_initialize_c
+   92     0 [ 11]                       dll_test!__isa_available_init = int 0n0
+    9    96 [ 10]                     dll_test!__scrt_dllmain_after_initialize_c = bool true
+   35   347 [  9]                   dll_test!dllmain_crt_process_attach
+    1     0 [ 10]                     dll_test!initterm
+   29     0 [ 10]                     ucrtbase!initterm rax = 0
+   39   377 [  9]                   dll_test!dllmain_crt_process_attach
+    4     0 [ 10]                     dll_test!__scrt_release_startup_lock
+    4     0 [ 11]                       dll_test!__scrt_is_ucrt_dll_in_use = int 0n1
+   13     4 [ 10]                     dll_test!__scrt_release_startup_lock
+   42   394 [  9]                   dll_test!dllmain_crt_process_attach
+    2     0 [ 10]                     dll_test!__scrt_get_dyn_tls_init_callback = <function> ** 0x00007ffa`482240c0
+   54   396 [  9]                   dll_test!dllmain_crt_process_attach = int 0n1
+   34   458 [  8]                 dll_test!dllmain_dispatch
+    6     0 [  9]                   dll_test!DllMain
+    1     0 [ 10]                     KERNEL32!DisableThreadLibraryCallsStub
+    4     0 [ 10]                     KERNELBASE!DisableThreadLibraryCalls
+   10     0 [ 11]                       ntdll!LdrDisableThreadCalloutsForDll
+   15     0 [ 12]                         ntdll!LdrpFindLoadedDllByHandle
+   12     0 [ 13]                           ntdll!RtlAcquireSRWLockExclusive rax = 1
+   71    12 [ 12]                         ntdll!LdrpFindLoadedDllByHandle
+    5     0 [ 13]                           ntdll!RtlReleaseSRWLockExclusive rax = 1
+   82    17 [ 12]                         ntdll!LdrpFindLoadedDllByHandle rax = 0
+   18    99 [ 11]                       ntdll!LdrDisableThreadCalloutsForDll
+   22     0 [ 12]                         ntdll!LdrpDereferenceModule rax = 3
+   23   121 [ 11]                       ntdll!LdrDisableThreadCalloutsForDll rax = 0
+   11   144 [ 10]                     KERNELBASE!DisableThreadLibraryCalls rax = 1
+    9   156 [  9]                   dll_test!DllMain = int 0n1
+   52   623 [  8]                 dll_test!dllmain_dispatch = int 0n1
+   29   713 [  7]               ntdll!LdrpCallInitRoutine
+    5     0 [  8]                 ntdll!RtlGetCurrentServiceSessionId rax = 0
+   44   718 [  7]               ntdll!LdrpCallInitRoutine rax = 1
+   95   809 [  6]             ntdll!LdrpInitializeNode
+   53     0 [  7]               ntdll!RtlDeactivateActivationContextUnsafeFast
+    6     0 [  8]                 ntdll!_security_check_cookie rax = 00007ffa`56b7d30e
+   64     6 [  7]               ntdll!RtlDeactivateActivationContextUnsafeFast rax = 00007ffa`56b7d30e
+  108   879 [  6]             ntdll!LdrpInitializeNode
+   19     0 [  7]               ntdll!LdrpLogDllState rax = 00000004`c9aaa000
+  130   898 [  6]             ntdll!LdrpInitializeNode rax = 0
+   29  1028 [  5]           ntdll!LdrpInitializeGraphRecurse rax = 0
+   48  2639 [  4]         ntdll!LdrpPrepareModuleForExecution
+    8     0 [  5]           ntdll!LdrpReleaseLoaderLock
+   19     0 [  6]             ntdll!RtlLeaveCriticalSection rax = 0
+   12    19 [  5]           ntdll!LdrpReleaseLoaderLock
+    5     0 [  6]             ntdll!RtlGetCurrentServiceSessionId rax = 0
+   23    24 [  5]           ntdll!LdrpReleaseLoaderLock rax = 0
+   54  2686 [  4]         ntdll!LdrpPrepareModuleForExecution rax = 0
+   84 48446 [  3]       ntdll!LdrpLoadDllInternal
+   16     0 [  4]         ntdll!LdrpBuildForwarderLink rax = 0
+   93 48462 [  3]       ntdll!LdrpLoadDllInternal
+   15     0 [  4]         ntdll!LdrpFreeLoadContextOfNode
+    7     0 [  5]           ntdll!LdrpFreeLoadContext
+    9     0 [  6]             ntdll!LdrpHandlePendingModuleReplaced rax = 00000145`5bcbaae0
+   47     9 [  5]           ntdll!LdrpFreeLoadContext
+   21     0 [  6]             ntdll!RtlFreeHeap
+   75     0 [  7]               ntdll!RtlpFreeHeapInternal
+    5     0 [  8]                 ntdll!RtlGetCurrentServiceSessionId rax = 0
+  130     5 [  7]               ntdll!RtlpFreeHeapInternal
+    8     0 [  8]                 ntdll!RtlpHpStackLoggingEnabled rax = 0
+  144    13 [  7]               ntdll!RtlpFreeHeapInternal rax = 1
+   28   157 [  6]             ntdll!RtlFreeHeap rax = 1
+   53   194 [  5]           ntdll!LdrpFreeLoadContext
+   21     0 [  6]             ntdll!RtlFreeHeap
+   41     0 [  7]               ntdll!RtlpFreeHeapInternal
+   39     0 [  8]                 ntdll!RtlpFreeHeap
+    8     0 [  9]                   ntdll!RtlTryEnterCriticalSection rax = 1
+  414     8 [  8]                 ntdll!RtlpFreeHeap rax = 1
+   51   422 [  7]               ntdll!RtlpFreeHeapInternal
+    8     0 [  8]                 ntdll!RtlpHpStackLoggingEnabled rax = 0
+   65   430 [  7]               ntdll!RtlpFreeHeapInternal rax = 1
+   28   495 [  6]             ntdll!RtlFreeHeap rax = 1
+   57   717 [  5]           ntdll!LdrpFreeLoadContext rax = 1
+   27   774 [  4]         ntdll!LdrpFreeLoadContextOfNode rax = 00000145`5bcb6670
+   98 49263 [  3]       ntdll!LdrpLoadDllInternal
+    6     0 [  4]         ntdll!LdrpDropLastInProgressCount
+   10     0 [  5]           ntdll!RtlEnterCriticalSection rax = 0
+    9    10 [  4]         ntdll!LdrpDropLastInProgressCount
+   19     0 [  5]           ntdll!RtlLeaveCriticalSection rax = 0
+   13    29 [  4]         ntdll!LdrpDropLastInProgressCount
+    6     0 [  4]         ntdll!NtSetEvent rax = 0
+>> More than one level popped 3 -> 3
+  111 49311 [  3]       ntdll!LdrpLoadDllInternal rax = 0
+   54 51143 [  2]     ntdll!LdrpLoadDll
+   19     0 [  3]       ntdll!LdrpLogDllState rax = 00000004`c9aaa000
+   58 51162 [  2]     ntdll!LdrpLoadDll
+    6     0 [  3]       ntdll!_security_check_cookie rax = 0
+   66 51168 [  2]     ntdll!LdrpLoadDll rax = 0
+   61 51308 [  1]   ntdll!LdrLoadDll
+    7     0 [  2]     ntdll!RtlReleasePath
+   12     0 [  3]       ntdll!RtlAcquireSRWLockExclusive rax = 0
+   14    12 [  2]     ntdll!RtlReleasePath
+    5     0 [  3]       ntdll!RtlReleaseSRWLockExclusive rax = 1
+   21    17 [  2]     ntdll!RtlReleasePath rax = 1
+   68 51346 [  1]   ntdll!LdrLoadDll
+   22     0 [  2]     ntdll!LdrpDereferenceModule rax = 2
+   74 51368 [  1]   ntdll!LdrLoadDll
+    6     0 [  2]     ntdll!_security_check_cookie rax = 0
+   80 51374 [  1]   ntdll!LdrLoadDll rax = 0
+   67 51507 [  0] KERNELBASE!LoadLibraryExW
+
+51577 instructions were executed in 51576 events (0 from other threads)
+
+Function Name                               Invocations MinInst MaxInst AvgInst
+KERNEL32!BasepProbeForDllManifest                     1      49      49      49
+KERNEL32!DisableThreadLibraryCallsStub                1       1       1       1
+KERNELBASE!DisableThreadLibraryCalls                  1      11      11      11
+KERNELBASE!InitOnceExecuteOnce                        1       8       8       8
+KERNELBASE!LoadLibraryExW                             1      67      67      67
+KERNELBASE!LoadLibraryW                               1       3       3       3
+dll_test!DllMain                                      1       9       9       9
+dll_test!_DllMainCRTStartup                           1      18      18      18
+dll_test!_RTC_Initialize                              1      12      12      12
+dll_test!__isa_available_init                         2      92      92      92
+dll_test!__local_stdio_printf_options                 1       2       2       2
+dll_test!__local_stdio_scanf_options                  1       2       2       2
+dll_test!__scrt_acquire_startup_lock                  1      13      13      13
+dll_test!__scrt_dllmain_after_initialize_c            1       9       9       9
+dll_test!__scrt_dllmain_before_initialize_c           1       7       7       7
+dll_test!__scrt_get_dyn_tls_init_callback             1       2       2       2
+dll_test!__scrt_initialize_crt                        1      18      18      18
+dll_test!__scrt_initialize_default_local_stdio_       1       7       7       7
+dll_test!__scrt_initialize_onexit_tables              1      25      25      25
+dll_test!__scrt_initialize_type_info                  1       2       2       2
+dll_test!__scrt_is_ucrt_dll_in_use                    4       4       4       4
+dll_test!__scrt_release_startup_lock                  1      13      13      13
+dll_test!__scrt_stub_for_acrt_initialize              2       2       2       2
+dll_test!__security_init_cookie                       1      14      14      14
+dll_test!dllmain_crt_dispatch                         1       8       8       8
+dll_test!dllmain_crt_process_attach                   1      54      54      54
+dll_test!dllmain_dispatch                             1      52      52      52
+dll_test!initialize_onexit_table                      2       1       1       1
+dll_test!initterm                                     1       1       1       1
+dll_test!initterm_e                                   1       1       1       1
+ntdll!ApiSetResolveToHost                             4      36      96      51
+ntdll!ApiSetpSearchForApiSet                          1     421     421     421
+ntdll!CompatCachepLookupCdb                           1      40      40      40
+ntdll!LdrControlFlowGuardEnforced                     4       4       4       4
+ntdll!LdrControlFlowGuardEnforcedWithExportSupp       1       7       7       7
+ntdll!LdrDisableThreadCalloutsForDll                  1      23      23      23
+ntdll!LdrImageDirectoryEntryToLoadConfig              2      42      42      42
+ntdll!LdrInitSecurityCookie                           1      62      62      62
+ntdll!LdrLoadDll                                      1      80      80      80
+ntdll!LdrProtectMrdata                                2      22      22      22
+ntdll!LdrResFindResourceDirectory                     1      28      28      28
+ntdll!LdrResSearchResource                            1     157     157     157
+ntdll!LdrpAcquireLoaderLock                           1      26      26      26
+ntdll!LdrpAllocateFileNameBufferIfNeeded              3      17      17      17
+ntdll!LdrpAllocateModuleEntry                         1      68      68      68
+ntdll!LdrpAllocatePlaceHolder                         1      72      72      72
+ntdll!LdrpAllocateUnicodeString                       2      25      25      25
+ntdll!LdrpAppCompatRedirect                           1      27      27      27
+ntdll!LdrpAppendUnicodeStringToFilenameBuffer         3      37      37      37
+ntdll!LdrpApplyFileNameRedirection                    1      82      82      82
+ntdll!LdrpBuildForwarderLink                          1      16      16      16
+ntdll!LdrpCallInitRoutine                             1      44      44      44
+ntdll!LdrpCfgProcessLoadConfig                        1      51      51      51
+ntdll!LdrpChangeMrdataProtection                      2      20      20      20
+ntdll!LdrpCheckForRetryLoading                        1      44      44      44
+ntdll!LdrpCompleteMapModule                           1      54      54      54
+ntdll!LdrpComputeLazyDllPath                          1      41      41      41
+ntdll!LdrpCondenseGraph                               1      11      11      11
+ntdll!LdrpCondenseGraphRecurse                        1      44      44      44
+ntdll!LdrpDereferenceModule                           3      22      22      22
+ntdll!LdrpDetectDetour                                1    1801    1801    1801
+ntdll!LdrpDoPostSnapWork                              1      39      39      39
+ntdll!LdrpDrainWorkQueue                              2      49      52      50
+ntdll!LdrpDropLastInProgressCount                     1      13      13      13
+ntdll!LdrpDynamicShimModule                           1      27      27      27
+ntdll!LdrpFastpthReloadedDll                          1      32      32      32
+ntdll!LdrpFetchAddressOfSecurityCookie                1      49      49      49
+ntdll!LdrpFindDllActivationContext                    1      40      40      40
+ntdll!LdrpFindExistingModule                          1      38      38      38
+ntdll!LdrpFindKnownDll                                1      44      44      44
+ntdll!LdrpFindLoadedDllByHandle                       2      82      82      82
+ntdll!LdrpFindLoadedDllByMappingLockHeld              1      55      55      55
+ntdll!LdrpFindLoadedDllByName                         4     190     230     207
+ntdll!LdrpFindLoadedDllByNameLockHeld                 6      44      60      48
+ntdll!LdrpFindOrPrepareLoadingModule                  1      55      55      55
+ntdll!LdrpFreeLoadContext                             1      57      57      57
+ntdll!LdrpFreeLoadContextOfNode                       1      27      27      27
+ntdll!LdrpFreeUnicodeString                           3      13      15      13
+ntdll!LdrpGenRandom                                   1      15      15      15
+ntdll!LdrpGenSecurityCookie                           1      44      44      44
+ntdll!LdrpGetDllPath                                  1      91      91      91
+ntdll!LdrpGetFullPath                                 1      40      40      40
+ntdll!LdrpGetImportDescriptorForSnap                  1      28      28      28
+ntdll!LdrpGetNtPathFromDosPath                        1      46      46      46
+ntdll!LdrpGetProcedureAddress                         1     519     519     519
+ntdll!LdrpHandlePendingModuleReplaced                 2       9       9       9
+ntdll!LdrpHandleReplacedModule                        1      11      11      11
+ntdll!LdrpHandleTlsData                               1      42      42      42
+ntdll!LdrpHashUnicodeString                           1      12      12      12
+ntdll!LdrpInitializeDllPath                           2      21      23      22
+ntdll!LdrpInitializeGraphRecurse                      1      29      29      29
+ntdll!LdrpInitializeNode                              1     130     130     130
+ntdll!LdrpInsertDataTableEntry                        1      43      43      43
+ntdll!LdrpInsertModuleToIndexLockHeld                 1      96      96      96
+ntdll!LdrpIsSecurityEtwLoggingEnabled                 2      24      24      24
+ntdll!LdrpLoadDependentModule                         3     540    1432     852
+ntdll!LdrpLoadDll                                     1      66      66      66
+ntdll!LdrpLoadDllInternal                             1     111     111     111
+ntdll!LdrpLoadKnownDll                                1      34      34      34
+ntdll!LdrpLogDllState                                17      19      19      19
+ntdll!LdrpLogDllStateEx2                              1      23      23      23
+ntdll!LdrpLogNewDllLoad                               1      30      30      30
+ntdll!LdrpMapAndSnapDependency                        1     434     434     434
+ntdll!LdrpMapDllNtFileName                            1     110     110     110
+ntdll!LdrpMapDllSearchPath                            1     131     131     131
+ntdll!LdrpMapDllWithSectionHandle                     1     101     101     101
+ntdll!LdrpMinimalMapModule                            1      97      97      97
+ntdll!LdrpNotifyLoadOfGraph                           1      21      21      21
+ntdll!LdrpPrepareImportAddressTableForSnap            1      77      77      77
+ntdll!LdrpPrepareModuleForExecution                   1      54      54      54
+ntdll!LdrpPreprocessDllName                           1     199     199     199
+ntdll!LdrpProcessMappedModule                         1     118     118     118
+ntdll!LdrpProcessWork                                 1      34      34      34
+ntdll!LdrpReleaseLoaderLock                           1      23      23      23
+ntdll!LdrpResGetMappingSize                           1     101     101     101
+ntdll!LdrpResGetResourceDirectory                     1     119     119     119
+ntdll!LdrpResSearchResourceMappedFile                 1     119     119     119
+ntdll!LdrpResolveDllName                              1     166     166     166
+ntdll!LdrpResolveForwarder                            1      80      80      80
+ntdll!LdrpSearchPath                                  1    7647    7647    7647
+ntdll!LdrpSendDllNotifications                        1      28      28      28
+ntdll!LdrpSendPostSnapNotifications                   1      71      71      71
+ntdll!LdrpShouldModuleImportBeRedirected              1       9       9       9
+ntdll!LdrpSignalModuleMapped                          1      11      11      11
+ntdll!LdrpSnapModule                                  1   11869   11869   11869
+ntdll!LdrpValidateEntrySection                        1      20      20      20
+ntdll!NtApphelpCacheControl                           1       6       6       6
+ntdll!NtClose                                         2       6       6       6
+ntdll!NtCreateSection                                 1       6       6       6
+ntdll!NtMapViewOfSection                              1       6       6       6
+ntdll!NtOpenFile                                      1       6       6       6
+ntdll!NtOpenSection                                   1       6       6       6
+ntdll!NtProtectVirtualMemory                          4       6       6       6
+ntdll!NtQueryAttributesFile                           1       6       6       6
+ntdll!NtQueryInformationThread                        1       6       6       6
+ntdll!NtQueryPerformanceCounter                       1       6       6       6
+ntdll!NtSetEvent                                      1       6       6       6
+ntdll!NtSetInformationVirtualMemory                   1       6       6       6
+ntdll!NtdllpAllocateStringRoutine                     2       5       5       5
+ntdll!NtdllpFreeStringRoutine                         1       5       5       5
+ntdll!RtlAcquireSRWLockExclusive                     23      12      12      12
+ntdll!RtlActivateActivationContextUnsafeFast          1      35      35      35
+ntdll!RtlAllocateHeap                                 7      22      22      22
+ntdll!RtlAnsiStringToUnicodeString                    3     187     376     262
+ntdll!RtlAppendUnicodeStringToString                  1      41      41      41
+ntdll!RtlCaptureImageExceptionValues                  1      23      23      23
+ntdll!RtlCompareUnicodeStrings                        1     189     189     189
+ntdll!RtlDeactivateActivationContextUnsafeFast        4      64      64      64
+ntdll!RtlDetermineDosPathNameType_Ustr                6      20      25      22
+ntdll!RtlDosApplyFileIsolationRedirection_Ustr        3     200     200     200
+ntdll!RtlDosPathNameToRelativeNtPathName              1      18      18      18
+ntdll!RtlEnterCriticalSection                         7      10      11      10
+ntdll!RtlEqualUnicodeString                           3      37     136     102
+ntdll!RtlFindActivationContextSectionString           3     110     110     110
+ntdll!RtlFindCharInUnicodeString                      3     129     129     129
+ntdll!RtlFreeHeap                                     4      28      28      28
+ntdll!RtlGetActiveActivationContext                   1      30      30      30
+ntdll!RtlGetCurrentServiceSessionId                  28       5       5       5
+ntdll!RtlGetFullPathName_Ustr                         1    1664    1664    1664
+ntdll!RtlHashUnicodeString                            4     158     198     178
+ntdll!RtlImageNtHeader                                1      10      10      10
+ntdll!RtlImageNtHeaderEx                             21      43      53      43
+ntdll!RtlImageRvaToSection                            1      35      35      35
+ntdll!RtlInitUnicodeStringEx                          3      53      53      53
+ntdll!RtlInitializeSListHead                          1       7       7       7
+ntdll!RtlInsertInvertedFunctionTable                  1      25      25      25
+ntdll!RtlIsCriticalSectionLockedByThread              2       6       6       6
+ntdll!RtlIsProcessorFeaturePresent                    1       5       5       5
+ntdll!RtlLeaveCriticalSection                        12      13      19      18
+ntdll!RtlQueryInformationActivationContext            1     121     121     121
+ntdll!RtlRbInsertNodeEx                               2      40     138      89
+ntdll!RtlReleasePath                                  1      21      21      21
+ntdll!RtlReleaseSRWLockExclusive                     16       5       5       5
+ntdll!RtlRunOnceExecuteOnce                           1      27      27      27
+ntdll!RtlTryEnterCriticalSection                      2       8       8       8
+ntdll!RtlpAllocateHeap                                5     248     978     733
+ntdll!RtlpAllocateHeapInternal                        7      95     115     109
+ntdll!RtlpCompareActivationContextDataTOCEntryB       6       5       7       6
+ntdll!RtlpDosPathNameToRelativeNtPathName             1     150     150     150
+ntdll!RtlpFindActivationContextSection_CheckPar       3      30      30      30
+ntdll!RtlpFindNextActivationContextSection            3      77      77      77
+ntdll!RtlpFindUnicodeStringInSection                  3     124     150     132
+ntdll!RtlpFreeHeap                                    2     406     414     410
+ntdll!RtlpFreeHeapInternal                            4      65     144     104
+ntdll!RtlpGetActivationContextData                    1      32      32      32
+ntdll!RtlpGetCachedPath                               1      48      48      48
+ntdll!RtlpHeapRemoveListEntry                         1      75      75      75
+ntdll!RtlpHpStackLoggingEnabled                       4       8       8       8
+ntdll!RtlpImageDirectoryEntryToDataEx                 7      49      53      51
+ntdll!RtlpInsertInvertedFunctionTableEntry            1      65      65      65
+ntdll!RtlpIsDosDeviceName_Ustr                        1     186     186     186
+ntdll!RtlpLfhFindClearBitAndSet                       2      48      48      48
+ntdll!RtlpLocateActivationContextSection              4      43      95      82
+ntdll!RtlpLocateActivationContextSectionForQuer       1      41      41      41
+ntdll!RtlpLowFragHeapAllocFromContext                 2     145     150     147
+ntdll!RtlpQueryInformationActivationContextComp       1      38      38      38
+ntdll!SbGetContextDetailsByGuid                       1      22      22      22
+ntdll!SbGetContextDetailsById                         2      10      10      10
+ntdll!SbGetContextDetailsByVersion                    1      41      41      41
+ntdll!SbUpdateSwitchContextBasedOnDll                 1      78      78      78
+ntdll!SbpDetermineDllContext                          1      66      66      66
+ntdll!SbpRetrieveCompatibilityManifest                1      51      51      51
+ntdll!_security_check_cookie                         37       6       6       6
+ntdll!bsearch                                         3      73      73      73
+ntdll!guard_check_icall                               3       1       1       1
+ntdll!guard_check_icall_nop                           3       1       1       1
+ntdll!guard_dispatch_icall_nop                        2       1       1       1
+ntdll!memcpy                                         12      10      66      23
+ntdll!memset                                         15       6      73      46
+ntdll!strrchr                                         1     266     266     266
+ntdll!sxsisol_InitUnicodeStringBufferAroundUnic       3      26      26      26
+ntdll!sxsisol_SearchActCtxForDllName                  3      83      83      83
+ntdll!wcsrchr                                         1     394     394     394
+ucrtbase!initialize_onexit_table                      2      11      11      11
+ucrtbase!initterm                                     1      29      29      29
+ucrtbase!initterm_e                                   1      18      18      18
+
+16 system calls were executed
+
+Calls  System Call
+    1  ntdll!NtApphelpCacheControl
+    2  ntdll!NtClose
+    1  ntdll!NtCreateSection
+    1  ntdll!NtMapViewOfSection
+    1  ntdll!NtOpenFile
+    1  ntdll!NtOpenSection
+    4  ntdll!NtProtectVirtualMemory
+    1  ntdll!NtQueryAttributesFile
+    1  ntdll!NtQueryInformationThread
+    1  ntdll!NtQueryPerformanceCounter
+    1  ntdll!NtSetEvent
+    1  ntdll!NtSetInformationVirtualMemory

@@ -2,6 +2,8 @@
 
 We set write watchpoints on the `dl_load_lock` and `dl_load_write_lock` data, then load two libraries to check how often and where in the code these locks are acquired.
 
+[GDB Log Viewer](https://html-preview.github.io/?url=https://raw.githubusercontent.com/ElliotKillick/operating-system-design-review/blob/main/code/glibc/dlopen/gdb-log.html)
+
 ## Debugging Notes
 
 Ensure you have glibc debug symbols and source code downloaded. Fedora's GDB automatically downloads symbols and source code. On Debian, you must install the `libc6-dbg` (you may need to enable the debug source in your `/etc/apt/sources.list`) and `glibc-source` packages.

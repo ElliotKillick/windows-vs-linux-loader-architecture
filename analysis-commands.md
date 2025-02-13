@@ -2,13 +2,40 @@
 
 These are some helpful tips and commands to aid analysis.
 
+## Table of Contents
+
+- [Analysis Commands](#analysis-commands)
+  - [Table of Contents](#table-of-contents)
+  - [Windows](#windows)
+    - [`LDR_DATA_TABLE_ENTRY` Analysis](#ldr_data_table_entry-analysis)
+    - [`LDR_DDAG_NODE` Analysis](#ldr_ddag_node-analysis)
+    - [Check Common Lock States](#check-common-lock-states)
+    - [Trace `TEB.SameTebFlags`](#trace-tebsametebflags)
+    - [List All Dynamically Loaded DLLs](#list-all-dynamically-loaded-dlls)
+    - [List All Calls to Delay Loaded Imports](#list-all-calls-to-delay-loaded-imports)
+    - [Searching Assembly for Structure Offsets](#searching-assembly-for-structure-offsets)
+    - [Monitor a Critical Section Lock](#monitor-a-critical-section-lock)
+    - [Debug Critical Section Locks](#debug-critical-section-locks)
+    - [Application Relaunch Testing](#application-relaunch-testing)
+    - [Track Loader Events](#track-loader-events)
+    - [Disable Loader Worker Threads](#disable-loader-worker-threads)
+    - [Thread and Worker Logging](#thread-and-worker-logging)
+    - [List All `LdrpCriticalLoaderFunctions`](#list-all-ldrpcriticalloaderfunctions)
+    - [Find Root Cause of System Error Code or User-Mode Deadlocks](#find-root-cause-of-system-error-code-or-user-mode-deadlocks)
+    - [Loader Debug Logging](#loader-debug-logging)
+    - [Trace COM Initializations and Objects](#trace-com-initializations-and-objects)
+  - [GNU/Linux](#gnulinux)
+    - [`link_map` Analysis](#link_map-analysis)
+    - [Get TCB and Set GSCOPE Watchpoint](#get-tcb-and-set-gscope-watchpoint)
+
+
 ## Windows
 
 ### `LDR_DATA_TABLE_ENTRY` Analysis
 
 List all module `LDR_DATA_TABLE_ENTRY` structures:
 
-```cmd
+```
 !list -x "dt ntdll!_LDR_DATA_TABLE_ENTRY" @@C++(&@$peb->Ldr->InLoadOrderModuleList)
 ```
 
@@ -16,7 +43,7 @@ List all module `LDR_DATA_TABLE_ENTRY` structures:
 
 List all module `DdagNode` structures:
 
-```cmd
+```
 !list -x "dt ntdll!_LDR_DATA_TABLE_ENTRY @$extret -t BaseDllName; dt ntdll!_LDR_DDAG_NODE @@C++(((ntdll!_LDR_DATA_TABLE_ENTRY *)@$extret)->DdagNode)" @@C++(&@$peb->Ldr->InLoadOrderModuleList)
 ```
 
@@ -24,13 +51,13 @@ Note that `$extret` is a pseudo-register that the WinDbg `!list` command special
 
 List all module `DdagNode.State` values:
 
-```cmd
+```
 !list -x "dt ntdll!_LDR_DATA_TABLE_ENTRY @$extret -cio -t BaseDllName; dt ntdll!_LDR_DDAG_NODE @@C++(((ntdll!_LDR_DATA_TABLE_ENTRY *)@$extret)->DdagNode) -cio -t State" @@C++(&@$peb->Ldr->InLoadOrderModuleList)
 ```
 
 Trace all `DdagNode.State` values starting from its initial allocation to the next module load for every module:
 
-```cmd
+```
 bp ntdll!LdrpAllocateModuleEntry "bp /1 @$ra \"bc 999; ba999 w8 @@C++(&((ntdll!_LDR_DATA_TABLE_ENTRY *)@$retreg)->DdagNode->State) \\\"ub . L1; g\\\"; g\"; g"
 ```
 - This command breaks on `ntdll!LdrpAllocateModuleEntry`, sets a temporary breakpoint on its return address (`@$ra`), continues execution, sets a watchpoint on `DdagNode.State` in the returned `LDR_DATA_TABLE_ENTRY` (`@$retreg`), and logs the previous disassembly line on watchpoint hit
@@ -42,11 +69,41 @@ This analyis command's only action right now is to print the assembly instructio
 
 **Warning:** This command will continue tracing an address after a module unloads, which causes `LdrpUnloadNode` ➜ `RtlFreeHeap` of memory. Disregard junk results from that point forward due to potential reallocation of the underlying memory until the next `ModLoad` WinDbg message, meaning a fresh watchpoint.
 
+### Check Common Lock States
+
+Check the state of common locks including the load owner or load lock, loader lock, the PEB lock, and the heap lock:
+
+```
+!handle poi(ntdll!LdrpLoadCompleteEvent) 8
+!critsec ntdll!LdrpLoaderLock
+dp ntdll!LdrpModuleDatatableLock L1
+!critsec ntdll!FastPebLock
+!critsec @@C++(&((ntdll!_HEAP*)(@$peb->ProcessHeap))->LockVariable->Lock.CriticalSection)
+```
+
+The load or load owner lock is an event object, which means there is no owning thread associated with it and we cannot print that in debugging. So, if it is locked then a manual check is required to find out which thread locked it.
+
+The command for checking the heap lock assumes assumes the process is using the default NT Heap, not the Segment Heap.
+
+### Trace `TEB.SameTebFlags`
+
+```
+ba w8 @@C++(&@$teb->SameTebFlags-3)
+```
+
+This command is useful for tracking changes in `LoadOwner` or `LoadWorker` status, among other per-thread flags.
+
+`TEB.SameTebFlags` isn't memory-aligned, so we need to subtract `3` to set a hardware breakpoint. This watchpoint still captures the full `TEB.SameTebFlags` but now `TEB.MuiImpersonation`, `TEB.CrossTebFlags`, and `TEB.SpareCrossTebBits`, in front of `TEB.SameTebFlags` in the `TEB` structure, will also fire our watchpoint. However, these other members are rarely used, so it's only a minor inconvenience.
+
+ASLR randomizes the TEB's location on every execution, so you must set the watchpoint again when restarting the program in WinDbg.
+
+Read the TEB: `dt @$teb ntdll!_TEB`
+
 ### List All Dynamically Loaded DLLs
 
 Find all DLLs loaded by manually calling `LoadLibrary`:
 
-```cmd
+```
 .for (r $t0=@@C++(@$peb->Ldr->InLoadOrderModuleList.Flink); @$t0 != @@C++(&@$peb->Ldr->InLoadOrderModuleList); r $t0=poi(@$t0);) { .if (@@C++(((ntdll!_LDR_DATA_TABLE_ENTRY *)@$t0)->LoadReason) == 4) { dt ntdll!_LDR_DATA_TABLE_ENTRY @$t0 -cio -t BaseDllName } }
 ```
 
@@ -213,18 +270,6 @@ The second command iterates over the first command's output of import symbol nam
 
 To find instances of delay loading at run-time, simply: `bp ntdll!LdrResolveDelayLoadedAPI`
 
-### Trace `TEB.SameTebFlags`
-
-```cmd
-ba w8 @@C++(&@$teb->SameTebFlags-3)
-```
-
-`TEB.SameTebFlags` isn't memory-aligned, so we need to subtract `3` to set a hardware breakpoint. This watchpoint still captures the full `TEB.SameTebFlags` but now `TEB.MuiImpersonation`, `TEB.CrossTebFlags`, and `TEB.SpareCrossTebBits`, in front of `TEB.SameTebFlags` in the `TEB` structure, will also fire our watchpoint. However, these other members are rarely used, so it's only a minor inconvenience.
-
-ASLR randomizes the TEB's location on every execution, so you must set the watchpoint again when restarting the program in WinDbg.
-
-Read the TEB: `dt @$teb ntdll!_TEB`
-
 ### Searching Assembly for Structure Offsets
 
 These commands contain the offset/register values specific to a 64-bit process. Please adjust them if you're working with a 32-bit process.
@@ -247,7 +292,7 @@ Due to two's complement, negative numbers will, of course, show up like: `0FFFFF
 
 Watch for reads/writes to a critical section's locking status.
 
-```cmd
+```
 ba r4 @@C++(&((ntdll!_RTL_CRITICAL_SECTION *)@@(ntdll!LdrpDllNotificationLock))->LockCount)
 ```
 
@@ -265,7 +310,7 @@ These commands enable easy repeated relaunching an application to test for some 
 
 To do this kind of testing, place the following commands in the WinDbg `Startup` commands textbox at `File` > `Settings` > `Debugging settings` > `Startup`. WinDbg may forget the state of these configurations across application restarts, so it's best to run them on each start (`sxn ibp` is always retained, `sxe -c` is always forgotten, and WinDbg appears to bug and forget all breakpoints on restart occasionally):
 
-```cmd
+```
 sxn ibp
 sxe -c ".restart" epr
 bp ntdll!RtlpWaitOnCriticalSection ".if (@@C++(@$peb->Ldr->ShutdownInProgress) == 1) { .echo FOUND } .else { .echo TEST; g }"
@@ -281,7 +326,7 @@ In WinDbg, you can manually test thread interleavings using the [freeze/unfreeze
 
 This WinDbg command tracks load and work completions.
 
-```cmd
+```
 ba e1 ntdll!NtSetEvent ".if ($argreg == poi(ntdll!LdrpLoadCompleteEvent)) { .echo Set LoadComplete Event; k } .elsif ($argreg == poi(ntdll!LdrpWorkCompleteEvent)) { .echo Set WorkComplete Event; k }; gc"
 ```
 
@@ -299,7 +344,7 @@ View state of Win32 events WinDbg command: `!handle 0 ff Event`
 
 This CMD command helps analyze what locks are acquired in what parts of the code without the chance of a loader worker thread muddying your analysis (among other things). These show up as `ntdll!TppWorkerThread` threads in WinDbg at process startup (note that any threads belonging to other thread pools also take this thread name).
 
-```cmd
+```
 reg add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\<YOUR_EXE_FILENAME>" /v MaxLoaderThreads /t REG_DWORD /d 1 /f
 ```
 
@@ -317,7 +362,7 @@ Some operations, such as `ShellExecute`, may spawn threads named `ntdll!TppWorke
 
 Trace all thread startups including specialized logging for worker threads. Logging all new threads is helpful in case a thread quickly starts then exits. We take take down the new thread's entry point. However, this information is insufficient in the case of a thread belonging to a thread pool because they all get the same thread entry point of `ntdll!TppWorkerThread`. In this case, we navigate the undocumented `TP_WORK` structure to find the worker entry point (64-bit support only):
 
-```cmd
+```
 bp ntdll!LdrInitializeThunk ".if (@@C++(((ntdll!_CONTEXT *)@@(@$argreg))->Rcx) != ntdll!TppWorkerThread) { .foreach (token { ln @@C++(((ntdll!_CONTEXT *)@@(@$argreg))->Rcx) }) { .if($spat(\"${token}\",\"*!*\")) { .printf \"New Thread (0x%x): %y\\n\", @$tid, ${token}; .break } } } .else { .foreach (token { ln poi(poi(@@C++(((ntdll!_CONTEXT *)@@(@$argreg))->Rdx)+50h)-48h) }) { .if($spat(\"${token}\",\"*!*\")) { .printf \"New Worker (0x%x): %y\\n\", @$tid, ${token}; .break } } }; g"
 ```
 
@@ -336,7 +381,7 @@ See the [List All Calls to Delay Loaded Imports](#list-all-calls-to-delay-loaded
 
 If you attach to a process and want to find the last entry point of a given `ntdll!TppWorkerThread` worker thread:
 
-```cmd
+```
 ln poi(@@C++(((ntdll!_TEB *)@@(@$teb))->ThreadPoolData)+40h)
 ```
 
@@ -344,7 +389,7 @@ The `ntdll!TppWorkerThread` thread entry point function initializes `ThreadPoolD
 
 Get the requested entry point and call stack of threads submitting work to a thread pool (not logging on worker thread creation):
 
-```cmd
+```
 bp ntdll!TpAllocWork "ln rdx; k; g"
 ```
 
@@ -356,7 +401,7 @@ Note that if code does not set a callback environment with the[`InitializeThread
 
 Whether a critical loader function (`ntdll!LdrpCriticalLoaderFunctions`) is detoured (i.e. hooked) determines whether `ntdll!LdrpDetourExist` is `TRUE` or `FALSE`. BlackBerry's Jeffrey Tang covered this in ["Windows 10 Parallel Loading Breakdown"](https://blogs.blackberry.com/en/2017/10/windows-10-parallel-loading-breakdown); however, this article only lists the first few critical loader functions, so here we show all of them. Below are the commands for determining all critical loader functions should they change in the future:
 
-```cmd
+```
 0:000> ln ntdll!LdrpCriticalLoaderFunctions
 (00007ffb`1cb8df20)   ntdll!LdrpCriticalLoaderFunctions   |  (00007ffb`1cb8e020)   ntdll!RtlpMemoryZoneCriticalRoutines
 0:000> ? (00007ffb`1cb8e020 - 00007ffb`1cb8df20) / @@(sizeof(void*))
@@ -418,7 +463,7 @@ Microsoft's public symbols only come with names that typically do not include an
 
 Monitor the thread's error code for changes (i.e. [Win32](https://learn.microsoft.com/en-us/windows/win32/debug/system-error-codes--0-499-), [NTSTATUS](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-erref/596a1078-e883-4972-9bbc-49e60bebca55), [Winsock, or NetAPI](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/-error#parameters) code):
 
-```cmd
+```
 ba w4 @@C++(&((ntdll!_TEB *)@@(@$teb))->LastErrorValue) ".printf \"Error: %d\\n\", @@C++(((ntdll!_TEB *)@@(@$teb))->LastErrorValue)"
 ```
 
@@ -462,17 +507,17 @@ During logging, you may find it helpful to use the [`sxe out:SOME STRING` comman
 
 Trace COM initialization [threading model](https://learn.microsoft.com/en-us/windows/win32/api/objbase/ne-objbase-coinit):
 
-```cmd
+```
 r $t10 = 0; bp combase!CoInitializeEx ".printf \"COM Thread Init (0x%x)\\n\", @$tid; dt combase!tagCOINIT @rdx; r $t10 = $t10 + 1; g"
 ```
 
 Ensure calls to `CoInitialize`/`CoInitializeEx` are balanced out by an equal number of `CoUnitialize` (COM initializations are reference counted):
 
-```cmd
+```
 r $t11 = 0; bp combase!CoUninitialize ".printf \"COM Thread Fini (0x%x)\\n\", @$tid; dt combase!tagCOINIT @rdx; r $t11 = $t11 + 1; g"
 ```
 
-```cmd
+```
 .printf "COM Init Count: %d\nCOM Fini Count: %d\n", $t10, $t11
 ```
 
@@ -482,7 +527,7 @@ Tracing `ShellExecute` as an experiment, I predominantly found `COINIT_APARTMENT
 
 Trace new connections to COM components (`CoCreateInstance`):
 
-```cmd
+```
 bp combase!CComActivator::DoCreateInstance ".foreach ( clsid { dt ntdll!_GUID @$argreg }) { .printf \"Creating COM object (0x%x): ${clsid}\\n\", @$tid; !dreg HKCR\\CLSID\\${clsid}!*; !dreg HKCR\\CLSID\\${clsid}; !dreg HKCR\\CLSID\\${clsid}\\InProcServer32!*; k; .break }; g"
 ```
 
