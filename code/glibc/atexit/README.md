@@ -19,7 +19,7 @@ Windows UCRT: Critical section lock covering CRT exit (`ucrtbase!common_exit` fu
   - [Source code](https://github.com/huangqinjin/ucrt/blob/master/startup/exit.cpp#L195) (the UCRT is source available)
 
 Windows MSVCRT: Critical section lock covering CRT exit (`msvcrt!doexit` function), EXE `atexit` (registration and routine execution), and DLL `atexit` (registration and routine execution): `msvcrt!CrtLock_Exit`
-  - MSVCRT is an anicent CRT, but it is the one applications and DLLs link with when Microsoft compiles Windows (for backward compatibility reasons)
+  - MSVCRT is an ancient C runtime, but it is the one Windows internally links to for applications and libraries that Microsoft includes with the operating system (for backward compatibility reasons), with possibly a few minor exceptions
 
 ## Loader Lock
 

@@ -71,7 +71,7 @@ This analyis command's only action right now is to print the assembly instructio
 
 ### Check Common Lock States
 
-Check the state of common locks including the load owner or load lock, loader lock, the PEB lock, and the heap lock:
+Check the state of common locks including the load lock, loader lock, the PEB lock, and the heap lock:
 
 ```
 !handle poi(ntdll!LdrpLoadCompleteEvent) 8

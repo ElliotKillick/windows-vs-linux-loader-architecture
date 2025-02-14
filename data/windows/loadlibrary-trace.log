@@ -1,4 +1,4 @@
-Dynamically loading an empty DLL. Source code is the "loadlibrary" code sample.
+Dynamically loading an empty DLL. Source code can be found in the "loadlibrary" code sample.
 
 Breakpoint 1 hit
 KERNELBASE!LoadLibraryW:
@@ -897,7 +897,7 @@ ModLoad: 00007ffa`48220000 00007ffa`48227000   C:\Users\user\Documents\loadlibra
    14     0 [  7]               ntdll!LdrpCallInitRoutine
     5     0 [  8]                 ntdll!RtlGetCurrentServiceSessionId rax = 0
    27     5 [  7]               ntdll!LdrpCallInitRoutine
-*** WARNING: Unable to verify checksum for C:\Users\user\Documents\QubesIncoming\lab-projects\loadlibrary\dll-test.dll
+*** WARNING: Unable to verify checksum for C:\Users\user\Documents\loadlibrary\dll-test.dll
     1     0 [  8]                 ntdll!guard_dispatch_icall_nop
    10     0 [  8]                 dll_test!_DllMainCRTStartup
    14     0 [  9]                   dll_test!__security_init_cookie
