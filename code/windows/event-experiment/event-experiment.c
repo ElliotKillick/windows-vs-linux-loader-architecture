@@ -25,6 +25,8 @@ int main() {
     // We expectedly hang here
     WaitForSingleObject(myEvent, INFINITE);
 
+    CloseHandle(myEvent);
+
     // When an auto-reset event is set, execution only proceeds for a SINGLE waiting thread before the event waits.
     // This behavior means an auto-reset event performs mutual exclusion between threads, similar to a critical section.
     //

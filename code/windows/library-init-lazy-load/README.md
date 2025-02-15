@@ -1,4 +1,4 @@
-# Library Lazy Loading Experiment
+# Library Initializer Lazy Loading Experiment
 
 [Microsoft documentation](https://learn.microsoft.com/en-us/cpp/build/reference/linker-support-for-delay-loaded-dlls) states this in regard to delay loading and `DllMain`:
 
