@@ -41,9 +41,9 @@ All of the information contained here covers Windows 10 22H2 and glibc 2.38 on L
   - [Dependency Breakdown](#dependency-breakdown)
   - [Further Research on Windows' Usage of DLLs](#further-research-on-windows-usage-of-dlls)
     - [The DLL Host](#the-dll-host)
-    - [DLLs as Data](#dlls-as-data)
     - [DLL Procurement](#dll-procurement)
     - [One DLL, One Base Address](#one-dll-one-base-address)
+    - [DLLs as Data](#dlls-as-data)
   - [The Problem with How Windows Uses Threads](#the-problem-with-how-windows-uses-threads)
     - [Problem Solved](#problem-solved-1)
   - [Process Meltdown](#process-meltdown)
@@ -893,14 +893,6 @@ Shared service processes use service DLLs. Since a service DLL exists solely for
 
 Once again, DLLs provide a false promise of modularity. Bad Microsoft—bad.
 
-### DLLs as Data
-
-Microsoft confused memory mapped files (`MapViewOfFile`) and libraries (`LoadLibrary`) thus giving us the [resource-only DLL](https://learn.microsoft.com/en-us/cpp/build/creating-a-resource-only-dll).
-
-Turning a pointer into a search through a lookup table for that pointer is a diabolical level of bloat. And on a code hot path!
-
-[See here for more information.](#loadlibrary-vs-dlopen-return-type)
-
 ### DLL Procurement
 
 Windows will load and execute a DLL from practically anywhere, which as you can imagine, does not fare well for the security of the operating system and frequently invents security vulnerabilites that could never exist on other systems.
@@ -914,6 +906,14 @@ Today, Windows still does not support per-process address space layout randomiza
 This requirement exists because how Windows works, I believe in relation to the operating system's heavy usage of shared memory and historical reasons, mandates all image mappings to be at the same address in virtual memory across processes.
 
 [See here for more information.](https://cloud.google.com/blog/topics/threat-intelligence/six-facts-about-address-space-layout-randomization-on-windows/#:~:text=Fact%202%3A%20Windows%20loads%20multiple%20instances%20of%20images%20at%20the%20same%20location%20across%20processes%20and%20even%20across%20users%3B%20only%20rebooting%20can%20guarantee%20a%20fresh%20random%20base%20address%20for%20all%20images)
+
+### DLLs as Data
+
+Microsoft confused memory-mapped files with libraries thus giving us the [resource-only DLL](https://learn.microsoft.com/en-us/cpp/build/creating-a-resource-only-dll).
+
+Turning a pointer into a search through a lookup table for that pointer is a diabolical level of bloat.
+
+[See here for more information.](#loadlibrary-vs-dlopen-return-type)
 
 ## The Problem with How Windows Uses Threads
 
@@ -1424,13 +1424,15 @@ In POSIX, [`dlopen` returns a symbol table handle](https://pubs.opengroup.org/on
 
 How cool is that? That's like if Windows serviced your `LoadLibrary` request by handing you back a pointer to the module's `LDR_DATA_TABLE_ENTRY`!
 
-Microsoft's reasoning behind the return type of `LoadLibrary` seems to stem from the 16-bit Windows API, where [libraries became conflated with data files memory-mapped files](https://learn.microsoft.com/en-us/previous-versions/ms810501(v=msdn.10)#:~:text=Whereas%20Windows%203.1%20needs%20to%20copy%20data%20from%20an%20executable%20file%20into%20main%20memory%20to%20build%20code%20segments%20or%20load%20resources%2C%20Windows%20NT%20only%20needs%20to%20create%20a%20memory%2Dmapped%20file%20object%20that%20is%20backed%20by%20the%20executable%20file%20instead%20of%20the%20system%20pagefile.). In the first release of Windows NT (i.e. Windows NT 3.1), Microsoft carried forward this unique mistake while also [adding an extension for specifying that a "library" must load only as a memory-mapped file](https://devblogs.microsoft.com/oldnewthing/20141120-00/?p=43573) and how to open this file. Consequently, the modern Windows loader is stuck with maintaining a red-black tree at `ntdll!LdrpModuleBaseAddressIndex` for speeding up base address ➜ `LDR_DATA_TABLE_ENTRY` lookups (the legacy Windows loader slowly [iterated the `InLoadOrderModuleList` linked list](https://github.com/reactos/reactos/blob/053939e27cbf4d6475fb33b6fc16199bd944880d/dll/ntdll/ldr/ldrutils.c#L1610-L1611) in the PEB to do these lookups).
+Microsoft's reasoning behind the return type of `LoadLibrary` stems from the 16-bit Windows API (going back to Windows 1.0 when the function was introduced), where [libraries became conflated with data files or memory-mapped files](https://learn.microsoft.com/en-us/previous-versions/ms810501(v=msdn.10)#:~:text=Whereas%20Windows%203.1%20needs%20to%20copy%20data%20from%20an%20executable%20file%20into%20main%20memory%20to%20build%20code%20segments%20or%20load%20resources%2C%20Windows%20NT%20only%20needs%20to%20create%20a%20memory%2Dmapped%20file%20object%20that%20is%20backed%20by%20the%20executable%20file%20instead%20of%20the%20system%20pagefile.) meaning "libraries" could exist for the sole purpose of containing data with no code. In the first release of Windows NT (i.e. Windows NT 3.1), Microsoft carried forward this unique mistake while also [adding an extension for specifying that a "library" must load only as a memory-mapped file](https://devblogs.microsoft.com/oldnewthing/20141120-00/?p=43573) and how to open this file. Consequently, the modern Windows loader is stuck with maintaining a red-black tree at `ntdll!LdrpModuleBaseAddressIndex` for speeding up base address ➜ `LDR_DATA_TABLE_ENTRY` lookups (the legacy Windows loader slowly [iterated the `InLoadOrderModuleList` linked list](https://github.com/reactos/reactos/blob/053939e27cbf4d6475fb33b6fc16199bd944880d/dll/ntdll/ldr/ldrutils.c#L1610-L1611) in the PEB to do these lookups). This indirection is a contibuting factor to slow process creation on Windows (simply set a read watchpoint on `ntdll!LdrpModuleBaseAddressIndex` during process startup to see what a hot data structure this is). The performance of Windows delay loading is also negatively affected by this indirection, and the synchronization it required to access the shared data structure, because `ntdll!LdrResolveDelayLoadedAPI` calls `ntdll!LdrpFindLoadedDllByHandle` every time it runs.
+
+A reasonable person could expect that given Windows' focus on dynamic loading of [executable modules](data/windows/timeline-verification)—unlike the prevalent static linking of the time—it would have ensured a solid design for its core dynamic loading API. Especially since [Multics](https://en.wikipedia.org/wiki/Multics) had already pioneered the idea of dynamically linking libraries and [used memory-mapped files to share data](https://www.multicians.org/myths.html#nofile) years before Microsoft was even founded. Indeed, this quirk in the library loader exemplifies an avoidable misstep—one that, like virtually all Windows API oversights, exists as an outcome of Microsoft's expedient development style when creating their core technologies.
 
 An excerpt from *Windows Internals: System architecture, processes, threads, memory management, and more, Part 1 (7th edition)* states this regarding the `ntdll!LdrpModuleBaseAddressIndex` data structure (and `ntdll!LdrpMappingInfoIndex`):
 
 > Additionally, because lookups in linked lists are algorithmically expensive (being done in linear time), the loader also maintains two red-black trees, which are efficient binary lookup trees. The first is sorted by base address, while the second is sorted by the hash of the module’s name. With these trees, the searching algorithm can run in logarithmic time, which is significantly more efficient and greatly speeds up process-creation performance in Windows 8 and later. Additionally, as a security precaution, the root of these two trees, unlike the linked lists, is not accessible in the PEB. This makes them harder to locate by shell code, which is operating in an environment where address space layout randomization (ASLR) is enabled.
 
-While the message on performance is certainly a true and prudent point to make, I also find that statement alone lacks relevant perspective on the fact that `ntdll!LdrpModuleBaseAddressIndex` only exists to begin with as a workaround for Microsoft's blunder with the `LoadLibrary` function API. The point regarding security is dubious because if the module linked lists are already in the PEB (and must remain there indefinitely for backward compatibility) then excluding the red-black trees has no effect because security comes down to the lowest common denominator. The background infromation on the trouble with module linked lists residing in the PEB is nice (of course, there are a variety of ways to find other modules in the process but those methods would be a bit "harder" and likely not universal). Again though, there is a more relevant point to make that is not addressed by the book especially since it does cover the associated Windows history in some places, just not here.
+While the message on performance is a true and prudent point to make, I also find that statement alone lacks relevant perspective on the fact that `ntdll!LdrpModuleBaseAddressIndex` only exists to begin with as a workaround for Microsoft's blunder with the `LoadLibrary` function API. The point regarding security is dubious because if the module linked lists are already in the PEB (and must remain there indefinitely for backward compatibility) then excluding the red-black trees has no effect because security comes down to the lowest common denominator. The background information on trouble that arises from module linked lists residing in the PEB is nice (of course, there are a variety of ways to find other modules in the process but those methods would be a bit "harder" and likely not universal). Again though, there is a more relevant point to make that is not addressed by the book especially since it does cover the associated Windows history in some places, just not here.
 
 ## Library Loading Locations Across Operating Systems
 
@@ -1943,7 +1945,8 @@ I've provided Microsoft lots of constructive criticism and ways to fix their sys
   - There's this great thing called [ISO-8601](https://en.wikipedia.org/wiki/ISO_8601) circa 1988, you should try it ([ISO-8601 also supports high precision](https://stackoverflow.com/a/31477453) like `CIM_DATATIME`)
   - I have a POSIX-compliant shell one-liner for parsing these out to a Unix timestamp and I would share, but I need to find it
 - Complaint #26: Unix UGO > Windows ACLs
-  - The UGO and ACLs file system permission models work opposite to each other: in UGO you structure groups to achieve permission granularity and there is a one-to-many relationship between a group and its members; in ACLs a file has a one-to-many relationship with its permissions (such as allowed or disallowed users and groups)
+  - UGO achieves permission granularity by defining clear groups and then assigning users to any number of those groups where each file can have one group, while ACLs work by tacking permissions directly on files themselves
+    - Unlike Windows ACLs, UGO groups cannot be nested, which seems like it could be a weakness until you realize that the flat model for groups avoids nasty side effects such as the possibility of group cycles while avoiding excessive permissions and keeping file access times low (nested groups can be simulated by assigning users to more groups, anyway)
   - In practice, ACLs are unmanageable, inefficient, and insecure (in terms of auditability for preventing backdoors) because a file system can have tons of files and each file can have up to [about 1,820 permissions](https://learn.microsoft.com/en-us/troubleshoot/windows-server/windows-security/error-add-user-to-security-permissions#cause) meanwhile the UGO model is so elegant and clean, espeically with every state of each letter fitting squarely into its own octect for perfect memory efficiency
   - Changing security information on Windows is always slow as molasses in my experience with [those dialog boxes](https://us1.discourse-cdn.com/spiceworks/original/4X/b/f/3/bf3443805e9ad84107c66028c27d7c585385bcfc.jpeg) that have no progress indicator
   - On top of UGO, modern Unix systems also optionally support ACLs if throwing permissions directly on files is what you want to do, but UGO undoubtably works best as the base permission model for an operating system
