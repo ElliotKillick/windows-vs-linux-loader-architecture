@@ -3,7 +3,6 @@
 rem These options replicate Visual Studio
 rem /MD: Use UCRT instead of statically linking CRT into modules
 rem /INCREMENTAL:NO: Remove "ILT" from symbol names
-cl dll-test-2.c /DUNICODE /D_UNICODE /MD /LD /Zi /DEBUG /link /INCREMENTAL:NO
 cl dll-test.c /DUNICODE /D_UNICODE /MD /LD /Zi /DEBUG /link /INCREMENTAL:NO
 cl exe-test.c /DUNICODE /D_UNICODE /MD /Zi /DEBUG /link /INCREMENTAL:NO
 

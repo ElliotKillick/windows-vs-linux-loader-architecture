@@ -49,7 +49,7 @@ List all module `DdagNode` structures:
 
 Note that `$extret` is a pseudo-register that the WinDbg `!list` command specially uses to store each list entry's address as it iterates through the list.
 
-List all module `DdagNode.State` values:
+List all modules with their `DdagNode.State` values:
 
 ```
 !list -x "dt ntdll!_LDR_DATA_TABLE_ENTRY @$extret -cio -t BaseDllName; dt ntdll!_LDR_DDAG_NODE @@C++(((ntdll!_LDR_DATA_TABLE_ENTRY *)@$extret)->DdagNode) -cio -t State" @@C++(&@$peb->Ldr->InLoadOrderModuleList)
