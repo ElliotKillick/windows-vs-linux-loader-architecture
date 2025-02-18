@@ -342,21 +342,19 @@ View state of Win32 events WinDbg command: `!handle 0 ff Event`
 
 ### Disable Loader Worker Threads
 
-This CMD command helps analyze what locks are acquired in what parts of the code without the chance of a loader worker thread muddying your analysis (among other things). These show up as `ntdll!TppWorkerThread` threads in WinDbg at process startup (note that any threads belonging to other thread pools also take this thread name).
+This CMD command is helpful for examining the core operations and patterns of the parallel loader without the complexity introduced by loader worker threads.
 
 ```
 reg add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\<YOUR_EXE_FILENAME>" /v MaxLoaderThreads /t REG_DWORD /d 1 /f
 ```
 
-Yes, the correct value for disabling loader threads from spawning is `1`. Set `0` and loader threads still spawn (`0` appears to be the same as unset). Setting `2` spawns one loader worker thread, and that pattern continues...
+We limit the loader threads (including the load owner thread) to `1` thus disabling loader worker threads. Setting `0` is the same as this registry value being unset. Setting `2` allows for one loader worker thread, and so forth. The maximum number of loader worker threads the parallel loader allows is four. Specifying a thread count higher than `5` will top out at four loader worker threads. By default, loader worker thread will dynamically start up to a limit of 4 as more are concurrently needed and exit after a certain time limit is reached to save resources (these thread lifetimes are handled by thread pool internals).
 
-Internally, at process initialization (`LdrpInitializeProcess`), the loader retrieves `MaxLoaderThreads` in `LdrpInitializeExecutionOptions`. `LdrpInitializeExecutionOptions` queries this registry value (along with others) and saves the result. Later, the `MaxLoaderThreads` registry value becomes the first argument to the `LdrpEnableParallelLoading` function. `LdrpEnableParallelLoading` validates the value before passing it as the second argument to the `TpSetPoolMaxThreads` function. The `TpSetPoolMaxThreads` function does a [`NtSetInformationWorkerFactory`](https://ntdoc.m417z.com/ntsetinformationworkerfactory) system call with the second argument being the enum value [`WorkerFactoryThreadMaximum`](https://ntdoc.m417z.com/workerfactoryinfoclass) (`5`) to set the maximum thread count and the desired count pointed to by the third argument within the `WorkerFactoryInformation` structure (undocumented).
+Loader worker threads show up as `ntdll!TppWorkerThread` threads in debuggers and will have the `LoaderWorker` flag set in their TEBs. In WinDbg, distinguish between threads in the loader worker thread pool and threads that are part of another thread pool with this command: `dt @$teb ntdll!_TEB -t LoaderWorker`
 
-The maximum number of threads the parallel loader allows is `4`. Specifying a higher thread count will top out at `4`.
+Internally, at process initialization (`LdrpInitializeProcess`), the loader retrieves `MaxLoaderThreads` in `LdrpInitializeExecutionOptions`. `LdrpInitializeExecutionOptions` queries this registry value (along with others) and saves the result. Later, the `MaxLoaderThreads` registry value becomes the first argument to the `LdrpEnableParallelLoading` function. `LdrpEnableParallelLoading` validates the value before passing it as the second argument to the `TpSetPoolMaxThreads` function. The `TpSetPoolMaxThreads` function does a [`NtSetInformationWorkerFactory`](https://ntdoc.m417z.com/ntsetinformationworkerfactory) system call with the second argument being the enum value [`WorkerFactoryThreadMaximum`](https://ntdoc.m417z.com/workerfactoryinfoclass) to set the maximum thread count, with the desired count being pointed to by the third argument within the `WorkerFactoryInformation` structure (undocumented).
 
 Creating threads happens with [`ntdll!NtCreateWorkerFactory`](https://ntdoc.m417z.com/ntcreateworkerfactory). The `ntdll!NtCreateWorkerFactory` function only does the `NtCreateWorkerFactory` system call; this is a kernel wrapper for creating multiple threads at once, improving performance because it avoids extra user-mode ⬌ kernel-mode context switches.
-
-Some operations, such as `ShellExecute`, may spawn threads named `ntdll!TppWorkerThread`. However, these worker threads belong to an unrelated thread pool, not the loader worker thread pool, and thus, never call the `ntdll!LdrpWorkCallback` function entry point. Make sure to distinguish threads that are part of the loader worker thread pool: `dt @$teb ntdll!_TEB -t LoaderWorker`
 
 ### Thread and Worker Logging
 

@@ -106,9 +106,9 @@ All of the information contained here covers Windows 10 22H2 and glibc 2.38 on L
 
 ## Parallel Loader Overview
 
-When a library load contains more than one work item (i.e. a library with at least one dependency that is not already loaded into the process), the Windows loader will use its parallel loading ability to speed up library loading. The first work item of a load will always happen in series, on the same thread that called `LoadLibrary`, because the loader must begin to map and snap one library before it can find dependencies that it also needs to map and snap. [To start, see what a trace with one library with no new dependenices looks like.](data/windows/loadlibrary-trace.log)
+When a library load contains more than one work item (i.e. a library with at least one dependency that is not already loaded into the process), the Windows loader will use its parallel loading ability to speed up library loading. The first work item of a load will always happen in series, on the same thread that called `LoadLibrary`, because the loader must begin to map and snap one library before it can find dependencies that it also needs to map and snap. [To start, see what a trace of one library with no new dependencies looks like.](data/windows/loadlibrary-trace.log)
 
-Put simply, the parallel loader is a layer on top of the regular loader that calls `ntdll!LdrpQueueWork` to offload library loading work to loader worker threads:
+Put simply, the parallel loader is a layer on top of the regular loader that calls `ntdll!LdrpQueueWork` to offload library loading work to other loader threads:
 
 ```
 # "call    ntdll!LdrpQueueWork" <NTDLL_ADDRESS> L9999999
@@ -124,7 +124,7 @@ ntdll!LdrpLoadContextReplaceModule+0x126:
 
 Everything else is infrastructure to support this work offloading mechanism.
 
-The `ntdll!LdrpQueueWork` function is how modules are added to the `ntdll!LdrpWorkQueue` linked list data structure.  Work processors (i.e. callers of `ntdll!LdrpProcessWork`) such as loader worker threads or a [concurrent `LoadLibrary`](windows/code/loadlibrary-concurrent-work) access the `ntdll!LdrpWorkQueue` list to pick up a work item. Access to the `ntdll!LdrpWorkQueue` shared data structure is protected by the `ntdll!LdrpWorkQueueLock` critical section lock.
+The `ntdll!LdrpQueueWork` function is how modules are added to the `ntdll!LdrpWorkQueue` linked list data structure.  Work processors (i.e. callers of `ntdll!LdrpProcessWork`) such as loader worker threads or the `ntdll!LdrpDrainWorkQueue` function, for instance in a [concurrent `LoadLibrary`](code/windows/loadlibrary-concurrent-work/README.md), access the `ntdll!LdrpWorkQueue` list to pick up a work item. Access to the `ntdll!LdrpWorkQueue` shared data structure is protected by the `ntdll!LdrpWorkQueueLock` critical section lock.
 
 Each list entry in the `ntdll!LdrpWorkQueue` data structure is a `LDRP_LOAD_CONTEXT` structure. This structure is undocumented by Microsoft because its contents are not in the public debug symbols. Each `LDRP_LOAD_CONTEXT` structure relates directly to one module because a module's `LDR_DATA_TABLE_ENTRY` structure is allocated at the same time as its `LDRP_LOAD_CONTEXT` structure in the `LdrpAllocatePlaceHolder` function. In addition, the first member of each `LDRP_LOAD_CONTEXT` structure is a `UNICODE_STRING` of the `BaseDllName` according to the module that it relates to.
 
@@ -2050,7 +2050,7 @@ What we just described is the resource hierarchy solution. I encourage you to ex
 
 ### `LdrpDrainWorkQueue`
 
-The `LdrpDrainWorkQueue` function is responsible for the [high-level synchronization of the loader](#high-level-loader-synchronization). See the [Parallel Loader Overview](#parallel-loading-overview) section for contextual information.
+The `LdrpDrainWorkQueue` function is responsible for the [high-level synchronization of the loader](#high-level-loader-synchronization) and for [helping to process work when it is immediately available](code/windows/loadlibrary-concurrent-work/README.md). See the [Parallel Loader Overview](#parallel-loading-overview) section for contextual information.
 
 ```c
 // Variable names are my own
